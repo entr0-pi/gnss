@@ -1,0 +1,155 @@
+#pragma once
+#include <Arduino.h>
+
+static const uint8_t STYLE_CSS[] PROGMEM = R"CSS(
+:root{
+  --bg:#0b0f14;
+  --stroke:rgba(255,255,255,.08);
+  --text:#e8eef6;
+  --muted:rgba(232,238,246,.72);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  --glow: 0 0 0 1px rgba(255,255,255,.06), 0 20px 60px rgba(0,0,0,.5);
+}
+*{ box-sizing:border-box; }
+body{
+  margin:0;
+  min-height:100vh;
+  font-family:var(--sans);
+  color:var(--text);
+  background:
+    radial-gradient(900px 500px at 10% 10%, rgba(45,125,255,.18), transparent 60%),
+    radial-gradient(700px 450px at 90% 20%, rgba(255,59,48,.10), transparent 55%),
+    var(--bg);
+  padding:18px;
+}
+.wrap{
+  max-width:600px;
+  margin:0 auto; 
+}
+.top{ 
+  padding:6px 4px 14px;
+}
+.badge{
+  display:inline-block;
+  letter-spacing:.14em;
+  font-size:12px;
+  font-weight:800;
+  color:rgba(255,255,255,.82);
+  background:rgba(18, 43, 17, 0.06);
+  border:1px solid var(--stroke);
+  border-radius:999px;
+  padding:6px 10px;
+}
+.title{ 
+  margin-top:10px; 
+  font-size:26px; 
+  font-weight:900;
+}
+.sub{
+  margin-top:4px; 
+  color:var(--muted); 
+  font-size:13px;
+}
+.card{
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  border:1px solid var(--stroke);
+  border-radius:16px;
+  box-shadow: var(--glow);
+  padding:16px;
+}
+.grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+}
+.kv{
+  padding:12px;
+  border:1px solid var(--stroke);
+  background: rgba(0,0,0,.18);
+  border-radius:14px;
+}
+.k{ font-size:12px; color:var(--muted); }
+.v{ margin-top:6px; font-size:18px; font-weight:900; }
+.mono{ font-family:var(--mono); }
+
+.divider{
+  height:1px;
+  background: rgba(255,255,255,.08);
+  margin:14px 2px;
+}
+.cat{ margin-top:10px; }
+.catTitle{
+  font-size:12px;
+  color:rgba(255,255,255,.78);
+  letter-spacing:.08em;
+  font-weight:900;
+  margin:8px 2px;
+  text-transform:uppercase;
+}
+.catBody{
+  border:1px solid var(--stroke);
+  background: rgba(0,0,0,.14);
+  border-radius:14px;
+  padding:10px 12px;
+}
+.line{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:6px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.line:last-child{ border-bottom:0; }
+.lk{ color:var(--muted); font-size:13px; }
+.lv{ font-weight:800; font-size:13px; }
+
+.actions{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  margin-top:14px;
+}
+.btn{
+  appearance:none;
+  border:0;
+  border-radius:14px;
+  padding:12px 14px;
+  font-weight:900;
+  font-size:15px;
+  color:white;
+  background: rgba(45,125,255,.95);
+  box-shadow: 0 10px 30px rgba(45,125,255,.18);
+  cursor:pointer;
+}
+.btn:active{ transform: translateY(1px); }
+.btn.danger{
+  background: rgba(255,59,48,.95);
+  box-shadow: 0 10px 30px rgba(255,59,48,.16);
+}
+.note{
+  flex:1;
+  color:var(--muted);
+  font-size:13px;
+}
+.foot{
+  margin-top:12px;
+  display:flex;
+  gap:8px;
+  align-items:center;
+  color:var(--muted);
+  font-size:13px;
+  padding:0 4px;
+}
+.dot{
+  width:10px; height:10px;
+  border-radius:50%;
+  background: rgba(255,255,255,.25);
+  border:1px solid var(--stroke);
+}
+.dot.ok{ background: rgba(56,214,124,.95); }
+.dot.bad{ background: rgba(255,59,48,.95); }
+)CSS";
+
+static const size_t STYLE_CSS_LEN = sizeof(STYLE_CSS) - 1;
