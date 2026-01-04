@@ -4,7 +4,7 @@
 
   - BLE (NUS) using NimBLE-Arduino (h2zero)
   - FreeRTOS StreamBuffers as ring buffers
-  - iPhone compatible: explicit CCCD (0x2902) on TX notify characteristic
+  - iPhone compatible: subscribe callback tracks notify enable
   - Backpressure aware: does not drain UART->BLE faster than notify succeeds
 
   Direction:
@@ -91,12 +91,48 @@ static uint8_t               g_sb_ble2uart_storage[SB_BLE_TO_UART_SIZE];
 static StreamBufferHandle_t  g_sb_uart2ble = nullptr;
 static StreamBufferHandle_t  g_sb_ble2uart = nullptr;
 
+// ========================= BLE STATUS (BLOCK) =========================
+struct BleStatus {
+  volatile bool     connected      = false;
+
+  volatile uint16_t mtu            = 0;
+
+  volatile uint64_t txBytes        = 0;       // bytes successfully notified
+  volatile uint64_t rxBytes        = 0;       // bytes received from phone (writes)
+
+  void resetCounters() {
+    txBytes = 0; rxBytes = 0;
+  }
+};
+
+static BleStatus g_bleStatus;
+
+// ======================= END BLE STATUS (BLOCK) =======================
+
+// ---- Snapshot getter for web_ui.cpp (declared in web_ui.h) ----
+bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
+  out.connected     = g_bleStatus.connected;
+
+  out.mtu  = g_bleStatus.mtu;
+
+  // Keep JSON compact: truncate counters to 32-bit here (you can switch to uint64_t if desired)
+  out.txBytes = (uint32_t)g_bleStatus.txBytes;
+  out.rxBytes = (uint32_t)g_bleStatus.rxBytes;
+
+  return true;
+}
+
 // ---------------- BLE Callbacks ----------------
 class ServerCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {
     (void)pServer; (void)connInfo;
     g_connected = true;
     g_notifyEn  = false; // will be set by subscribe callback
+
+    // ---- status hook ----
+    g_bleStatus.connected = true;
+    g_bleStatus.mtu = connInfo.getMTU();
+
     Serial.println("[BLE] Connected");
   }
 
@@ -108,6 +144,10 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     // Flush pending NMEA so next connect is "live"
     if (g_sb_uart2ble) xStreamBufferReset(g_sb_uart2ble);
 
+    // ---- status hook ----
+    g_bleStatus.connected = false;
+    g_bleStatus.mtu = 0;
+
     Serial.println("[BLE] Disconnected - advertising again");
     NimBLEDevice::startAdvertising();
   }
@@ -118,7 +158,9 @@ class TxCallbacks : public NimBLECharacteristicCallbacks {
                    NimBLEConnInfo& connInfo,
                    uint16_t subValue) override {
     (void)pCharacteristic; (void)connInfo;
-    g_notifyEn = (subValue & 0x0001); // bit0 = notifications enabled
+    // bit0 = notifications enabled
+    g_notifyEn = (subValue & 0x0001);
+
     Serial.print("[BLE] Notify ");
     Serial.println(g_notifyEn ? "ENABLED" : "DISABLED");
 
@@ -130,8 +172,13 @@ class TxCallbacks : public NimBLECharacteristicCallbacks {
 class RxCallbacks : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* pCharacteristic, NimBLEConnInfo& connInfo) override {
     (void)connInfo;
+
     const std::string& v = pCharacteristic->getValue();
     if (v.empty() || !g_sb_ble2uart) return;
+
+    // ---- status hook ----
+    g_bleStatus.rxBytes += v.size();
+
     // Best-effort push RTCM bytes into BLE->UART buffer (drop if full)
     xStreamBufferSend(g_sb_ble2uart, v.data(), v.size(), 0);
   }
@@ -233,13 +280,13 @@ static void setupBLE() {
 
   NimBLEService* svc = g_server->createService(NUS_SERVICE_UUID);
 
-  // TX (notify) — add CCCD explicitly for iOS compatibility
+  // TX (notify)
   g_txChar = svc->createCharacteristic(NUS_TX_UUID, NIMBLE_PROPERTY::NOTIFY);
   g_txChar->setCallbacks(new TxCallbacks());
 
   // RX (write / write without response)
   NimBLECharacteristic* rxChar =
-      svc->createCharacteristic(NUS_RX_UUID,NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
+      svc->createCharacteristic(NUS_RX_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
   rxChar->setCallbacks(new RxCallbacks());
 
   svc->start();
@@ -258,8 +305,6 @@ static void setupUART() {
   Serial1.begin(UM980_BAUD, SERIAL_8N1, PIN_UM980_RX, PIN_UM980_TX);
   Serial.println("[UART] Serial1 started");
 }
-
-// UART RX task
 
 // UART RX task: reads bytes from UM980 and pushes into UART->BLE buffer
 static void task_uart_rx(void* arg) {
@@ -287,6 +332,7 @@ static void task_ble_tx(void* arg) {
   uint8_t out[BLE_NOTIFY_CHUNK];
 
   for (;;) {
+    // If not connected or not subscribed, don't drain the UART buffer endlessly.
     if (!(g_connected && g_notifyEn && g_txChar)) {
       vTaskDelay(pdMS_TO_TICKS(50));
       continue;
@@ -306,8 +352,14 @@ static void task_ble_tx(void* arg) {
     g_txChar->setValue(out, got);
     bool ok = g_txChar->notify();
 
-    if (ok) vTaskDelay(BLE_OK_DELAY);
-    else    vTaskDelay(BLE_FAIL_DELAY);
+    // ---- status hook ----
+    if (ok) { g_bleStatus.txBytes += got; }
+
+    if (ok) {
+      vTaskDelay(BLE_OK_DELAY);
+    } else {
+      vTaskDelay(BLE_FAIL_DELAY);
+    }
   }
 }
 

@@ -64,6 +64,16 @@ static const uint8_t INDEX_HTML[] PROGMEM = R"HTML(
       </div>
 
       <div class="cat">
+        <div class="catTitle">Bluetooth</div>
+        <div class="catBody">
+          <div class="line"><span class="lk">Connected</span><span class="lv mono" id="ble_connected">—</span></div>
+          <div class="line"><span class="lk">MTU</span><span class="lv mono" id="ble_mtu">—</span></div>
+          <div class="line"><span class="lk">NMEA</span><span class="lv mono" id="ble_txBytes">—</span></div>
+          <div class="line"><span class="lk">NTRIP</span><span class="lv mono" id="ble_rxBytes">—</span></div>
+        </div>
+      </div>
+
+      <div class="cat">
         <div class="catTitle">Wi-Fi (in <span id="wmode">—</span> mode)</div>
         <div class="catBody">
           <div class="line"><span class="lk">SSID</span><span class="lv mono" id="ssid">—</span></div>
@@ -139,6 +149,11 @@ async function refresh(){
     $('heap_free').textContent = fmtBytes(s.memory?.heap_free);
     $('heap_min').textContent  = fmtBytes(s.memory?.heap_min_free);
     $('heap_max').textContent  = fmtBytes(s.memory?.heap_max_alloc);
+
+    $('ble_connected').textContent = safe(s.ble?.connected);
+    $('ble_mtu').textContent    = safe(s.ble?.mtu);
+    $('ble_txBytes').textContent   = fmtBytes(s.ble?.txBytes);
+    $('ble_rxBytes').textContent= fmtBytes(s.ble?.rxBytes);  
 
     $('wmode').textContent = safe(s.wifi?.mode);
     $('ssid').textContent  = safe(s.wifi?.ssid);

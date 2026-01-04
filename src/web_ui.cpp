@@ -1,3 +1,4 @@
+// ======================= web_ui.cpp (FINAL - JSON built here) =======================
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <HTTPClient.h>
@@ -59,19 +60,21 @@ static bool logInternetHTTP() {
   Serial.print("[NET] HTTP code: ");
   Serial.println(code);
 
+  bool ok = false;
   if (code == 204) {
     Serial.println("[NET] Internet reachable ✅");
-    return true;
+    ok = true;
   } else if (code > 0) {
     Serial.println("[NET] Reached server, but unexpected code");
-    return false;
+    ok = false;
   } else {
     Serial.print("[NET] HTTP GET failed, err=");
     Serial.println(http.errorToString(code)); // code is negative on error
-    return false;
+    ok = false;
   }
 
   http.end();
+  return ok;
 }
 
 // ------------- API: /api/status -------------
@@ -114,9 +117,13 @@ static void handleStatus() {
   const char* app_state = "idle";
   const char* app_notes = "ready";
 
+  // --- BLE snapshot (optional) ---
+  WebuiBleSnapshot ble{};
+  const bool has_ble = webui_get_ble_snapshot(ble);
+
   // --- JSON ---
   String json;
-  json.reserve(1100);
+  json.reserve(1300);
 
   json += "{";
 
@@ -154,6 +161,16 @@ static void handleStatus() {
   json += "\"state\":\"" + String(app_state) + "\",";
   json += "\"notes\":\"" + String(app_notes) + "\"";
   json += "},";
+
+  // ---- BLE section added, JSON built here for consistency ----
+  if (has_ble) {
+    json += "\"ble\":{";
+    json += "\"connected\":\"" + String(ble.connected ? "✅" : "❌") + "\",";
+    json += "\"mtu\":"       + String(ble.mtu) + ",";
+    json += "\"txBytes\":"   + String(ble.txBytes) + ",";
+    json += "\"rxBytes\":"   + String(ble.rxBytes);
+    json += "},";
+  }
 
   json += "\"internet\":{";
   json += "\"reach\":\"" + String(internet) + "\"";
