@@ -2,6 +2,11 @@
 #include <Arduino.h>
 
 static const uint8_t STYLE_CSS[] PROGMEM = R"CSS(
+
+@keyframes blink {
+  50% { opacity: 0.4; }
+}
+
 :root{
   --bg:#0b0f14;
   --stroke:rgba(255,255,255,.08);
@@ -105,6 +110,12 @@ body{
 .lk{ color:var(--muted); font-size:13px; }
 .lv{ font-weight:800; font-size:13px; }
 
+#rssi.good { color: #2ecc71; font-weight:bold; animation: blink 1s infinite; }
+#rssi.ok   { color: #f1c40f ; font-weight:bold; animation: blink 1s infinite; }
+#rssi.bad  { color: #e67e22; font-weight:bold; animation: blink 1s infinite; }
+#rssi.dead { color: #e74c3c; font-weight:bold; animation: blink 1s infinite; }
+#rssi.unknown { color: #95a5a6 !important; animation: blink 1s infinite; }
+
 .actions{
   display:flex;
   gap:12px;
@@ -142,6 +153,17 @@ body{
   font-size:13px;
   padding:0 4px;
 }
+
+.status-inline{
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  font-size: 12px;
+  color: var(--muted);
+}
+  
 .dot{
   width:10px; height:10px;
   border-radius:50%;
@@ -150,6 +172,7 @@ body{
 }
 .dot.ok{ background: rgba(56,214,124,.95); }
 .dot.bad{ background: rgba(255,59,48,.95); }
+
 )CSS";
 
 static const size_t STYLE_CSS_LEN = sizeof(STYLE_CSS) - 1;

@@ -9,13 +9,18 @@ static const uint8_t INDEX_HTML[] PROGMEM = R"HTML(
   <title>ESP32-C3 Status</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=16">
 </head>
 <body>
   <div class="wrap">
     <header class="top">
       <div class="title">STATUS REPORT</div>
       <div class="sub">Web Server on ESP32-C3 with UM980</div>
+      <div class="status-inline">
+        <span class="dot" id="dot"></span>
+        <span id="state">connecting…</span>
+      </div>
+  </div>
     </header>
 
     <section class="card">
@@ -25,8 +30,8 @@ static const uint8_t INDEX_HTML[] PROGMEM = R"HTML(
           <div class="v" id="uptime">—</div>
         </div>
         <div class="kv">
-          <div class="k">IP</div>
-          <div class="v mono" id="ip">—</div>
+          <div class="k">Signal Power</div>
+          <div class="v mono" id="rssi">—</div>
         </div>
       </div>      
 
@@ -67,9 +72,9 @@ static const uint8_t INDEX_HTML[] PROGMEM = R"HTML(
         <div class="catTitle">Bluetooth</div>
         <div class="catBody">
           <div class="line"><span class="lk">Connected</span><span class="lv mono" id="ble_connected">—</span></div>
-          <div class="line"><span class="lk">MTU</span><span class="lv mono" id="ble_mtu">—</span></div>
-          <div class="line"><span class="lk">NMEA</span><span class="lv mono" id="ble_txBytes">—</span></div>
-          <div class="line"><span class="lk">NTRIP</span><span class="lv mono" id="ble_rxBytes">—</span></div>
+          <div class="line ble-metric"><span class="lk">MTU</span><span class="lv mono" id="ble_mtu">—</span></div>
+          <div class="line ble-metric"><span class="lk">NMEA</span><span class="lv mono" id="ble_txBytes">—</span></div>
+          <div class="line ble-metric"><span class="lk">NTRIP</span><span class="lv mono" id="ble_rxBytes">—</span></div>
         </div>
       </div>
 
@@ -82,7 +87,6 @@ static const uint8_t INDEX_HTML[] PROGMEM = R"HTML(
           <div class="line"><span class="lk">DNS</span><span class="lv mono" id="dns">—</span></div>
           <div class="line"><span class="lk">Subnet</span><span class="lv mono" id="subnet">—</span></div>
           <div class="line"><span class="lk">Broadcast</span><span class="lv mono" id="bcast">—</span></div>
-          <div class="line"><span class="lk">RSSI</span><span class="lv mono" id="rssi">—</span></div>
           <div class="line"><span class="lk">MAC</span><span class="lv mono" id="mac">—</span></div>
         </div>
       </div>
@@ -107,13 +111,42 @@ static const uint8_t INDEX_HTML[] PROGMEM = R"HTML(
     </section>
 
     <footer class="foot">
-      <span class="dot" id="dot"></span>
-      <span id="state">connecting…</span>
     </footer>
   </div>
 
 <script>
 const $ = (id) => document.getElementById(id);
+
+let valeurAvg = null;  // exponential moving average
+
+function updateColorRssi(valeur) {
+  const el = $("rssi");
+  if (!el) return;
+
+  // Accept number OR numeric string
+  const n = (typeof valeur === "number") ? valeur : Number(valeur);
+
+  if (!Number.isFinite(n)) {
+    el.textContent = "—";
+    el.classList.remove("good","ok","bad","dead");
+    el.classList.add("unknown");
+    valeurAvg = null;
+    return;
+  }
+
+  el.textContent = n + " dBm";
+
+  // Smooth
+  if (valeurAvg === null) valeurAvg = n;
+  valeurAvg = 0.7 * valeurAvg + 0.3 * n;
+
+  el.classList.remove("good","ok","bad","dead","unknown");
+
+  if (valeurAvg >= -50)      el.classList.add("good");
+  else if (valeurAvg >= -65) el.classList.add("ok");
+  else if (valeurAvg >= -75) el.classList.add("bad");
+  else                       el.classList.add("dead");
+}
 
 function fmtBytes(n){
   if (!Number.isFinite(n)) return "—";
@@ -141,7 +174,7 @@ async function refresh(){
     const s = await r.json();
 
     $('uptime').textContent = fmtUptime(s.device?.uptime_ms ?? NaN);
-    $('ip').textContent     = safe(s.wifi?.ip);
+    updateColorRssi(s.wifi?.rssi_dbm);
 
     $('cpu').textContent   = safe((s.device?.cpu_mhz !== undefined) ? (s.device.cpu_mhz + " MHz") : undefined);
     $('build').textContent = safe(s.device?.build);
@@ -162,10 +195,6 @@ async function refresh(){
     $('dns').textContent   = safe(s.wifi?.dns);
     $('subnet').textContent= safe(s.wifi?.subnet);
     $('bcast').textContent = safe(s.wifi?.broadcast);
-
-    const rssi = s.wifi?.rssi_dbm;
-    $('rssi').textContent = (typeof rssi === "number") ? (rssi + " dBm") : "—";
-
     $('mac').textContent = safe(s.wifi?.mac);
 
     $('port').textContent = safe(s.http?.port);
@@ -180,10 +209,14 @@ async function refresh(){
     $('state').textContent = "online";
     $('dot').className = "dot ok";
     $('note').textContent = "Last update: " + new Date().toLocaleTimeString();
+
   } catch (e) {
     $('state').textContent = "offline";
     $('dot').className = "dot bad";
     $('note').textContent = "Failed to reach device";
+
+    updateColorRssi(NaN);
+
   }
 }
 
@@ -197,6 +230,7 @@ $('restartBtn').addEventListener('click', async () => {
 refresh();
 setInterval(refresh, 1000);
 </script>
+
 </body>
 </html>
 )HTML";
