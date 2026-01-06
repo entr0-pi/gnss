@@ -30,6 +30,9 @@
 #include <WebServer.h>
 #include "web_ui.h"
 
+// ---- NMEA ----
+#include "nmea_gps.h"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/stream_buffer.h"
@@ -122,6 +125,33 @@ bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
   return true;
 }
 
+bool webui_get_gps_snapshot(WebuiGpsSnapshot& out) {
+  NmeaGpsSnapshot s{};
+  if (!nmea_get_snapshot(s)) return false;
+
+  out.valid      = s.valid;
+  out.lat        = s.lat;
+  out.lon        = s.lon;
+  out.speedKmh   = s.speedKmh;
+
+  out.satsUsed   = s.satsUsed;
+  out.fixQuality = s.fixQuality;
+  out.fixType    = s.fixType;
+  out.hdop       = s.hdop;
+
+  out.timeValid  = s.timeValid;
+  out.hour       = s.hour;
+  out.minute     = s.minute;
+  out.second     = s.second;
+
+  out.year       = s.year;
+  out.month      = s.month;
+  out.day        = s.day;
+
+  out.ageMs      = s.ageMs;
+  return true;
+}
+
 // ---------------- BLE Callbacks ----------------
 class ServerCallbacks : public NimBLEServerCallbacks {
   void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {
@@ -206,6 +236,9 @@ void setup() {
 
   // ---- (connect STA + start HTTP server) ----
   setupWiFiAndWeb();
+
+  // ---- (NMEA) ----
+   nmea_begin();
 
   // Create StreamBuffers (static)
   g_sb_uart2ble = xStreamBufferCreateStatic(
@@ -318,10 +351,21 @@ static void task_uart_rx(void* arg) {
       continue;
     }
 
+    // int n = Serial1.readBytes(tmp, (size_t)min(avail, (int)sizeof(tmp)));
+    // if (n > 0 && g_sb_uart2ble) {
+    //   // Best-effort push; drop if full
+    //   xStreamBufferSend(g_sb_uart2ble, tmp, (size_t)n, 0);
+    // }
+    
     int n = Serial1.readBytes(tmp, (size_t)min(avail, (int)sizeof(tmp)));
-    if (n > 0 && g_sb_uart2ble) {
-      // Best-effort push; drop if full
-      xStreamBufferSend(g_sb_uart2ble, tmp, (size_t)n, 0);
+    if (n > 0) {
+      // Feed NMEA parser from the same bytes
+      nmea_feed_bytes(tmp, (size_t)n, millis());
+
+      // Keep existing UART->BLE buffering unchanged
+      if (g_sb_uart2ble) {
+        xStreamBufferSend(g_sb_uart2ble, tmp, (size_t)n, 0);
+      }
     }
   }
 }

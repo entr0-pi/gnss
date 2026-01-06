@@ -79,6 +79,22 @@ static const uint8_t INDEX_HTML[] PROGMEM = R"HTML(
       </div>
 
       <div class="cat">
+        <div class="catTitle">GPS</div>
+        <div class="catBody">
+          <div class="line"><span class="lk">Valid</span><span class="lv mono" id="gps_valid">—</span></div>
+          <div class="line"><span class="lk">Fix</span><span class="lv mono" id="gps_fix">—</span></div>
+          <div class="line"><span class="lk">Sat Used</span><span class="lv mono" id="gps_sats">—</span></div>
+          <div class="line"><span class="lk">HDOP</span><span class="lv mono" id="gps_hdop">—</span></div>
+          <div class="line"><span class="lk">Lat</span><span class="lv mono" id="gps_lat">—</span></div>
+          <div class="line"><span class="lk">Lon</span><span class="lv mono" id="gps_lon">—</span></div>
+          <div class="line"><span class="lk">Speed</span><span class="lv mono" id="gps_speed">—</span></div>
+          <div class="line"><span class="lk">UTC</span><span class="lv mono" id="gps_utc">—</span></div>
+          <div class="line"><span class="lk">Age</span><span class="lv mono" id="gps_age">—</span></div>
+        </div>
+      </div>
+
+
+      <div class="cat">
         <div class="catTitle">Wi-Fi (in <span id="wmode">—</span> mode)</div>
         <div class="catBody">
           <div class="line"><span class="lk">SSID</span><span class="lv mono" id="ssid">—</span></div>
@@ -186,7 +202,25 @@ async function refresh(){
     $('ble_connected').textContent = safe(s.ble?.connected);
     $('ble_mtu').textContent    = safe(s.ble?.mtu);
     $('ble_txBytes').textContent   = fmtBytes(s.ble?.txBytes);
-    $('ble_rxBytes').textContent= fmtBytes(s.ble?.rxBytes);  
+    $('ble_rxBytes').textContent= fmtBytes(s.ble?.rxBytes);
+    
+    $('gps_valid').textContent = safe(s.gps?.valid);
+    $('gps_fix').textContent   = safe(
+      (s.gps?.fix_type && s.gps?.fix_quality) ? (s.gps.fix_type + " / " + s.gps.fix_quality) : undefined
+    );
+    $('gps_sats').textContent  = safe(s.gps?.sats_used);
+    $('gps_hdop').textContent  = safe((s.gps?.hdop !== undefined) ? s.gps.hdop : undefined);
+
+    $('gps_lat').textContent   = safe((s.gps?.lat !== undefined) ? s.gps.lat : undefined);
+    $('gps_lon').textContent   = safe((s.gps?.lon !== undefined) ? s.gps.lon : undefined);
+
+    $('gps_speed').textContent = safe((s.gps?.speed_kmh !== undefined) ? (s.gps.speed_kmh + " km/h") : undefined);
+
+    const utc = (s.gps?.date_utc && s.gps?.time_utc) ? (s.gps.date_utc + " " + s.gps.time_utc) : undefined;
+    $('gps_utc').textContent   = safe(utc);
+
+    $('gps_age').textContent   = safe((s.gps?.age_ms !== undefined) ? (s.gps.age_ms + " ms") : undefined);
+
 
     $('wmode').textContent = safe(s.wifi?.mode);
     $('ssid').textContent  = safe(s.wifi?.ssid);

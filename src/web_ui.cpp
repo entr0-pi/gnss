@@ -2,11 +2,12 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <HTTPClient.h>
+#include <cstring>
 
-#include "web_ui.h"
 #include "index_html.h"
 #include "style_css.h"
 #include "favicon_ico.h"
+#include "web_ui.h"
 
 // Keep a pointer so helpers/handlers can use the same server instance
 static WebServer* s_server = nullptr;
@@ -121,9 +122,13 @@ static void handleStatus() {
   WebuiBleSnapshot ble{};
   const bool has_ble = webui_get_ble_snapshot(ble);
 
+  // --- GPS snapshot (optional) ---
+  WebuiGpsSnapshot gps{};
+  const bool has_gps = webui_get_gps_snapshot(gps);
+
   // --- JSON ---
   String json;
-  json.reserve(1300);
+  json.reserve(1600);
 
   json += "{";
 
@@ -169,6 +174,48 @@ static void handleStatus() {
     json += "\"mtu\":"       + String(ble.mtu) + ",";
     json += "\"txBytes\":"   + String(ble.txBytes) + ",";
     json += "\"rxBytes\":"   + String(ble.rxBytes);
+    json += "},";
+  }
+
+  // ---- GPS section added, JSON built here for consistency ----
+  if (has_gps) {
+    const char* fixTypeStr = "—";
+    if      (gps.fixType == 1) fixTypeStr = "No";
+    else if (gps.fixType == 2) fixTypeStr = "2D";
+    else if (gps.fixType == 3) fixTypeStr = "3D";
+
+    const char* fixQualStr = "—";
+    switch (gps.fixQuality) {
+      case 0: fixQualStr = "Invalid"; break;
+      case 1: fixQualStr = "GNSS";    break;
+      case 2: fixQualStr = "DGPS";    break;
+      case 4: fixQualStr = "RTK Fix"; break;
+      case 5: fixQualStr = "RTK Flt"; break;
+      default: fixQualStr = "Other";  break;
+    }
+
+    char tbuf[16];
+    if (gps.timeValid) snprintf(tbuf, sizeof(tbuf), "%02u:%02u:%02u", gps.hour, gps.minute, gps.second);
+    else strncpy(tbuf, "—", sizeof(tbuf));
+
+    char dbuf[16];
+    if (gps.year && gps.month && gps.day) snprintf(dbuf, sizeof(dbuf), "%04u-%02u-%02u", gps.year, gps.month, gps.day);
+    else strncpy(dbuf, "—", sizeof(dbuf));
+
+    json += "\"gps\":{";
+    json += "\"valid\":\"" + String(gps.valid ? "✅" : "❌") + "\",";
+    json += "\"age_ms\":" + String(gps.ageMs) + ",";
+    json += "\"lat\":" + String(gps.lat, 7) + ",";
+    json += "\"lon\":" + String(gps.lon, 7) + ",";
+    json += "\"speed_kmh\":" + String(gps.speedKmh, 1) + ",";
+    json += "\"sats_used\":" + String(gps.satsUsed) + ",";
+    json += "\"hdop\":" + String(gps.hdop, 1) + ",";
+    json += "\"fix_type\":\"" + String(fixTypeStr) + "\",";
+    json += "\"fix_quality\":\"" + String(fixQualStr) + "\",";
+    json += "\"fix_type_code\":" + String(gps.fixType) + ",";
+    json += "\"fix_quality_code\":" + String(gps.fixQuality) + ",";
+    json += "\"time_utc\":\"" + String(tbuf) + "\",";
+    json += "\"date_utc\":\"" + String(dbuf) + "\"";
     json += "},";
   }
 
