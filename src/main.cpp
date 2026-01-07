@@ -31,7 +31,9 @@
 #include "web_ui.h"
 
 // ---- NMEA ----
+#if NMEA_ENABLE
 #include "nmea_gps.h"
+#endif
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -125,6 +127,7 @@ bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
   return true;
 }
 
+#if NMEA_ENABLE
 bool webui_get_gps_snapshot(WebuiGpsSnapshot& out) {
   NmeaGpsSnapshot s{};
   if (!nmea_get_snapshot(s)) return false;
@@ -151,6 +154,7 @@ bool webui_get_gps_snapshot(WebuiGpsSnapshot& out) {
   out.ageMs      = s.ageMs;
   return true;
 }
+#endif
 
 // ---------------- BLE Callbacks ----------------
 class ServerCallbacks : public NimBLEServerCallbacks {
@@ -238,7 +242,9 @@ void setup() {
   setupWiFiAndWeb();
 
   // ---- (NMEA) ----
+  #if NMEA_ENABLE
    nmea_begin();
+   #endif
 
   // Create StreamBuffers (static)
   g_sb_uart2ble = xStreamBufferCreateStatic(
@@ -360,7 +366,9 @@ static void task_uart_rx(void* arg) {
     int n = Serial1.readBytes(tmp, (size_t)min(avail, (int)sizeof(tmp)));
     if (n > 0) {
       // Feed NMEA parser from the same bytes
+      #if NMEA_ENABLE
       nmea_feed_bytes(tmp, (size_t)n, millis());
+      #endif
 
       // Keep existing UART->BLE buffering unchanged
       if (g_sb_uart2ble) {

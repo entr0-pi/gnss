@@ -123,8 +123,10 @@ static void handleStatus() {
   const bool has_ble = webui_get_ble_snapshot(ble);
 
   // --- GPS snapshot (optional) ---
+  #if NMEA_ENABLE
   WebuiGpsSnapshot gps{};
   const bool has_gps = webui_get_gps_snapshot(gps);
+  #endif
 
   // --- JSON ---
   String json;
@@ -178,6 +180,7 @@ static void handleStatus() {
   }
 
   // ---- GPS section added, JSON built here for consistency ----
+  #if NMEA_ENABLE
   if (has_gps) {
     const char* fixTypeStr = "—";
     if      (gps.fixType == 1) fixTypeStr = "No";
@@ -218,6 +221,7 @@ static void handleStatus() {
     json += "\"date_utc\":\"" + String(dbuf) + "\"";
     json += "},";
   }
+  #endif
 
   json += "\"internet\":{";
   json += "\"reach\":\"" + String(internet) + "\"";

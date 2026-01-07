@@ -81,14 +81,14 @@ static const uint8_t INDEX_HTML[] PROGMEM = R"HTML(
       <div class="cat">
         <div class="catTitle">GPS</div>
         <div class="catBody">
-          <div class="line"><span class="lk">Valid</span><span class="lv mono" id="gps_valid">—</span></div>
-          <div class="line"><span class="lk">Fix</span><span class="lv mono" id="gps_fix">—</span></div>
-          <div class="line"><span class="lk">Sat Used</span><span class="lv mono" id="gps_sats">—</span></div>
-          <div class="line"><span class="lk">HDOP</span><span class="lv mono" id="gps_hdop">—</span></div>
+          <div class="line"><span class="lk">Strict validity</span><span class="lv mono" id="gps_valid">—</span></div>
+          <div class="line"><span class="lk">Fix type</span><span class="lv mono" id="gps_fix">—</span></div>
+          <div class="line"><span class="lk">Sat in Use</span><span class="lv mono" id="gps_sats">—</span></div>
+          <div class="line"><span class="lk">UTC</span><span class="lv mono" id="gps_utc">—</span></div>
           <div class="line"><span class="lk">Lat</span><span class="lv mono" id="gps_lat">—</span></div>
           <div class="line"><span class="lk">Lon</span><span class="lv mono" id="gps_lon">—</span></div>
           <div class="line"><span class="lk">Speed</span><span class="lv mono" id="gps_speed">—</span></div>
-          <div class="line"><span class="lk">UTC</span><span class="lv mono" id="gps_utc">—</span></div>
+          <div class="line"><span class="lk">HDOP</span><span class="lv mono" id="gps_hdop">—</span></div>
           <div class="line"><span class="lk">Age</span><span class="lv mono" id="gps_age">—</span></div>
         </div>
       </div>

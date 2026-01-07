@@ -16,6 +16,7 @@ struct WebuiBleSnapshot {
 };
 
 // ---- GPS snapshot interface (implemented in main.cpp) ----
+#if NMEA_ENABLE
 struct WebuiGpsSnapshot {
   bool     valid;
   double   lat;
@@ -35,9 +36,11 @@ struct WebuiGpsSnapshot {
 
   uint32_t ageMs;
 };
-
+#endif
 
 // Returns true and fills `out` with a snapshot of BLE and GPS status.
 bool webui_get_ble_snapshot(WebuiBleSnapshot& out);
+#if NMEA_ENABLE
 bool webui_get_gps_snapshot(WebuiGpsSnapshot& out);
+#endif
 

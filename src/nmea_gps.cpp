@@ -1,3 +1,4 @@
+#if NMEA_ENABLE
 #include "nmea_gps.h"
 
 extern "C" {
@@ -56,7 +57,8 @@ static inline void process_line(const char* line, uint32_t nowMs) {
       struct minmea_sentence_rmc rmc;
       if (!minmea_parse_rmc(&rmc, line)) break;
 
-      const bool ok = (rmc.valid == 'A');
+      //const bool ok = (rmc.valid == 'A');
+      const bool ok = rmc.valid;
       const double lat = minmea_tocoord(&rmc.latitude);
       const double lon = minmea_tocoord(&rmc.longitude);
 
@@ -198,3 +200,4 @@ bool nmea_get_snapshot(NmeaGpsSnapshot& out) {
   out.ageMs = (last == 0) ? 0 : (now - last);
   return true;
 }
+#endif

@@ -1,3 +1,4 @@
+#if NMEA_ENABLE
 #pragma once
 #include <Arduino.h>
 #include <stdint.h>
@@ -27,3 +28,4 @@ struct NmeaGpsSnapshot {
 void nmea_begin();
 void nmea_feed_bytes(const uint8_t* data, size_t len, uint32_t nowMs);
 bool nmea_get_snapshot(NmeaGpsSnapshot& out);
+#endif
