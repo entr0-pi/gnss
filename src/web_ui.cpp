@@ -3,6 +3,7 @@
 #include <WiFiClient.h>
 #include <HTTPClient.h>
 #include <cstring>
+#include <ArduinoJson.h>
 
 #include "index_html.h"
 #include "style_css.h"
@@ -129,57 +130,69 @@ static void handleStatus() {
   #endif
 
   // --- JSON ---
-  String json;
-  json.reserve(1600);
+  // ArduinoJson v7
+  JsonDocument doc;
 
-  json += "{";
+  // ---------------- device ----------------
+  
+    JsonObject device = doc["device"].to<JsonObject>();
+    device["uptime_ms"] = uptime_ms;
+    device["cpu_mhz"]   = cpu_mhz;
 
-  json += "\"device\":{";
-  json += "\"uptime_ms\":" + String(uptime_ms) + ",";
-  json += "\"cpu_mhz\":" + String(cpu_mhz) + ",";
-  json += "\"build\":\"" + String(__DATE__) + " " + String(__TIME__) + "\"";
-  json += "},";
+    // build string once
+    char build[32];
+    snprintf(build, sizeof(build), "%s %s", __DATE__, __TIME__);
+    device["build"] = build;
+  
 
-  json += "\"memory\":{";
-  json += "\"heap_free\":" + String(heap_free) + ",";
-  json += "\"heap_min_free\":" + String(heap_min_free) + ",";
-  json += "\"heap_max_alloc\":" + String(heap_max_alloc);
-  json += "},";
+  // ---------------- memory ----------------
+  
+    JsonObject mem = doc["memory"].to<JsonObject>();
+    mem["heap_free"]      = heap_free;
+    mem["heap_min_free"]  = heap_min_free;
+    mem["heap_max_alloc"] = heap_max_alloc;
+  
 
-  json += "\"wifi\":{";
-  json += "\"mode\":\"STA\",";
-  json += "\"ssid\":\"" + ssid + "\",";
-  json += "\"ip\":\"" + ip + "\",";
-  json += "\"gw\":\"" + gw + "\",";
-  json += "\"dns\":\"" + dns + "\",";
-  json += "\"subnet\":\"" + mask + "\",";
-  json += "\"broadcast\":\"" + bcast + "\",";
-  json += "\"rssi_dbm\":" + String(rssi) + ",";
-  json += "\"mac\":\"" + mac + "\"";
-  json += "},";
+  // ---------------- wifi ----------------
+  
+    JsonObject wifi = doc["wifi"].to<JsonObject>();
+    wifi["mode"]      = "STA";
+    wifi["ssid"]      = ssid;
+    wifi["ip"]        = ip;
+    wifi["gw"]        = gw;
+    wifi["dns"]       = dns;
+    wifi["subnet"]    = mask;
+    wifi["broadcast"] = bcast;
+    wifi["rssi_dbm"]  = rssi;
+    wifi["mac"]       = mac;
+  
 
-  json += "\"http\":{";
-  json += "\"port\":" + String(http_port) + ",";
-  json += "\"req_total\":" + String(g_http_req_total) + ",";
-  json += "\"prev_req_age_ms\":" + String(prev_age_ms);
-  json += "},";
+  // ---------------- http ----------------
+  
+    JsonObject http = doc["http"].to<JsonObject>();
+    http["port"]            = http_port;
+    http["req_total"]       = g_http_req_total;
+    http["prev_req_age_ms"] = prev_age_ms;
+  
 
-  json += "\"app\":{";
-  json += "\"state\":\"" + String(app_state) + "\",";
-  json += "\"notes\":\"" + String(app_notes) + "\"";
-  json += "},";
+  // ---------------- app ----------------
+  
+    JsonObject app = doc["app"].to<JsonObject>();
+    app["state"] = app_state;
+    app["notes"] = app_notes;
+  
 
-  // ---- BLE section added, JSON built here for consistency ----
+  // ---------------- ble (optional) ----------------
   if (has_ble) {
-    json += "\"ble\":{";
-    json += "\"connected\":\"" + String(ble.connected ? "✅" : "❌") + "\",";
-    json += "\"mtu\":"       + String(ble.mtu) + ",";
-    json += "\"txBytes\":"   + String(ble.txBytes) + ",";
-    json += "\"rxBytes\":"   + String(ble.rxBytes);
-    json += "},";
+    JsonObject bleObj = doc["ble"].to<JsonObject>();
+    bleObj["connected"] = ble.connected ? "✅" : "❌";
+    bleObj["mtu"]       = ble.mtu;
+    bleObj["txBytes"]   = ble.txBytes;
+    bleObj["rxBytes"]   = ble.rxBytes;
   }
 
-  // ---- GPS section added, JSON built here for consistency ----
+  // ---------------- gps (optional) ----------------
+  
   #if NMEA_ENABLE
   if (has_gps) {
     const char* fixTypeStr = "—";
@@ -199,38 +212,43 @@ static void handleStatus() {
 
     char tbuf[16];
     if (gps.timeValid) snprintf(tbuf, sizeof(tbuf), "%02u:%02u:%02u", gps.hour, gps.minute, gps.second);
-    else strncpy(tbuf, "—", sizeof(tbuf));
+    else               snprintf(tbuf, sizeof(tbuf), "—");
 
     char dbuf[16];
     if (gps.year && gps.month && gps.day) snprintf(dbuf, sizeof(dbuf), "%04u-%02u-%02u", gps.year, gps.month, gps.day);
-    else strncpy(dbuf, "—", sizeof(dbuf));
+    else                                  snprintf(dbuf, sizeof(dbuf), "—");
 
-    json += "\"gps\":{";
-    json += "\"valid\":\"" + String(gps.valid ? "✅" : "❌") + "\",";
-    json += "\"age_ms\":" + String(gps.ageMs) + ",";
-    json += "\"lat\":" + String(gps.lat, 7) + ",";
-    json += "\"lon\":" + String(gps.lon, 7) + ",";
-    json += "\"speed_kmh\":" + String(gps.speedKmh, 1) + ",";
-    json += "\"sats_used\":" + String(gps.satsUsed) + ",";
-    json += "\"hdop\":" + String(gps.hdop, 1) + ",";
-    json += "\"fix_type\":\"" + String(fixTypeStr) + "\",";
-    json += "\"fix_quality\":\"" + String(fixQualStr) + "\",";
-    json += "\"fix_type_code\":" + String(gps.fixType) + ",";
-    json += "\"fix_quality_code\":" + String(gps.fixQuality) + ",";
-    json += "\"time_utc\":\"" + String(tbuf) + "\",";
-    json += "\"date_utc\":\"" + String(dbuf) + "\"";
-    json += "},";
+    JsonObject gpsObj = doc["gps"].to<JsonObject>();
+    gpsObj["valid"]            = gps.valid ? "✅" : "❌";
+    gpsObj["age_ms"]           = gps.ageMs;
+    gpsObj["lat"]              = gps.lat;          // keep as numeric
+    gpsObj["lon"]              = gps.lon;
+    gpsObj["speed_kmh"]        = gps.speedKmh;
+    gpsObj["sats_used"]        = gps.satsUsed;
+    gpsObj["hdop"]             = gps.hdop;
+    gpsObj["fix_type"]         = fixTypeStr;
+    gpsObj["fix_quality"]      = fixQualStr;
+    gpsObj["fix_type_code"]    = gps.fixType;
+    gpsObj["fix_quality_code"] = gps.fixQuality;
+    gpsObj["time_utc"]         = tbuf;
+    gpsObj["date_utc"]         = dbuf;
   }
   #endif
 
-  json += "\"internet\":{";
-  json += "\"reach\":\"" + String(internet) + "\"";
-  json += "}";
+  // ---------------- internet ----------------
+  
+    JsonObject net = doc["internet"].to<JsonObject>();
+    net["reach"] = internet;  // keep your existing type (string/bool/int)
+  
 
-  json += "}";
 
+  // Serialize in JSON and then send to the client in a string
+  String output;
+  doc.shrinkToFit();
+  serializeJson(doc, output);
   s_server->sendHeader("Cache-Control", "no-store");
-  s_server->send(200, "application/json", json);
+  s_server->send(200, "application/json", output);
+
 }
 
 // ------------- API: /api/restart -------------
