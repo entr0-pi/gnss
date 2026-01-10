@@ -7,7 +7,7 @@
   - iPhone compatible: subscribe callback tracks notify enable
   - Backpressure aware: does not drain UART->BLE faster than notify succeeds
 
-  Direction:
+  Direction (byte stream, no framing):
     UM980 -> iPhone : UART RX -> stream buffer -> BLE notify (NUS TX)
     iPhone -> UM980 : BLE write (NUS RX) -> stream buffer -> UART TX
 
@@ -23,23 +23,30 @@
 #include <Arduino.h>
 
 // ---- BLE ----
+// NimBLE-Arduino implements BLE peripheral/server, characteristics, notifications, callbacks, etc.
 #include <NimBLEDevice.h>
 
 // ---- (WiFi + WebServer) ----
+// WiFi STA mode connects to an existing hotspot/router and hosts a small status web server.
 #include <WiFi.h>
 #include <WebServer.h>
-#include "web_ui.h"
+#include "web_ui.h"   // UI routes + snapshot structs (your own module)
 
 // ---- NMEA ----
+// Optional NMEA parsing (compile-time). If disabled, bytes are still streamed.
 #if NMEA_ENABLE
 #include "nmea_gps.h"
 #endif
 
+// ---- FreeRTOS primitives used by ESP32 Arduino ----
+// StreamBuffers are lock-free-ish byte FIFOs ideal for producer/consumer tasks.
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/stream_buffer.h"
 
 // ---------------- STA config (Hotspot) ----------------
+// These are the credentials and the static network config for STA mode.
+// WiFi.config() sets a fixed IP, gateway, subnet, and DNS for the station interface.
 static const char* STA_SSID = "64NDPVIWJCMG7RUZ9392";
 static const char* STA_PASS = "azerty1234";
 static const IPAddress STA_IP     (172, 20, 10, 2);
@@ -48,50 +55,84 @@ static const IPAddress STA_SUBNET (255, 255, 255, 240);
 static const IPAddress STA_DNS    (172, 20, 10, 1);
 
 // ---- Webserver ----
+// Simple synchronous HTTP server from the Arduino core. We call handleClient() in loop().
 WebServer server(80);
 
 // ---------------- BT ----------------
-static const char DEVICE_NAME[] = "UM980-BLE";    // Device name
-static const uint16_t BLE_MTU = 185;              // Request a larger MTU
+// BLE advertising name shown on the phone.
+static const char DEVICE_NAME[] = "UM980-BLE";
+// Requested ATT MTU. Higher MTU can reduce overhead for a stream like NMEA.
+static const uint16_t BLE_MTU = 185;
 
 // ---------------- UART ----------------
-static const int PIN_UM980_RX = 20;      // ESP32 RX  (UM980 TX)
-static const int PIN_UM980_TX = 21;      // ESP32 TX  (UM980 RX)
-static const uint32_t UM980_BAUD = 115200; // BAUD RATE UM980
+// Hardware UART pins connected to the UM980.
+static const int PIN_UM980_RX = 20;        // ESP32 RX  (UM980 TX)
+static const int PIN_UM980_TX = 21;        // ESP32 TX  (UM980 RX)
+static const uint32_t UM980_BAUD = 115200; // UM980 serial baud rate
 
 // ---------------- SERIAL ----------------
-static const int SERIAL_BAUD = 115200;      // USB
+// USB CDC serial used for debug logs in the Arduino monitor.
+static const int SERIAL_BAUD = 115200;
 
 // ---------------- BLE (NUS UUIDs) ----------------
+// Nordic UART Service (NUS) UUIDs:
+// - Service UUID
+// - RX characteristic (phone -> device): WRITE / WRITE_NR
+// - TX characteristic (device -> phone): NOTIFY
 static NimBLEUUID NUS_SERVICE_UUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
 static NimBLEUUID NUS_RX_UUID     ("6E400002-B5A3-F393-E0A9-E50E24DCCA9E"); // write from phone
 static NimBLEUUID NUS_TX_UUID     ("6E400003-B5A3-F393-E0A9-E50E24DCCA9E"); // notify to phone
 
 // ---------------- Tunables ----------------
-// Defines the maximum number of bytes to send in a single BLE notification.
+// BLE_NOTIFY_CHUNK:
+//   Maximum bytes in a single notification payload we attempt to send.
+//   Practical limit depends on negotiated MTU and NimBLE internals; this size is safe.
 static const size_t BLE_NOTIFY_CHUNK = 120;
-// Defines the maximum number of bytes transferred per loop iteration.
+
+// UART_CHUNK:
+//   Maximum bytes transferred per loop iteration for UART read/write buffers.
+//   This is a local scratch buffer size; it does NOT change baud rate.
 static const size_t UART_CHUNK = 256;
 
-// Ring buffer sizes
-static const size_t SB_UART_TO_BLE_SIZE = 4096;   // NMEA buffer
-static const size_t SB_BLE_TO_UART_SIZE = 16384;  // RTCM buffer (bursty; increase if RAM allows)
+// Ring buffer sizes (StreamBuffers):
+// SB_UART_TO_BLE_SIZE:
+//   Buffer for UM980 -> phone stream (mostly NMEA, continuous).
+static const size_t SB_UART_TO_BLE_SIZE = 4096;
 
-// StreamBuffer trigger level (unblocks receivers once >= this many bytes exist)
+// SB_BLE_TO_UART_SIZE:
+//   Buffer for phone -> UM980 stream (RTCM bursts can be large and spiky).
+//   Increase if RAM allows and you see drops.
+static const size_t SB_BLE_TO_UART_SIZE = 16384;
+
+// StreamBuffer trigger level:
+// A receiver task blocked on xStreamBufferReceive() will unblock once at least this
+// many bytes are present (or timeout). 1 means "wake as soon as any byte arrives".
 static const size_t SB_TRIGGER_LEVEL = 1;
 
-// Backpressure pacing
-static const TickType_t BLE_TX_WAIT_TICKS = pdMS_TO_TICKS(50); // wait for UART bytes
-static const TickType_t BLE_OK_DELAY      = pdMS_TO_TICKS(1);  // delay after successful notify
-static const TickType_t BLE_FAIL_DELAY    = pdMS_TO_TICKS(15); // delay after failed notify
+// Backpressure pacing:
+// We deliberately pace BLE notifications to avoid hammering the BLE stack.
+// BLE_TX_WAIT_TICKS: wait time when pulling from UART->BLE buffer.
+// BLE_OK_DELAY:      small delay after successful notify to yield.
+// BLE_FAIL_DELAY:    longer delay after failure (phone not ready / congestion).
+static const TickType_t BLE_TX_WAIT_TICKS = pdMS_TO_TICKS(50);
+static const TickType_t BLE_OK_DELAY      = pdMS_TO_TICKS(1);
+static const TickType_t BLE_FAIL_DELAY    = pdMS_TO_TICKS(15);
 
 // ---------------- Globals ----------------
+// Pointers to the NimBLE server and TX characteristic so tasks/callbacks can use them.
 static NimBLEServer*         g_server    = nullptr;
 static NimBLECharacteristic* g_txChar    = nullptr;
+
+// Connection/subscription state gates the BLE TX task.
+// g_connected: true when a central is connected.
+// g_notifyEn:  true when the central enabled notifications on the TX characteristic.
 static bool                  g_connected = false;
 static bool                  g_notifyEn  = false;
 
-// StreamBuffers (static)
+// StreamBuffers (static allocation)
+// Using xStreamBufferCreateStatic() avoids dynamic allocations and fragmentation.
+// - g_sb_uart2ble: bytes from UM980 UART RX -> BLE notify task
+// - g_sb_ble2uart: bytes from BLE writes -> UM980 UART TX task
 static StaticStreamBuffer_t  g_sb_uart2ble_struct;
 static StaticStreamBuffer_t  g_sb_ble2uart_struct;
 static uint8_t               g_sb_uart2ble_storage[SB_UART_TO_BLE_SIZE];
@@ -100,30 +141,38 @@ static StreamBufferHandle_t  g_sb_uart2ble = nullptr;
 static StreamBufferHandle_t  g_sb_ble2uart = nullptr;
 
 // ========================= BLE STATUS (BLOCK) =========================
+// Small status accumulator used by the web UI snapshots.
+//
+// Notes about volatile:
+// - These fields can be touched by multiple tasks/callback contexts.
+// - volatile avoids compiler reordering/caching; it is NOT a full concurrency primitive,
+//   but for simple counters/flags it is usually acceptable here.
 struct BleStatus {
-  volatile bool     connected      = false;
+  volatile bool     connected      = false;  // last known connected state
+  volatile uint16_t mtu            = 0;      // last negotiated MTU (from connInfo)
+  volatile uint64_t txBytes        = 0;      // bytes successfully notified (device -> phone)
+  volatile uint64_t rxBytes        = 0;      // bytes received from phone writes (phone -> device)
 
-  volatile uint16_t mtu            = 0;
-
-  volatile uint64_t txBytes        = 0;       // bytes successfully notified
-  volatile uint64_t rxBytes        = 0;       // bytes received from phone (writes)
-
+  // Convenience: reset the counters (does not affect connection state).
   void resetCounters() {
     txBytes = 0; rxBytes = 0;
   }
 };
 
 static BleStatus g_bleStatus;
-
 // ======================= END BLE STATUS (BLOCK) =======================
 
 // ---- Snapshot getter for web_ui.cpp (declared in web_ui.h) ----
+// web_ui.cpp calls this to build JSON for the status page without directly
+// depending on NimBLE internals.
+//
+// Important: This function reads the current global state and copies it into `out`.
 bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
   out.connected     = g_bleStatus.connected;
+  out.mtu           = g_bleStatus.mtu;
 
-  out.mtu  = g_bleStatus.mtu;
-
-  // Keep JSON compact: truncate counters to 32-bit here (you can switch to uint64_t if desired)
+  // Keep JSON compact: truncate counters to 32-bit here.
+  // If you want exact long-running counters, change WebuiBleSnapshot to uint64_t.
   out.txBytes = (uint32_t)g_bleStatus.txBytes;
   out.rxBytes = (uint32_t)g_bleStatus.rxBytes;
 
@@ -131,6 +180,8 @@ bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
 }
 
 #if NMEA_ENABLE
+// GPS snapshot getter for the web UI (optional).
+// It copies data from your NMEA module (nmea_gps.*) to the web_ui snapshot struct.
 bool webui_get_gps_snapshot(WebuiGpsSnapshot& out) {
   NmeaGpsSnapshot s{};
   if (!nmea_get_snapshot(s)) return false;
@@ -160,62 +211,91 @@ bool webui_get_gps_snapshot(WebuiGpsSnapshot& out) {
 #endif
 
 // ---------------- BLE Callbacks ----------------
+// NimBLE calls these on BLE events (connect/disconnect/subscribe/write).
+//
+// These callbacks should do minimal work: set flags, update counters, reset buffers.
+// Avoid heavy operations or long delays in callbacks.
+
 class ServerCallbacks : public NimBLEServerCallbacks {
+  // Called when a central connects to our peripheral.
   void onConnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo) override {
     (void)pServer; (void)connInfo;
+
+    // Mark link as connected.
     g_connected = true;
-    g_notifyEn  = false; // will be set by subscribe callback
+
+    // Notifications are NOT automatically enabled; the phone must subscribe.
+    // We reset it here and rely on onSubscribe() to set it properly.
+    g_notifyEn  = false;
 
     // ---- status hook ----
+    // Capture connection state and negotiated MTU for the web status page.
     g_bleStatus.connected = true;
     g_bleStatus.mtu = connInfo.getMTU();
   }
 
+  // Called when the central disconnects.
+  // reason is an integer reason code from the stack.
   void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) override {
     (void)pServer; (void)connInfo; (void)reason;
+
+    // Update connection flags.
     g_connected = false;
     g_notifyEn  = false;
 
-    // Flush pending NMEA so next connect is "live"
+    // Flush pending NMEA so next connect is "live":
+    // If the phone reconnects, we don't want to dump a backlog of stale data.
     if (g_sb_uart2ble) xStreamBufferReset(g_sb_uart2ble);
 
     // ---- status hook ----
     g_bleStatus.connected = false;
     g_bleStatus.mtu = 0;
 
+    // Resume advertising so another central can connect.
     NimBLEDevice::startAdvertising();
   }
 };
 
 class TxCallbacks : public NimBLECharacteristicCallbacks {
+  // Called when a central subscribes/unsubscribes to the TX notify characteristic.
+  // subValue is a bitmask (bit0 indicates notifications enabled).
   void onSubscribe(NimBLECharacteristic* pCharacteristic,
                    NimBLEConnInfo& connInfo,
                    uint16_t subValue) override {
     (void)pCharacteristic; (void)connInfo;
+
     // bit0 = notifications enabled
     g_notifyEn = (subValue & 0x0001);
 
-    // When notifications become enabled, drop any backlog so stream starts live
+    // When notifications become enabled, drop any backlog so stream starts live.
+    // This ensures the phone sees current NMEA, not buffered "old" bytes.
     if (g_notifyEn && g_sb_uart2ble) xStreamBufferReset(g_sb_uart2ble);
   }
 };
 
 class RxCallbacks : public NimBLECharacteristicCallbacks {
+  // Called when the central writes to the RX characteristic (phone -> device).
+  // We treat this as raw bytes (typically RTCM corrections).
   void onWrite(NimBLECharacteristic* pCharacteristic, NimBLEConnInfo& connInfo) override {
     (void)connInfo;
 
+    // Copy data from NimBLE into a std::string owned by the characteristic.
+    // getValue() returns the full write payload.
     const std::string& v = pCharacteristic->getValue();
     if (v.empty() || !g_sb_ble2uart) return;
 
     // ---- status hook ----
+    // Count how many bytes have come from the phone.
     g_bleStatus.rxBytes += v.size();
 
-    // Best-effort push RTCM bytes into BLE->UART buffer (drop if full)
+    // Best-effort push RTCM bytes into BLE->UART buffer.
+    // Timeout = 0 means "do not block"; bytes may be dropped if buffer is full.
     xStreamBufferSend(g_sb_ble2uart, v.data(), v.size(), 0);
   }
 };
 
 // ----------- FUNCTIONS DECLARATIONS -----------
+// Declared here so setup() can call them before their definitions below.
 static void setupBLE();
 static void setupUART();
 static void setupWiFiAndWeb();
@@ -228,21 +308,27 @@ static void task_uart_tx(void* arg);
 // -------------------------------------------
 
 void setup() {
+  // Debug serial over USB.
   Serial.begin(SERIAL_BAUD);
+
+  // Give USB CDC + RTOS some time to settle (especially right after boot).
   vTaskDelay(pdMS_TO_TICKS(200));
 
-  // ---- (web routes before server.begin is fine) ----
+  // Configure HTTP routes / static assets for the status UI.
+  // (Doing this before server.begin() is fine; it just registers handlers.)
   webui_begin(server, STA_DNS);
 
-  // ---- (connect STA + start HTTP server) ----
+  // Connect to WiFi (STA) and start the HTTP server.
   setupWiFiAndWeb();
 
-  // ---- (NMEA) ----
+  // Initialize NMEA parser module (optional).
   #if NMEA_ENABLE
    nmea_begin();
-   #endif
+  #endif
 
-  // Create StreamBuffers (static)
+  // Create StreamBuffers using static storage (no heap allocation for the buffers).
+  // - UART->BLE buffer holds bytes read from Serial1 (UM980 output).
+  // - BLE->UART buffer holds bytes written by phone to BLE RX characteristic.
   g_sb_uart2ble = xStreamBufferCreateStatic(
       SB_UART_TO_BLE_SIZE, SB_TRIGGER_LEVEL,
       g_sb_uart2ble_storage, &g_sb_uart2ble_struct);
@@ -251,23 +337,31 @@ void setup() {
       SB_BLE_TO_UART_SIZE, SB_TRIGGER_LEVEL,
       g_sb_ble2uart_storage, &g_sb_ble2uart_struct);
 
+  // If allocation fails, we cannot safely run. Halt here (infinite delay loop).
   if (!g_sb_uart2ble || !g_sb_ble2uart) {
     for (;;) vTaskDelay(pdMS_TO_TICKS(1000));
   }
 
+  // Configure the hardware UART to talk to UM980.
   setupUART();
+
+  // Configure BLE server + characteristics + advertising.
   setupBLE();
 
-  // Tasks: prioritize UART a bit so RTCM isn't delayed under load
+  // Create worker tasks.
+  // We prioritize UART tasks slightly higher so RTCM bytes (from phone) can reach UM980
+  // quickly even if BLE notify or HTTP are busy.
   xTaskCreate(task_uart_rx, "uart_rx", 4096, nullptr, 3, nullptr);
   xTaskCreate(task_uart_tx, "uart_tx", 4096, nullptr, 3, nullptr);
   xTaskCreate(task_ble_tx,  "ble_tx",  4096, nullptr, 2, nullptr);
-
 }
 
 void loop() {
+  // WebServer is polled; it processes one client request per call.
   server.handleClient();
-  delay(2); // yields to RTOS on ESP32 Arduino
+
+  // Small delay yields CPU to other FreeRTOS tasks on ESP32 Arduino.
+  delay(2);
 }
 
 // -------------------------------------------
@@ -275,73 +369,111 @@ void loop() {
 // -------------------------------------------
 
 static void setupWiFiAndWeb() {
+  // Station mode: connect to an existing access point / hotspot.
   WiFi.mode(WIFI_STA);
+
+  // Apply static IP configuration for the STA interface.
+  // Order: local IP, gateway, subnet, DNS.
   WiFi.config(STA_IP, STA_GW, STA_SUBNET, STA_DNS);
+
+  // Start connection attempt using SSID/PASS.
   WiFi.begin(STA_SSID, STA_PASS);
 
+  // Wait up to 15 seconds for connection.
+  // (If not connected, we still start the server; you can view status / retry logic elsewhere.)
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && (millis() - t0) < 15000) {
     delay(250);
   }
 
+  // Start listening for HTTP requests.
   server.begin();
 }
 
 // ---------------- Setup BLE ----------------
 static void setupBLE() {
+  // Initialize NimBLE and set the device name used in advertising.
   NimBLEDevice::init(DEVICE_NAME);
+
+  // RF power level; higher can improve range but increases current consumption.
   NimBLEDevice::setPower(ESP_PWR_LVL_P6);
+
+  // Request a larger MTU. The negotiated MTU depends on the phone's capabilities too.
   NimBLEDevice::setMTU(BLE_MTU);
 
+  // Create BLE GATT server and attach server-level callbacks.
   g_server = NimBLEDevice::createServer();
   g_server->setCallbacks(new ServerCallbacks());
 
+  // Create the Nordic UART Service (NUS).
   NimBLEService* svc = g_server->createService(NUS_SERVICE_UUID);
 
-  // TX (notify)
+  // TX characteristic (device -> phone): NOTIFY
+  // The phone subscribes to this to receive the stream.
   g_txChar = svc->createCharacteristic(NUS_TX_UUID, NIMBLE_PROPERTY::NOTIFY);
   g_txChar->setCallbacks(new TxCallbacks());
 
-  // RX (write / write without response)
+  // RX characteristic (phone -> device): WRITE and WRITE_NR (write without response)
+  // This receives RTCM / commands / any bytes written by the phone.
   NimBLECharacteristic* rxChar =
       svc->createCharacteristic(NUS_RX_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
   rxChar->setCallbacks(new RxCallbacks());
 
+  // Start the service so it becomes visible in the GATT database.
   svc->start();
 
+  // Configure advertising: include the service UUID so centrals can discover NUS.
   NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
   adv->addServiceUUID(NUS_SERVICE_UUID);
-  adv->enableScanResponse(true);
-  adv->start();
 
+  // Scan response allows extra data (like name/service) in response packets.
+  adv->enableScanResponse(true);
+
+  // Start advertising now.
+  adv->start();
 }
 
 // ---------------- Setup UART ----------------
 static void setupUART() {
-  // C3: Serial is USB CDC (debug), Serial1 is HW UART
+  // ESP32-C3 Arduino:
+  // - Serial  = USB CDC (debug)
+  // - Serial1 = hardware UART
+  //
+  // Configure Serial1 to talk to the UM980 module at UM980_BAUD using 8N1.
   Serial1.begin(UM980_BAUD, SERIAL_8N1, PIN_UM980_RX, PIN_UM980_TX);
 }
 
-// UART RX task: reads bytes from UM980 and pushes into UART->BLE buffer
+// UART RX task:
+// Continuously reads bytes from the UM980 (Serial1) and pushes them into the
+// UART->BLE stream buffer. Also feeds the NMEA parser if enabled.
 static void task_uart_rx(void* arg) {
   (void)arg;
+
+  // Scratch buffer for reads. Size is UART_CHUNK, so we batch reads efficiently.
   uint8_t tmp[UART_CHUNK];
 
   for (;;) {
+    // Query how many bytes are currently available in the UART RX queue.
     int avail = Serial1.available();
     if (avail <= 0) {
+      // No data: yield quickly to other tasks.
       vTaskDelay(pdMS_TO_TICKS(2));
       continue;
     }
-   
+
+    // Read up to tmp capacity (or up to what's available).
+    // readBytes blocks until timeout OR requested bytes read; but since we limit to avail,
+    // it typically returns quickly.
     int n = Serial1.readBytes(tmp, (size_t)min(avail, (int)sizeof(tmp)));
+
     if (n > 0) {
-      // Feed NMEA parser from the same bytes
+      // Optional: parse NMEA from the same byte stream (doesn't affect forwarding).
       #if NMEA_ENABLE
       nmea_feed_bytes(tmp, (size_t)n, millis());
       #endif
 
-      // Keep existing UART->BLE buffering unchanged
+      // Push bytes into UART->BLE buffer.
+      // Timeout 0 = non-blocking; if full, bytes are dropped (best-effort).
       if (g_sb_uart2ble) {
         xStreamBufferSend(g_sb_uart2ble, tmp, (size_t)n, 0);
       }
@@ -349,35 +481,53 @@ static void task_uart_rx(void* arg) {
   }
 }
 
-// BLE TX task: pulls from UART->BLE buffer and notifies to iPhone when subscribed
+// BLE TX task:
+// Pulls bytes from UART->BLE buffer and sends them as BLE notifications when:
+// - a central is connected AND
+// - the central subscribed to notifications (CCCD enabled) AND
+// - TX characteristic exists.
+//
+// Backpressure principle:
+// We only pull bytes when we intend to send them; if notify fails we slow down.
 static void task_ble_tx(void* arg) {
   (void)arg;
+
+  // Scratch buffer for BLE notify payload.
   uint8_t out[BLE_NOTIFY_CHUNK];
 
   for (;;) {
     // If not connected or not subscribed, don't drain the UART buffer endlessly.
+    // This prevents building "notify backlog handling" complexity and keeps stream live.
     if (!(g_connected && g_notifyEn && g_txChar)) {
       vTaskDelay(pdMS_TO_TICKS(50));
       continue;
     }
 
-    // Wait for UART bytes
+    // Pull bytes from the UART->BLE stream buffer.
+    // If there are no bytes, this will block up to BLE_TX_WAIT_TICKS.
     size_t got = 0;
     if (g_sb_uart2ble) {
       got = xStreamBufferReceive(g_sb_uart2ble, out, sizeof(out), BLE_TX_WAIT_TICKS);
     }
+
+    // If nothing received, yield briefly and retry.
     if (got == 0) {
       vTaskDelay(pdMS_TO_TICKS(1));
       continue;
     }
 
-    // Notify with backpressure handling
+    // Set characteristic value to the chunk and attempt notify.
+    // notify() returns whether it was accepted by the stack.
     g_txChar->setValue(out, got);
     bool ok = g_txChar->notify();
 
     // ---- status hook ----
+    // Only count bytes as "tx" when notify succeeded.
     if (ok) { g_bleStatus.txBytes += got; }
 
+    // Pacing:
+    // - On success, short yield.
+    // - On failure, back off more to reduce pressure on the stack.
     if (ok) {
       vTaskDelay(BLE_OK_DELAY);
     } else {
@@ -386,19 +536,26 @@ static void task_ble_tx(void* arg) {
   }
 }
 
-// UART TX task: pulls from BLE->UART buffer (RTCM) and writes to UM980
+// UART TX task:
+// Pulls bytes from BLE->UART buffer (typically RTCM corrections) and writes to UM980 (Serial1).
 static void task_uart_tx(void* arg) {
   (void)arg;
+
+  // Scratch buffer for UART writes.
   uint8_t tmp[UART_CHUNK];
 
   for (;;) {
+    // Wait for up to 50 ms for inbound bytes (phone -> BLE -> buffer).
     size_t got = 0;
     if (g_sb_ble2uart) {
       got = xStreamBufferReceive(g_sb_ble2uart, tmp, sizeof(tmp), pdMS_TO_TICKS(50));
     }
 
+    // If we received bytes, forward them to UM980.
     if (got > 0) {
       Serial1.write(tmp, got);
+
+      // Small delay yields to avoid starving other tasks in tight loops.
       vTaskDelay(pdMS_TO_TICKS(1));
     }
   }
