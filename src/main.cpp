@@ -59,6 +59,9 @@ static const int PIN_UM980_RX = 20;      // ESP32 RX  (UM980 TX)
 static const int PIN_UM980_TX = 21;      // ESP32 TX  (UM980 RX)
 static const uint32_t UM980_BAUD = 115200; // BAUD RATE UM980
 
+// ---------------- SERIAL ----------------
+static const int SERIAL_BAUD = 115200;      // USB
+
 // ---------------- BLE (NUS UUIDs) ----------------
 static NimBLEUUID NUS_SERVICE_UUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
 static NimBLEUUID NUS_RX_UUID     ("6E400002-B5A3-F393-E0A9-E50E24DCCA9E"); // write from phone
@@ -166,8 +169,6 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     // ---- status hook ----
     g_bleStatus.connected = true;
     g_bleStatus.mtu = connInfo.getMTU();
-
-    Serial.println("[BLE] Connected");
   }
 
   void onDisconnect(NimBLEServer* pServer, NimBLEConnInfo& connInfo, int reason) override {
@@ -182,7 +183,6 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     g_bleStatus.connected = false;
     g_bleStatus.mtu = 0;
 
-    Serial.println("[BLE] Disconnected - advertising again");
     NimBLEDevice::startAdvertising();
   }
 };
@@ -194,9 +194,6 @@ class TxCallbacks : public NimBLECharacteristicCallbacks {
     (void)pCharacteristic; (void)connInfo;
     // bit0 = notifications enabled
     g_notifyEn = (subValue & 0x0001);
-
-    Serial.print("[BLE] Notify ");
-    Serial.println(g_notifyEn ? "ENABLED" : "DISABLED");
 
     // When notifications become enabled, drop any backlog so stream starts live
     if (g_notifyEn && g_sb_uart2ble) xStreamBufferReset(g_sb_uart2ble);
@@ -231,9 +228,8 @@ static void task_uart_tx(void* arg);
 // -------------------------------------------
 
 void setup() {
-  Serial.begin(UM980_BAUD);
+  Serial.begin(SERIAL_BAUD);
   vTaskDelay(pdMS_TO_TICKS(200));
-  Serial.println("\n--- ESP32-C3 UM980 BLE Bridge + STA WebServer ---");
 
   // ---- (web routes before server.begin is fine) ----
   webui_begin(server, STA_DNS);
@@ -256,7 +252,6 @@ void setup() {
       g_sb_ble2uart_storage, &g_sb_ble2uart_struct);
 
   if (!g_sb_uart2ble || !g_sb_ble2uart) {
-    Serial.println("[ERR] StreamBuffer create failed (RAM too low?)");
     for (;;) vTaskDelay(pdMS_TO_TICKS(1000));
   }
 
@@ -268,7 +263,6 @@ void setup() {
   xTaskCreate(task_uart_tx, "uart_tx", 4096, nullptr, 3, nullptr);
   xTaskCreate(task_ble_tx,  "ble_tx",  4096, nullptr, 2, nullptr);
 
-  Serial.println("[RTOS] Tasks started");
 }
 
 void loop() {
@@ -285,27 +279,12 @@ static void setupWiFiAndWeb() {
   WiFi.config(STA_IP, STA_GW, STA_SUBNET, STA_DNS);
   WiFi.begin(STA_SSID, STA_PASS);
 
-  Serial.print("STA SSID: "); Serial.println(STA_SSID);
-  Serial.print("Connecting");
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && (millis() - t0) < 15000) {
     delay(250);
-    Serial.print(".");
-  }
-  Serial.println();
-
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("WiFi connected.");
-    Serial.print("STA IP:   "); Serial.println(WiFi.localIP());
-    Serial.print("STA GW:   "); Serial.println(WiFi.gatewayIP());
-    Serial.print("STA MASK: "); Serial.println(WiFi.subnetMask());
-    Serial.print("RSSI:     "); Serial.print(WiFi.RSSI()); Serial.println(" dBm");
-  } else {
-    Serial.println("WiFi NOT connected (timeout).");
   }
 
   server.begin();
-  Serial.println("HTTP server started on port 80");
 }
 
 // ---------------- Setup BLE ----------------
@@ -335,14 +314,12 @@ static void setupBLE() {
   adv->enableScanResponse(true);
   adv->start();
 
-  Serial.println("[BLE] Advertising started");
 }
 
 // ---------------- Setup UART ----------------
 static void setupUART() {
   // C3: Serial is USB CDC (debug), Serial1 is HW UART
   Serial1.begin(UM980_BAUD, SERIAL_8N1, PIN_UM980_RX, PIN_UM980_TX);
-  Serial.println("[UART] Serial1 started");
 }
 
 // UART RX task: reads bytes from UM980 and pushes into UART->BLE buffer
@@ -356,13 +333,7 @@ static void task_uart_rx(void* arg) {
       vTaskDelay(pdMS_TO_TICKS(2));
       continue;
     }
-
-    // int n = Serial1.readBytes(tmp, (size_t)min(avail, (int)sizeof(tmp)));
-    // if (n > 0 && g_sb_uart2ble) {
-    //   // Best-effort push; drop if full
-    //   xStreamBufferSend(g_sb_uart2ble, tmp, (size_t)n, 0);
-    // }
-    
+   
     int n = Serial1.readBytes(tmp, (size_t)min(avail, (int)sizeof(tmp)));
     if (n > 0) {
       // Feed NMEA parser from the same bytes
