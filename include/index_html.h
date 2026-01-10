@@ -135,26 +135,12 @@ const $ = (id) => document.getElementById(id);
 
 let valeurAvg = null;  // exponential moving average
 
-function setBleConnected(ok = false) {
-  const el = document.getElementById("ble_connected");
+function setIcon(id, ok = false) {
+  const el = document.getElementById(id);
+  if (!el) return;               // safety if the element isn't on the current tab
   el.textContent = "";
   el.classList.remove("ok", "bad");
-  if (ok) {el.classList.add("ok");} 
-  else {el.classList.add("bad");}
-}
-function setInternetConnected(ok = false) {
-  const el = document.getElementById("reach");
-  el.textContent = "";
-  el.classList.remove("ok", "bad");
-  if (ok) {el.classList.add("ok");} 
-  else {el.classList.add("bad");}
-}  
-function setGPSConnected(ok = false) {
-  const el = document.getElementById("gps_valid");
-  el.textContent = "";
-  el.classList.remove("ok", "bad");
-  if (ok) {el.classList.add("ok");} 
-  else {el.classList.add("bad");}
+  el.classList.add(ok ? "ok" : "bad");
 }
 
 function updateColorRssi(valeur) {
@@ -225,12 +211,12 @@ async function refresh(){
     $('heap_min').textContent  = fmtBytes(s.memory?.heap_min_free);
     $('heap_max').textContent  = fmtBytes(s.memory?.heap_max_alloc);
 
-    setBleConnected(safe_ok(s.ble?.connected));
+    setIcon("ble_connected", safe_ok(s.ble?.connected));
     $('ble_mtu').textContent    = safe(s.ble?.mtu);
     $('ble_txBytes').textContent   = fmtBytes(s.ble?.txBytes);
     $('ble_rxBytes').textContent= fmtBytes(s.ble?.rxBytes);
     
-    setGPSConnected(safe_ok(s.gps?.valid));
+    setIcon("gps_valid", safe_ok(s.gps?.valid));
     $('gps_fix').textContent   = safe(
       (s.gps?.fix_type && s.gps?.fix_quality) ? (s.gps.fix_type + " / " + s.gps.fix_quality) : undefined
     );
@@ -261,7 +247,7 @@ async function refresh(){
     $('reqs').textContent = safe(s.http?.req_total);
     $('age').textContent  = safe((s.http?.prev_req_age_ms !== undefined) ? (s.http.prev_req_age_ms + " ms") : undefined);
 
-    setInternetConnected(safe_ok(s.internet?.reach));    
+    setIcon("reach", safe_ok(s.internet?.reach));
 
     $('app_state').textContent = safe(s.app?.state);
     $('app_notes').textContent = safe(s.app?.notes);
