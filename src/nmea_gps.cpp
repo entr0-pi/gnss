@@ -174,7 +174,8 @@ bool nmea_get_snapshot(NmeaGpsSnapshot& out) {
   uint32_t last = 0;
 
   lock();
-  out.valid      = g_gps.valid;
+  
+  out.valid      = g_gps.valid; // UM980 considers non valid when RTK. Response changed in html to include RTK in the validaty domain
   out.lat        = g_gps.lat;
   out.lon        = g_gps.lon;
   out.speedKmh   = g_gps.speedKmh;

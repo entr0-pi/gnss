@@ -9,7 +9,7 @@ static const uint8_t INDEX_HTML[] PROGMEM = R"HTML(
   <title>ESP32-C3 Status</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/style.css?v=16">
+  <link rel="stylesheet" href="/style.css?v=2">
 </head>
 <body>
   <div class="wrap">
@@ -64,14 +64,14 @@ static const uint8_t INDEX_HTML[] PROGMEM = R"HTML(
       <div class="cat">
         <div class="catTitle">Internet</div>
         <div class="catBody">
-          <div class="line"><span class="lk">Reachable</span><span class="lv mono" id="reach">—</span></div>
+          <div class="line"><span class="lk">Reachable</span><span class="lv mono emoji" id="reach">—</span></div>
         </div>
       </div>
 
       <div class="cat">
         <div class="catTitle">Bluetooth</div>
         <div class="catBody">
-          <div class="line"><span class="lk">Connected</span><span class="lv mono" id="ble_connected">—</span></div>
+          <div class="line"><span class="lk">Connected</span><span class="lv mono emoji" id="ble_connected">—</span></div>
           <div class="line ble-metric"><span class="lk">MTU</span><span class="lv mono" id="ble_mtu">—</span></div>
           <div class="line ble-metric"><span class="lk">NMEA</span><span class="lv mono" id="ble_txBytes">—</span></div>
           <div class="line ble-metric"><span class="lk">NTRIP</span><span class="lv mono" id="ble_rxBytes">—</span></div>
@@ -81,7 +81,7 @@ static const uint8_t INDEX_HTML[] PROGMEM = R"HTML(
       <div class="cat">
         <div class="catTitle">GPS</div>
         <div class="catBody">
-          <div class="line"><span class="lk">Strict validity</span><span class="lv mono" id="gps_valid">—</span></div>
+          <div class="line"><span class="lk">Validity</span><span class="lv mono emoji" id="gps_valid">—</span></div>
           <div class="line"><span class="lk">Fix type</span><span class="lv mono" id="gps_fix">—</span></div>
           <div class="line"><span class="lk">Sat in Use</span><span class="lv mono" id="gps_sats">—</span></div>
           <div class="line"><span class="lk">UTC</span><span class="lv mono" id="gps_utc">—</span></div>
@@ -135,6 +135,28 @@ const $ = (id) => document.getElementById(id);
 
 let valeurAvg = null;  // exponential moving average
 
+function setBleConnected(ok = false) {
+  const el = document.getElementById("ble_connected");
+  el.textContent = "";
+  el.classList.remove("ok", "bad");
+  if (ok) {el.classList.add("ok");} 
+  else {el.classList.add("bad");}
+}
+function setInternetConnected(ok = false) {
+  const el = document.getElementById("reach");
+  el.textContent = "";
+  el.classList.remove("ok", "bad");
+  if (ok) {el.classList.add("ok");} 
+  else {el.classList.add("bad");}
+}  
+function setGPSConnected(ok = false) {
+  const el = document.getElementById("gps_valid");
+  el.textContent = "";
+  el.classList.remove("ok", "bad");
+  if (ok) {el.classList.add("ok");} 
+  else {el.classList.add("bad");}
+}
+
 function updateColorRssi(valeur) {
   const el = $("rssi");
   if (!el) return;
@@ -183,6 +205,10 @@ function safe(v, fallback="—"){
   return (v === undefined || v === null || v === "") ? fallback : v;
 }
 
+function safe_ok(v, fallback=false){
+  return (v === undefined || v === null || v === "") ? fallback : v;
+}
+
 async function refresh(){
   try {
     const r = await fetch('/api/status', { cache:'no-store' });
@@ -199,12 +225,12 @@ async function refresh(){
     $('heap_min').textContent  = fmtBytes(s.memory?.heap_min_free);
     $('heap_max').textContent  = fmtBytes(s.memory?.heap_max_alloc);
 
-    $('ble_connected').textContent = safe(s.ble?.connected);
+    setBleConnected(safe_ok(s.ble?.connected));
     $('ble_mtu').textContent    = safe(s.ble?.mtu);
     $('ble_txBytes').textContent   = fmtBytes(s.ble?.txBytes);
     $('ble_rxBytes').textContent= fmtBytes(s.ble?.rxBytes);
     
-    $('gps_valid').textContent = safe(s.gps?.valid);
+    setGPSConnected(safe_ok(s.gps?.valid));
     $('gps_fix').textContent   = safe(
       (s.gps?.fix_type && s.gps?.fix_quality) ? (s.gps.fix_type + " / " + s.gps.fix_quality) : undefined
     );
@@ -235,7 +261,7 @@ async function refresh(){
     $('reqs').textContent = safe(s.http?.req_total);
     $('age').textContent  = safe((s.http?.prev_req_age_ms !== undefined) ? (s.http.prev_req_age_ms + " ms") : undefined);
 
-    $('reach').textContent = safe(s.internet?.reach);
+    setInternetConnected(safe_ok(s.internet?.reach));    
 
     $('app_state').textContent = safe(s.app?.state);
     $('app_notes').textContent = safe(s.app?.notes);

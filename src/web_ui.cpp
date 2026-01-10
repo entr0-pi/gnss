@@ -64,7 +64,7 @@ static bool logInternetHTTP() {
 
   bool ok = false;
   if (code == 204) {
-    Serial.println("[NET] Internet reachable ✅");
+    Serial.println("[NET] Internet reachable");
     ok = true;
   } else if (code > 0) {
     Serial.println("[NET] Reached server, but unexpected code");
@@ -104,12 +104,12 @@ static void handleStatus() {
   const String mac   = WiFi.macAddress();
 
   // --- Internet ---
-  const char* internet;
+  bool internet;
   if (logInternetHTTP()) {
-    internet  = "✅";
+    internet  = true; // "✅" in html now
   }
   else {
-    internet  = "❌";
+    internet  = false; // "❌" in html now
   }
 
   // --- HTTP ---
@@ -185,7 +185,7 @@ static void handleStatus() {
   // ---------------- ble (optional) ----------------
   if (has_ble) {
     JsonObject bleObj = doc["ble"].to<JsonObject>();
-    bleObj["connected"] = ble.connected ? "✅" : "❌";
+    bleObj["connected"] = ble.connected; // "✅" : "❌" in html now
     bleObj["mtu"]       = ble.mtu;
     bleObj["txBytes"]   = ble.txBytes;
     bleObj["rxBytes"]   = ble.rxBytes;
@@ -219,9 +219,9 @@ static void handleStatus() {
     else                                  snprintf(dbuf, sizeof(dbuf), "—");
 
     JsonObject gpsObj = doc["gps"].to<JsonObject>();
-    gpsObj["valid"]            = gps.valid ? "✅" : "❌";
+    gpsObj["valid"]            = gps.valid || (gps.fixQuality = 4) || (gps.fixQuality = 5); // "✅" : "❌" in html now. UM980  hard rule validity soften to include RTK
     gpsObj["age_ms"]           = gps.ageMs;
-    gpsObj["lat"]              = gps.lat;          // keep as numeric
+    gpsObj["lat"]              = gps.lat;
     gpsObj["lon"]              = gps.lon;
     gpsObj["speed_kmh"]        = gps.speedKmh;
     gpsObj["sats_used"]        = gps.satsUsed;
@@ -238,11 +238,11 @@ static void handleStatus() {
   // ---------------- internet ----------------
   
     JsonObject net = doc["internet"].to<JsonObject>();
-    net["reach"] = internet;  // keep your existing type (string/bool/int)
+    net["reach"] = internet;
   
 
 
-  // Serialize in JSON and then send to the client in a string
+  // Serialize JSON and then send to the client in a string
   String output;
   doc.shrinkToFit();
   serializeJson(doc, output);

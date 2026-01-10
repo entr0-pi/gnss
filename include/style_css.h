@@ -173,6 +173,13 @@ body{
 .dot.ok{ background: rgba(56,214,124,.95); }
 .dot.bad{ background: rgba(255,59,48,.95); }
 
+.emoji.ok::before {
+  content: "✅";
+}
+.emoji.bad::before {
+  content: "❌";
+}
+
 )CSS";
 
 static const size_t STYLE_CSS_LEN = sizeof(STYLE_CSS) - 1;
