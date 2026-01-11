@@ -230,7 +230,7 @@ function fmtUptime(ms){
 
 function fmtMeters(m){
   if (!Number.isFinite(m) || m <= 0) return "—";
-  if (m < 0.05) return (m*1000).toFixed(1) + " mm";
+  if (m < 0.05) return (m*1000).toFixed(0) + " mm";
   if (m < 1.0)  return (m*100).toFixed(1) + " cm";
   return m.toFixed(2) + " m";
 }
