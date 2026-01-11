@@ -50,7 +50,7 @@ struct GpsState {
 // Global instance holding the latest state.
 static GpsState g_gps;
 
-// ================= Line collector (Option B) =================
+// ================= Line collector =================
 //
 // We are parsing from raw bytes, not from a line-oriented stream.
 // This tiny "collector" builds a NMEA line:

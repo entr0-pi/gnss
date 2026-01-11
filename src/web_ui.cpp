@@ -277,8 +277,7 @@ static void handleStatus() {
   if (has_ble) {
     JsonObject bleObj = doc["ble"].to<JsonObject>();
 
-    // Boolean; HTML renders ✅/❌.
-    bleObj["connected"] = ble.connected;
+    bleObj["connected"] = ble.connected; // Boolean;
     bleObj["mtu"]       = ble.mtu;
     bleObj["txBytes"]   = ble.txBytes;
     bleObj["rxBytes"]   = ble.rxBytes;

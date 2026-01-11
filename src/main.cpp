@@ -180,7 +180,7 @@ bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
 }
 
 #if NMEA_ENABLE
-// GPS snapshot getter for the web UI (optional).
+// GPS snapshot getter for the web UI.
 // It copies data from your NMEA module (nmea_gps.*) to the web_ui snapshot struct.
 bool webui_get_gps_snapshot(WebuiGpsSnapshot& out) {
   NmeaGpsSnapshot s{};
