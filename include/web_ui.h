@@ -35,8 +35,23 @@ struct WebuiGpsSnapshot {
   uint8_t  month, day;
 
   uint32_t ageMs;
+
+  // ---- NEW: satellites in view for skyplot ----
+  uint8_t  satsInView;
+
+  struct Sat {
+    uint16_t prn;
+    uint8_t  elevDeg;
+    uint16_t azDeg;
+    int8_t   snrDbHz;
+    bool     used;
+  };
+
+  static constexpr uint8_t MAX_SATS = 48;
+  Sat sats[MAX_SATS];
 };
 #endif
+
 
 // Returns true and fills `out` with a snapshot of BLE and GPS status.
 bool webui_get_ble_snapshot(WebuiBleSnapshot& out);

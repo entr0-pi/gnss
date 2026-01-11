@@ -82,6 +82,29 @@ static const uint8_t INDEX_HTML[] PROGMEM = R"HTML(
           </div>
         </div>
 
+        <div class="divider"></div>
+
+        <div class="cat">
+          <div class="catTitle">Skyplot</div>
+          <div class="catBody">
+            <div class="skyGrid">
+              <div class="skyBox">
+                <svg id="skyplot" class="skySvg" viewBox="-110 -110 220 220" aria-label="Skyplot"></svg>
+                <div class="skyHint">
+                  <span class="pill used">Used</span>
+                  <span class="pill">In view</span>
+                  <span class="pill faint">No SNR</span>
+                </div>
+              </div>
+
+              <div>
+                <div class="satTableTitle">Satellites</div>
+                <div id="satTable" class="satTable">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- ===================== TAB 3: DEVICE ===================== -->
@@ -231,6 +254,178 @@ function safe_ok(v, fallback=false){
   return (v === undefined || v === null || v === "") ? fallback : v;
 }
 
+function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+
+// Convert sat data (az/elev) to skyplot X/Y
+// az: degrees from North clockwise. elev: 0..90 (90 is zenith)
+// We map radius: r = (90 - elev) so:
+//   elev=90 -> r=0 (center)
+//   elev=0  -> r=90 (outer ring)
+function skyXY(azDeg, elevDeg){
+  const az = (Number(azDeg) || 0) * Math.PI / 180.0;
+  const elev = clamp(Number(elevDeg) || 0, 0, 90);
+  const r = (90 - elev); // 0..90
+
+  // SVG: +x to right, +y down
+  // Want North at top => y negative for North
+  const x = r * Math.sin(az);
+  const y = -r * Math.cos(az);
+  return {x, y, r};
+}
+
+function satDotRadius(snr){
+  const n = Number(snr);
+  if (!Number.isFinite(n) || n < 0) return 3.0;
+  // map 0..60 => 3..8
+  return 3.0 + clamp(n, 0, 60) * (5.0/60.0);
+}
+
+function drawSkyBase(svg){
+  // Clear
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+  // Rings at elev 0/30/60/90 => r 90/60/30/0
+  const rings = [90, 60, 30];
+  rings.forEach(r => {
+    const c = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    c.setAttribute("cx","0"); c.setAttribute("cy","0"); c.setAttribute("r", String(r));
+    c.setAttribute("class","skyRing");
+    svg.appendChild(c);
+  });
+
+  // Crosshair
+  const l1 = document.createElementNS("http://www.w3.org/2000/svg","line");
+  l1.setAttribute("x1","-90"); l1.setAttribute("y1","0");
+  l1.setAttribute("x2","90");  l1.setAttribute("y2","0");
+  l1.setAttribute("class","skyAxis");
+  svg.appendChild(l1);
+
+  const l2 = document.createElementNS("http://www.w3.org/2000/svg","line");
+  l2.setAttribute("x1","0");  l2.setAttribute("y1","-90");
+  l2.setAttribute("x2","0");  l2.setAttribute("y2","90");
+  l2.setAttribute("class","skyAxis");
+  svg.appendChild(l2);
+
+  // Cardinal labels
+  const labels = [
+    {t:"N", x:0,   y:-98},
+    {t:"E", x:98,  y:4},
+    {t:"S", x:0,   y:108},
+    {t:"W", x:-98, y:4},
+  ];
+  labels.forEach(o => {
+    const tx = document.createElementNS("http://www.w3.org/2000/svg","text");
+    tx.textContent = o.t;
+    tx.setAttribute("x", String(o.x));
+    tx.setAttribute("y", String(o.y));
+    tx.setAttribute("class","skyCard");
+    tx.setAttribute("text-anchor","middle");
+    svg.appendChild(tx);
+  });
+
+  // Elev labels (optional small)
+  const elevLbl = [
+    {t:"30°", y:-60},
+    {t:"60°", y:-30},
+  ];
+  elevLbl.forEach(o => {
+    const tx = document.createElementNS("http://www.w3.org/2000/svg","text");
+    tx.textContent = o.t;
+    tx.setAttribute("x","6");
+    tx.setAttribute("y", String(o.y));
+    tx.setAttribute("class","skyElev");
+    svg.appendChild(tx);
+  });
+}
+
+function renderSkyplot(sats){
+  const svg = $("skyplot");
+  const table = $("satTable");
+  if (!svg || !table) return;
+
+  const list = Array.isArray(sats) ? sats : [];
+
+  drawSkyBase(svg);
+
+  // Dots
+  list.forEach(s => {
+    const prn = Number(s?.prn);
+    if (!Number.isFinite(prn) || prn <= 0) return;
+
+    const elev = Number(s?.elev);
+    const az   = Number(s?.az);
+    const snr  = Number(s?.snr);
+    const used = !!s?.used;
+
+    const p = skyXY(az, elev);
+    const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+    g.setAttribute("class", used ? "sat used" : "sat");
+
+    const c = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    c.setAttribute("cx", String(p.x));
+    c.setAttribute("cy", String(p.y));
+    c.setAttribute("r", String(satDotRadius(snr)));
+    c.setAttribute("class", (Number.isFinite(snr) && snr >= 0) ? "satDot" : "satDot faint");
+    g.appendChild(c);
+
+    const tx = document.createElementNS("http://www.w3.org/2000/svg","text");
+    tx.textContent = String(prn);
+    tx.setAttribute("x", String(p.x));
+    tx.setAttribute("y", String(p.y + 3)); // optical alignment
+    tx.setAttribute("text-anchor","middle");
+    tx.setAttribute("class","satLbl");
+    g.appendChild(tx);
+
+    // Tooltip
+    const title = document.createElementNS("http://www.w3.org/2000/svg","title");
+    const snrTxt = (Number.isFinite(snr) && snr >= 0) ? (snr + " dB-Hz") : "—";
+    title.textContent = `PRN ${prn} | elev ${elev}° | az ${az}° | SNR ${snrTxt}` + (used ? " | USED" : "");
+    g.appendChild(title);
+
+    svg.appendChild(g);
+  });
+
+  // Table (sorted: used first, then snr desc)
+  const sorted = list
+    .filter(s => Number.isFinite(Number(s?.prn)) && Number(s.prn) > 0)
+    .slice()
+    .sort((a,b) => {
+      const au = a?.used ? 1 : 0, bu = b?.used ? 1 : 0;
+      if (au !== bu) return bu - au;
+      const as = Number.isFinite(Number(a?.snr)) ? Number(a.snr) : -1;
+      const bs = Number.isFinite(Number(b?.snr)) ? Number(b.snr) : -1;
+      return bs - as;
+    });
+
+  if (sorted.length === 0) {
+    table.textContent = "—";
+    return;
+  }
+
+  let html = `<div class="satRow satHead">
+    <div>PRN</div><div>El</div><div>Az</div><div>SNR</div><div>Used</div>
+  </div>`;
+
+  sorted.forEach(s => {
+    const prn = Number(s.prn);
+    const elev = Number(s.elev);
+    const az = Number(s.az);
+    const snr = Number(s.snr);
+    const used = !!s.used;
+
+    const snrTxt = (Number.isFinite(snr) && snr >= 0) ? snr : "—";
+    html += `<div class="satRow ${used ? "isUsed" : ""}">
+      <div class="mono">${prn}</div>
+      <div class="mono">${Number.isFinite(elev) ? elev : "—"}</div>
+      <div class="mono">${Number.isFinite(az) ? az : "—"}</div>
+      <div class="mono">${snrTxt}</div>
+      <div class="mono">${used ? "✅" : ""}</div>
+    </div>`;
+  });
+
+  table.innerHTML = html;
+}
+
 async function refresh(){
   try {
     const r = await fetch('/api/status', { cache:'no-store' });
@@ -270,6 +465,8 @@ async function refresh(){
     const utc = (s.gps?.date_utc && s.gps?.time_utc) ? (s.gps.date_utc + " " + s.gps.time_utc) : undefined;
     $('gps_utc').textContent   = safe(utc);
     $('gps_age').textContent   = safe((s.gps?.age_ms !== undefined) ? (s.gps.age_ms + " ms") : undefined);
+    // Skyplot (satellites)
+    renderSkyplot(s.gps?.sats);
 
     const reachOk = safe_ok(s.internet?.reach);
     setIcon("reach", reachOk);

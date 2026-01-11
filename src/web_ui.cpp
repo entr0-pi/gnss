@@ -333,6 +333,22 @@ static void handleStatus() {
     gpsObj["fix_quality_code"] = gps.fixQuality;
     gpsObj["time_utc"]         = tbuf;
     gpsObj["date_utc"]         = dbuf;
+  
+      // ---- NEW: satellites for skyplot ----
+    gpsObj["sats_in_view"] = gps.satsInView;
+
+    JsonArray satsArr = gpsObj["sats"].to<JsonArray>();
+    for (uint8_t i = 0; i < gps.satsInView && i < WebuiGpsSnapshot::MAX_SATS; i++) {
+      if (gps.sats[i].prn == 0) continue;
+
+      JsonObject so = satsArr.add<JsonObject>();
+      so["prn"]  = gps.sats[i].prn;
+      so["elev"] = gps.sats[i].elevDeg;
+      so["az"]   = gps.sats[i].azDeg;
+      so["snr"]  = gps.sats[i].snrDbHz;   // -1 means unknown
+      so["used"] = gps.sats[i].used;
+    }
+  
   }
   #endif
 

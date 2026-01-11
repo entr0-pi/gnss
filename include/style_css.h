@@ -203,6 +203,149 @@ body{
 .tabPanel{ display:none; }
 .tabPanel.isActive{ display:block; }
 
+/* ================= SKY PLOT ================= */
+
+.skyGrid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap:12px;
+}
+@media (min-width: 520px){
+  .skyGrid{ grid-template-columns: 1fr 1fr; align-items:start; }
+}
+
+.skyBox{
+  position:relative;
+  width:100%;
+  max-width:420px;
+  margin:0 auto;
+}
+
+.skySvg{
+  width:100%;
+  height:auto;
+  aspect-ratio: 1 / 1;
+  display:block;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:16px;
+  background: rgba(0,0,0,.18);
+}
+
+.skyRing{
+  fill:none;
+  stroke: rgba(255,255,255,.10);
+  stroke-width: 1;
+}
+
+.skyAxis{
+  stroke: rgba(255,255,255,.12);
+  stroke-width: 1;
+}
+
+.skyCard{
+  fill: rgba(255,255,255,.70);
+  font-size: 10px;
+  font-weight: 900;
+  font-family: var(--mono);
+}
+
+.skyElev{
+  fill: rgba(255,255,255,.45);
+  font-size: 9px;
+  font-family: var(--mono);
+}
+
+.satDot{
+  fill: rgba(45,125,255,.65);
+  stroke: rgba(255,255,255,.25);
+  stroke-width: 1;
+}
+.satDot.faint{
+  fill: rgba(255,255,255,.18);
+  stroke: rgba(255,255,255,.12);
+}
+
+.sat.used .satDot{
+  fill: rgba(56,214,124,.70);
+  stroke: rgba(56,214,124,.35);
+}
+
+.satLbl{
+  fill: rgba(255,255,255,.92);
+  font-size: 9px;
+  font-weight: 900;
+  font-family: var(--mono);
+  pointer-events: none;
+}
+
+.skyHint{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:10px;
+  justify-content:center;
+}
+
+.pill{
+  display:inline-block;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  font-size: 12px;
+  color: rgba(255,255,255,.78);
+  font-family: var(--mono);
+}
+.pill.used{
+  border-color: rgba(56,214,124,.35);
+  background: rgba(56,214,124,.12);
+}
+.pill.faint{
+  border-color: rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  color: rgba(255,255,255,.55);
+}
+
+.satTableTitle{
+  font-size:12px;
+  letter-spacing:.08em;
+  font-weight:900;
+  text-transform:uppercase;
+  color:rgba(255,255,255,.78);
+  margin:2px 2px 8px;
+}
+
+.satTable{
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:14px;
+  overflow:hidden;
+  background: rgba(0,0,0,.10);
+}
+
+.satRow{
+  display:grid;
+  grid-template-columns: 1.1fr .9fr .9fr 1.1fr .8fr;
+  gap:8px;
+  padding:8px 10px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  font-size:12px;
+  align-items:center;
+}
+.satRow:last-child{ border-bottom:0; }
+
+.satHead{
+  background: rgba(255,255,255,.05);
+  color: rgba(255,255,255,.70);
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  font-size:11px;
+}
+
+.satRow.isUsed{
+  background: rgba(56,214,124,.06);
+}
+
 )CSS";
 
 static const size_t STYLE_CSS_LEN = sizeof(STYLE_CSS) - 1;

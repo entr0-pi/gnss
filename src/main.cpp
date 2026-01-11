@@ -206,9 +206,26 @@ bool webui_get_gps_snapshot(WebuiGpsSnapshot& out) {
   out.day        = s.day;
 
   out.ageMs      = s.ageMs;
+
+  // ---- NEW: sats in view ----
+  out.satsInView = s.satsInView;
+  if (out.satsInView > WebuiGpsSnapshot::MAX_SATS) out.satsInView = WebuiGpsSnapshot::MAX_SATS;
+
+  for (uint8_t i = 0; i < out.satsInView; i++) {
+    out.sats[i].prn     = s.sats[i].prn;
+    out.sats[i].elevDeg = s.sats[i].elevDeg;
+    out.sats[i].azDeg   = s.sats[i].azDeg;
+    out.sats[i].snrDbHz = s.sats[i].snrDbHz;
+    out.sats[i].used    = s.sats[i].used;
+  }
+  for (uint8_t i = out.satsInView; i < WebuiGpsSnapshot::MAX_SATS; i++) {
+    out.sats[i] = WebuiGpsSnapshot::Sat{0,0,0,-1,false};
+  }
+
   return true;
 }
 #endif
+
 
 // ---------------- BLE Callbacks ----------------
 // NimBLE calls these on BLE events (connect/disconnect/subscribe/write).

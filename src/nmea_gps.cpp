@@ -1,141 +1,151 @@
 #if NMEA_ENABLE
-#include "nmea_gps.h"   // Your public snapshot struct + function declarations
+#include "nmea_gps.h"
 
-// minmea is a small, fast NMEA parser library (C).
-// We include it as C to avoid C++ name mangling issues.
 extern "C" {
   #include "minmea.h"
 }
 
 // ================= Internal GPS state =================
-//
-// This module is fed raw UART bytes (NMEA stream).
-// It reconstructs NMEA lines, parses a few sentence types (RMC/GGA/GSA),
-// and maintains a "latest known state" snapshot that other code (web UI)
-// can read safely.
-//
-// Concurrency note:
-// - Bytes are fed from another task (UART RX task).
-// - Snapshots are read from the web server context.
-// - Because `double` can tear on 32-bit architectures, we protect state with a critical section.
 struct GpsState {
   // ---- Position validity + kinematics ----
-  bool     valid       = false;  // True when RMC says fix is valid (library-dependent)
-  double   lat         = 0.0;    // Decimal degrees, +north
-  double   lon         = 0.0;    // Decimal degrees, +east
-  float    speedKmh    = 0.0f;   // Ground speed in km/h (from RMC speed in knots)
+  bool     valid       = false;
+  double   lat         = 0.0;
+  double   lon         = 0.0;
+  float    speedKmh    = 0.0f;
 
   // ---- Time (UTC) ----
-  bool     timeValid   = false;  // True once we've captured a time from RMC or GGA
+  bool     timeValid   = false;
   uint8_t  hour        = 0;
   uint8_t  minute      = 0;
   uint8_t  second      = 0;
 
   // ---- Date (UTC) ----
-  uint16_t year        = 0;      // Stored as full year (e.g., 2026)
-  uint8_t  month       = 0;      // 1..12
-  uint8_t  day         = 0;      // 1..31
+  uint16_t year        = 0;
+  uint8_t  month       = 0;
+  uint8_t  day         = 0;
 
   // ---- Fix quality / satellites / dilution ----
-  uint8_t  satsUsed    = 0;      // Satellites used/tracked (from GGA)
-  uint8_t  fixQuality  = 0;      // GGA fix quality (0=no fix, 1=GPS, 2=DGPS, etc.)
-  uint8_t  fixType     = 0;      // GSA fix type (1=no fix, 2=2D, 3=3D)
-  float    hdop        = 0.0f;   // Horizontal dilution of precision (GGA or GSA)
+  uint8_t  satsUsed    = 0;
+  uint8_t  fixQuality  = 0;
+  uint8_t  fixType     = 0;
+  float    hdop        = 0.0f;
 
   // ---- Freshness tracking ----
-  // Timestamp (millis) of the last valid NMEA sentence we accepted (checksum OK + parsed OK).
   uint32_t lastMs      = 0;
+
+  // ---- NEW: Satellites in view (GSV) + used list (GSA) ----
+  static constexpr uint8_t MAX_SATS = NmeaGpsSnapshot::MAX_SATS;
+
+  uint8_t    satsInView = 0;
+  NmeaSatInfo sats[MAX_SATS];
+
+  uint16_t usedPrn[16];
+  uint8_t  usedCount = 0;
+
+  uint32_t lastGsvMs = 0;   // last time we processed any GSV
+  uint32_t lastGsaMs = 0;   // last time we processed any GSA
 };
 
-// Global instance holding the latest state.
 static GpsState g_gps;
 
 // ================= Line collector =================
-//
-// We are parsing from raw bytes, not from a line-oriented stream.
-// This tiny "collector" builds a NMEA line:
-// - Start when '$' appears
-// - Accumulate until '\n'
-// - On '\n' terminate with '\0' and parse
-//
-// g_line size must be big enough for the longest sentence you care about.
-// Typical NMEA lines are < 82 chars, but some can be longer; 96 gives headroom.
-static char g_line[96];
+// GSV lines can be longer than 82 chars; give more headroom.
+static char g_line[128];
 static int  g_len = 0;
 
 // ================= Concurrency protection =================
-//
-// ESP32 is 32-bit; `double` (64-bit) can be written/read in two halves ("torn") if accessed
-// concurrently. To avoid torn reads, we wrap reads/writes to g_gps with a critical section.
-//
-// Note:
-// - portENTER_CRITICAL disables interrupts on the current core.
-// - It is fast, but keep the protected region small.
-// - We only protect assignments / copies; the heavier parsing happens outside the lock.
 static portMUX_TYPE g_mux = portMUX_INITIALIZER_UNLOCKED;
 static inline void lock()   { portENTER_CRITICAL(&g_mux); }
 static inline void unlock() { portEXIT_CRITICAL(&g_mux);  }
 
-// ================= Sentence processor =================
-//
-// Called with a full NMEA line (null-terminated) that starts with '$'.
-// - Validates checksum (recommended)
-// - Identifies sentence type
-// - Parses only the sentences we care about
-// - Updates the global GPS state (atomically via lock/unlock)
-static inline void process_line(const char* line, uint32_t nowMs) {
-  // Basic sanity: must start with '$'
-  if (!line || line[0] != '$') return;
+// ================= Helpers (must be called while locked) =================
+static inline bool prn_is_used_nolock(uint16_t prn) {
+  for (uint8_t i = 0; i < g_gps.usedCount; i++) {
+    if (g_gps.usedPrn[i] == prn) return true;
+  }
+  return false;
+}
 
-  // Verify NMEA checksum (recommended in noisy serial environments).
-  // Second parameter 'true' means strict checking.
+static inline void clear_sats_nolock() {
+  g_gps.satsInView = 0;
+  for (uint8_t i = 0; i < GpsState::MAX_SATS; i++) {
+    g_gps.sats[i] = NmeaSatInfo{0,0,0,-1,false};
+  }
+}
+
+static inline void add_or_update_sat_nolock(uint16_t prn, uint8_t elev, uint16_t az, int8_t snr) {
+  if (prn == 0) return;
+
+  // Update existing if already present
+  for (uint8_t i = 0; i < g_gps.satsInView; i++) {
+    if (g_gps.sats[i].prn == prn) {
+      g_gps.sats[i].elevDeg = elev;
+      g_gps.sats[i].azDeg   = az;
+      g_gps.sats[i].snrDbHz = snr;
+      g_gps.sats[i].used    = prn_is_used_nolock(prn);
+      return;
+    }
+  }
+
+  // Append new
+  if (g_gps.satsInView < GpsState::MAX_SATS) {
+    const uint8_t idx = g_gps.satsInView++;
+    g_gps.sats[idx].prn      = prn;
+    g_gps.sats[idx].elevDeg  = elev;
+    g_gps.sats[idx].azDeg    = az;
+    g_gps.sats[idx].snrDbHz  = snr;
+    g_gps.sats[idx].used     = prn_is_used_nolock(prn);
+  }
+}
+
+static inline void mark_used_flags_nolock() {
+  for (uint8_t i = 0; i < g_gps.satsInView; i++) {
+    const uint16_t prn = g_gps.sats[i].prn;
+    g_gps.sats[i].used = prn_is_used_nolock(prn);
+  }
+}
+
+static inline void add_used_prn_nolock(uint16_t prn) {
+  if (prn == 0) return;
+  for (uint8_t i = 0; i < g_gps.usedCount; i++) {
+    if (g_gps.usedPrn[i] == prn) return; // already present
+  }
+  if (g_gps.usedCount < (uint8_t)(sizeof(g_gps.usedPrn)/sizeof(g_gps.usedPrn[0]))) {
+    g_gps.usedPrn[g_gps.usedCount++] = prn;
+  }
+}
+
+// ================= Sentence processor =================
+static inline void process_line(const char* line, uint32_t nowMs) {
+  if (!line || line[0] != '$') return;
   if (!minmea_check(line, true)) return;
 
-  // Update freshness timestamp: "we successfully received a valid NMEA sentence now".
   lock();
   g_gps.lastMs = nowMs;
   unlock();
 
-  // Identify sentence type.
-  // minmea_sentence_id(..., false) means: do not "strictly" require talker ID matches
-  // beyond what minmea expects; you previously used false.
   switch (minmea_sentence_id(line, false)) {
 
-    // ---------------- RMC: Recommended Minimum Navigation Information ----------------
-    // Contains: validity, lat/lon, speed, time, date.
     case MINMEA_SENTENCE_RMC: {
       struct minmea_sentence_rmc rmc;
       if (!minmea_parse_rmc(&rmc, line)) break;
 
-      // Validity:
-      // Many NMEA streams use 'A' (valid) / 'V' (void).
-      // Here you use `rmc.valid` directly (bool-ish in your build/config).
-      // If you want the classic behavior, you could use: (rmc.valid == 'A')
-      //const bool ok = (rmc.valid == 'A');
       const bool ok = rmc.valid;
 
-      // Convert fixed-point lat/lon to decimal degrees.
       const double lat = minmea_tocoord(&rmc.latitude);
       const double lon = minmea_tocoord(&rmc.longitude);
 
-      // Convert speed:
-      // - NMEA RMC speed is in knots
-      // - 1 knot = 1.852 km/h
       const float speedKnots = (float)minmea_tofloat(&rmc.speed);
       const float speedKmh   = speedKnots * 1.852f;
 
-      // UTC time fields from RMC.
       const uint8_t hh = (uint8_t)rmc.time.hours;
       const uint8_t mm = (uint8_t)rmc.time.minutes;
       const uint8_t ss = (uint8_t)rmc.time.seconds;
 
-      // Date fields from RMC (usually DDMMYY).
-      // minmea returns year as 0..99; here we assume 2000+.
       const uint8_t  dd = (uint8_t)rmc.date.day;
       const uint8_t  mo = (uint8_t)rmc.date.month;
       const uint16_t yy = (uint16_t)(2000 + rmc.date.year);
 
-      // Commit all updates atomically to avoid torn reads.
       lock();
       g_gps.valid     = ok;
       g_gps.lat       = lat;
@@ -153,8 +163,6 @@ static inline void process_line(const char* line, uint32_t nowMs) {
       unlock();
     } break;
 
-    // ---------------- GGA: Global Positioning System Fix Data ----------------
-    // Contains: fix quality, number of satellites, HDOP, and time.
     case MINMEA_SENTENCE_GGA: {
       struct minmea_sentence_gga gga;
       if (!minmea_parse_gga(&gga, line)) break;
@@ -166,12 +174,8 @@ static inline void process_line(const char* line, uint32_t nowMs) {
       lock();
       g_gps.fixQuality = fixQ;
       g_gps.satsUsed   = sats;
-
-      // Only overwrite hdop if the parsed value is positive (guard against invalid/empty fields).
       if (hd > 0.0f) g_gps.hdop = hd;
 
-      // Fallback time source:
-      // If we haven't received an RMC yet, we can still populate UTC time from GGA.
       if (!g_gps.timeValid) {
         g_gps.timeValid = true;
         g_gps.hour   = (uint8_t)gga.time.hours;
@@ -181,8 +185,7 @@ static inline void process_line(const char* line, uint32_t nowMs) {
       unlock();
     } break;
 
-    // ---------------- GSA: GNSS DOP and Active Satellites ----------------
-    // Contains: fix type and DOP values (PDOP/HDOP/VDOP).
+    // ---- UPDATED: GSA now extracts the "used satellites" list ----
     case MINMEA_SENTENCE_GSA: {
       struct minmea_sentence_gsa gsa;
       if (!minmea_parse_gsa(&gsa, line)) break;
@@ -191,106 +194,123 @@ static inline void process_line(const char* line, uint32_t nowMs) {
       const float   hd   = (float)minmea_tofloat(&gsa.hdop);
 
       lock();
-      g_gps.fixType = fixT;
 
-      // Same guard: only accept positive HDOP.
+      g_gps.fixType = fixT;
       if (hd > 0.0f) g_gps.hdop = hd;
+
+      // NEW: start a new "GSA cycle" only if there's a time gap
+      const bool newCycle = (g_gps.lastGsaMs == 0) || ((nowMs - g_gps.lastGsaMs) > 1500);
+      if (newCycle) {
+        g_gps.usedCount = 0;
+      }
+      g_gps.lastGsaMs = nowMs;
+
+      // Merge PRNs from this sentence
+      for (int i = 0; i < 12; i++) {
+        add_used_prn_nolock((uint16_t)gsa.sats[i]);
+      }
+
+      // Apply used flags to satellites currently in view
+      mark_used_flags_nolock();
+
       unlock();
     } break;
 
-    // Any other sentence type is ignored.
+
+    // ---- NEW: GSV satellites-in-view (azimuth/elevation/SNR) ----
+    case MINMEA_SENTENCE_GSV: {
+      struct minmea_sentence_gsv gsv;
+      if (!minmea_parse_gsv(&gsv, line)) break;
+
+      lock();
+
+      // NEW: detect a new "GSV cycle" by time gap (covers multiple talkers: GP/GL/GA/BD...)
+      const bool newCycle = (g_gps.lastGsvMs == 0) || ((nowMs - g_gps.lastGsvMs) > 1500);
+      if (newCycle) {
+        clear_sats_nolock();
+      }
+      g_gps.lastGsvMs = nowMs;
+
+      for (int i = 0; i < 4; i++) {
+        const uint16_t prn = (uint16_t)gsv.sats[i].nr;
+        if (prn == 0) continue;
+
+        const uint8_t  elev = (uint8_t)gsv.sats[i].elevation;
+        const uint16_t az   = (uint16_t)gsv.sats[i].azimuth;
+
+        const int snr_raw = gsv.sats[i].snr;
+        const int8_t snr = (snr_raw > 0 && snr_raw < 100) ? (int8_t)snr_raw : (int8_t)-1;
+
+        add_or_update_sat_nolock(prn, elev, az, snr);
+      }
+
+      // Keep "used" flags consistent with whatever GSA PRNs we have so far
+      mark_used_flags_nolock();
+
+      unlock();
+    } break;
+
     default:
       break;
   }
 }
 
 // ================= Byte feeder =================
-//
-// Feed a single byte from the NMEA stream.
-// This function maintains the line collector state and calls process_line()
-// whenever a full line ending with '\n' is formed.
 static inline void feed_byte(uint8_t b, uint32_t nowMs) {
   const char c = (char)b;
 
-  // '$' marks the start of a new NMEA sentence. Reset the collector.
   if (c == '$') {
     g_len = 0;
     g_line[g_len++] = c;
     return;
   }
 
-  // If we haven't seen '$' yet, ignore everything.
   if (g_len == 0) return;
-
-  // Ignore carriage return (NMEA lines often end with "\r\n").
   if (c == '\r') return;
 
-  // '\n' terminates the line: finalize buffer, parse, then reset collector.
   if (c == '\n') {
-    g_line[g_len] = 0;           // null-terminate
-    process_line(g_line, nowMs); // parse and update state
-    g_len = 0;                   // ready for next sentence
+    g_line[g_len] = 0;
+    process_line(g_line, nowMs);
+    g_len = 0;
     return;
   }
 
-  // Normal character: append if space remains.
-  // Keep one byte for '\0' terminator.
   if (g_len < (int)sizeof(g_line) - 1) {
     g_line[g_len++] = c;
   } else {
-    // Overflow: drop the sentence (likely malformed/too long) and resync.
-    g_len = 0;
+    g_len = 0; // overflow -> drop and resync
   }
 }
 
 // ================= Public API =================
-//
-// These functions are called by the rest of your project:
-//
-// - nmea_begin():       reset internal state at boot
-// - nmea_feed_bytes():  feed raw UART bytes from UM980
-// - nmea_get_snapshot():copy the latest state into an output struct (thread-safe-ish)
-
 void nmea_begin() {
-  // Reset all GPS fields to defaults.
   lock();
   g_gps = GpsState{};
+  clear_sats_nolock();
   unlock();
-
-  // Reset the line collector state too.
   g_len = 0;
 }
 
 void nmea_feed_bytes(const uint8_t* data, size_t len, uint32_t nowMs) {
-  // Defensive checks: null pointer or empty input means nothing to do.
   if (!data || len == 0) return;
-
-  // Feed each byte to the collector.
-  // nowMs is passed through so we can stamp freshness at the moment of parsing.
   for (size_t i = 0; i < len; i++) feed_byte(data[i], nowMs);
 }
 
 bool nmea_get_snapshot(NmeaGpsSnapshot& out) {
-  // We'll copy g_gps into out while locked, then compute ageMs outside the lock.
   uint32_t last = 0;
 
   lock();
 
-  // Copy core navigation fields.
-  // Note: you intentionally keep `valid` as is, even though UM980 may report RMC validity
-  // differently during RTK. Your HTML logic handles that interpretation.
-  out.valid      = g_gps.valid; // UM980 considers non valid when RTK. Response changed in html to include RTK in the validaty domain
+  out.valid      = g_gps.valid;
   out.lat        = g_gps.lat;
   out.lon        = g_gps.lon;
   out.speedKmh   = g_gps.speedKmh;
 
-  // Copy fix/satellite fields.
   out.satsUsed   = g_gps.satsUsed;
   out.fixQuality = g_gps.fixQuality;
   out.fixType    = g_gps.fixType;
   out.hdop       = g_gps.hdop;
 
-  // Copy time/date fields.
   out.timeValid  = g_gps.timeValid;
   out.hour       = g_gps.hour;
   out.minute     = g_gps.minute;
@@ -300,17 +320,19 @@ bool nmea_get_snapshot(NmeaGpsSnapshot& out) {
   out.month      = g_gps.month;
   out.day        = g_gps.day;
 
-  // Capture last update timestamp for freshness computation.
+  // ---- NEW: copy satellites table ----
+  out.satsInView = g_gps.satsInView;
+  if (out.satsInView > NmeaGpsSnapshot::MAX_SATS) out.satsInView = NmeaGpsSnapshot::MAX_SATS;
+
+  for (uint8_t i = 0; i < out.satsInView; i++) out.sats[i] = g_gps.sats[i];
+  for (uint8_t i = out.satsInView; i < NmeaGpsSnapshot::MAX_SATS; i++) out.sats[i] = NmeaSatInfo{0,0,0,-1,false};
+
   last = g_gps.lastMs;
 
   unlock();
 
-  // Compute "age" in milliseconds:
-  // - If we've never seen a valid sentence, last == 0 -> ageMs = 0
-  // - Otherwise ageMs = now - last
   const uint32_t now = millis();
   out.ageMs = (last == 0) ? 0 : (now - last);
-
   return true;
 }
 #endif
