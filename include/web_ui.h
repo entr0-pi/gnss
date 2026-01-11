@@ -28,6 +28,10 @@ struct WebuiGpsSnapshot {
   uint8_t  fixType;
   float    hdop;
 
+  float    hAcc_m;
+  float    vAcc_m;
+  uint8_t  accSource; // 0=none, 1=GST, 2=HDOP-est
+
   bool     timeValid;
   uint8_t  hour, minute, second;
 

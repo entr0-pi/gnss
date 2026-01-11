@@ -7,6 +7,8 @@ extern "C" {
   #include "minmea.h"
 }
 
+#include <math.h>
+
 // ================= Internal GPS state =================
 //
 // This module is fed raw UART bytes (NMEA stream).
@@ -41,6 +43,11 @@ struct GpsState {
   uint8_t  fixQuality  = 0;      // GGA fix quality (0=no fix, 1=GPS, 2=DGPS, etc.)
   uint8_t  fixType     = 0;      // GSA fix type (1=no fix, 2=2D, 3=3D)
   float    hdop        = 0.0f;   // Horizontal dilution of precision (GGA or GSA)
+
+  float    hAcc_m      = 0.0f;   // horizontal accuracy estimate (m)
+  float    vAcc_m      = 0.0f;   // vertical accuracy estimate (m)
+  uint8_t  accSource   = 0;      // 0=none, 1=GST, 2=HDOP-est
+  uint32_t accLastMs   = 0;      // millis timestamp of last accuracy update
 
   // ---- Freshness tracking ----
   // Timestamp (millis) of the last valid NMEA sentence we accepted (checksum OK + parsed OK).
@@ -170,6 +177,18 @@ static inline void process_line(const char* line, uint32_t nowMs) {
       // Only overwrite hdop if the parsed value is positive (guard against invalid/empty fields).
       if (hd > 0.0f) g_gps.hdop = hd;
 
+      // Fallback accuracy estimate from HDOP (very rough):
+      // hAcc ≈ HDOP * 5m, vAcc ≈ hAcc * 1.5
+      // Only apply if we do NOT already have GST-derived accuracy.
+      if (hd > 0.0f && g_gps.accSource != 1) {
+        const float h = hd * 5.0f;
+        const float v = h * 1.5f;
+        g_gps.hAcc_m    = h;
+        g_gps.vAcc_m    = v;
+        g_gps.accSource = 2;      // HDOP-est
+        g_gps.accLastMs = nowMs;
+      }
+
       // Fallback time source:
       // If we haven't received an RMC yet, we can still populate UTC time from GGA.
       if (!g_gps.timeValid) {
@@ -193,9 +212,45 @@ static inline void process_line(const char* line, uint32_t nowMs) {
       lock();
       g_gps.fixType = fixT;
 
-      // Same guard: only accept positive HDOP.
+      // Only overwrite hdop if the parsed value is positive (guard against invalid/empty fields).
       if (hd > 0.0f) g_gps.hdop = hd;
+
+      // Fallback accuracy estimate from HDOP (very rough):
+      // hAcc ≈ HDOP * 5m, vAcc ≈ hAcc * 1.5
+      // Only apply if we do NOT already have GST-derived accuracy.
+      if (hd > 0.0f && g_gps.accSource != 1) {
+        const float h = hd * 5.0f;
+        const float v = h * 1.5f;
+        g_gps.hAcc_m    = h;
+        g_gps.vAcc_m    = v;
+        g_gps.accSource = 2;      // HDOP-est
+        g_gps.accLastMs = nowMs;
+      }
       unlock();
+    } break;
+
+    // ---------------- GST: GPS Pseudorange Noise Statistics ----------------
+    // Contains: standard deviations for latitude/longitude/altitude (meters).
+    // This is the best NMEA source for accuracy to display in the UI.
+    case MINMEA_SENTENCE_GST: {
+      struct minmea_sentence_gst gst;
+      if (!minmea_parse_gst(&gst, line)) break;
+
+      const float sigma_lat = (float)minmea_tofloat(&gst.latitude_error_deviation);
+      const float sigma_lon = (float)minmea_tofloat(&gst.longitude_error_deviation);
+      const float sigma_alt = (float)minmea_tofloat(&gst.altitude_error_deviation);
+
+      if (sigma_lat > 0.0f && sigma_lon > 0.0f) {
+        const float h = sqrtf((sigma_lat * sigma_lat) + (sigma_lon * sigma_lon));
+        const float v = (sigma_alt > 0.0f) ? sigma_alt : 0.0f;
+
+        lock();
+        g_gps.hAcc_m    = h;
+        g_gps.vAcc_m    = v;
+        g_gps.accSource = 1;       // GST
+        g_gps.accLastMs = nowMs;
+        unlock();
+      }
     } break;
 
     // Any other sentence type is ignored.
@@ -289,6 +344,9 @@ bool nmea_get_snapshot(NmeaGpsSnapshot& out) {
   out.fixQuality = g_gps.fixQuality;
   out.fixType    = g_gps.fixType;
   out.hdop       = g_gps.hdop;
+  out.hAcc_m     = g_gps.hAcc_m;
+  out.vAcc_m     = g_gps.vAcc_m;
+  out.accSource  = g_gps.accSource;
 
   // Copy time/date fields.
   out.timeValid  = g_gps.timeValid;

@@ -196,6 +196,10 @@ bool webui_get_gps_snapshot(WebuiGpsSnapshot& out) {
   out.fixType    = s.fixType;
   out.hdop       = s.hdop;
 
+  out.hAcc_m     = s.hAcc_m;
+  out.vAcc_m     = s.vAcc_m;
+  out.accSource  = s.accSource;
+
   out.timeValid  = s.timeValid;
   out.hour       = s.hour;
   out.minute     = s.minute;

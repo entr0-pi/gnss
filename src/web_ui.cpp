@@ -303,6 +303,11 @@ static void handleStatus() {
       default: fixQualStr = "Other";  break;
     }
 
+    // Human-readable accuracy source.
+    const char* accSrcStr = "—";
+    if      (gps.accSource == 1) accSrcStr = "GST";
+    else if (gps.accSource == 2) accSrcStr = "HDOP-est";
+
     // Format UTC time as HH:MM:SS or "—".
     char tbuf[16];
     if (gps.timeValid) snprintf(tbuf, sizeof(tbuf), "%02u:%02u:%02u", gps.hour, gps.minute, gps.second);
@@ -327,6 +332,10 @@ static void handleStatus() {
     gpsObj["speed_kmh"]        = gps.speedKmh;
     gpsObj["sats_used"]        = gps.satsUsed;
     gpsObj["hdop"]             = gps.hdop;
+    gpsObj["hacc_m"]           = gps.hAcc_m;
+    gpsObj["vacc_m"]           = gps.vAcc_m;
+    gpsObj["acc_source"]       = accSrcStr;
+    gpsObj["acc_source_code"]  = gps.accSource;
     gpsObj["fix_type"]         = fixTypeStr;
     gpsObj["fix_quality"]      = fixQualStr;
     gpsObj["fix_type_code"]    = gps.fixType;

@@ -16,6 +16,10 @@ struct NmeaGpsSnapshot {
   uint8_t  fixType;          // GSA fix type (1/2/3) if present
   float    hdop;
 
+  float    hAcc_m;           // horizontal accuracy estimate (m)
+  float    vAcc_m;           // vertical accuracy estimate (m)
+  uint8_t  accSource;        // 0=none, 1=GST, 2=HDOP-est
+
   bool     timeValid;
   uint8_t  hour, minute, second;
 

@@ -53,7 +53,9 @@ static const uint8_t INDEX_HTML[] PROGMEM = R"HTML(
           <div class="catBody">
             <div class="line"><span class="lk">Bluetooth Connected</span><span class="lv mono emoji" id="ble_connected">—</span></div>
             <div class="line"><span class="lk">GPS Connected</span><span class="lv mono emoji" id="gps_valid">—</span></div>
-            <div class="line"><span class="lk">GPS Quality</span><span class="lv mono emoji" id="gps_fix">—</span></div>
+            <div class="line"><span class="lk">GPS Quality</span><span class="lv mono" id="gps_fix">—</span></div>
+            <div class="line"><span class="lk">Horizontal Accuracy</span><span class="lv mono" id="gps_hacc">—</span></div>
+            <div class="line"><span class="lk">Vertical Accuracy</span><span class="lv mono" id="gps_vacc">—</span></div>
           </div>
         </div>
 
@@ -78,6 +80,9 @@ static const uint8_t INDEX_HTML[] PROGMEM = R"HTML(
             <div class="line"><span class="lk">Lon</span><span class="lv mono" id="gps_lon">—</span></div>
             <div class="line"><span class="lk">Speed</span><span class="lv mono" id="gps_speed">—</span></div>
             <div class="line"><span class="lk">HDOP</span><span class="lv mono" id="gps_hdop">—</span></div>
+            <div class="line"><span class="lk">H Acc</span><span class="lv mono" id="gps_hacc2">—</span></div>
+            <div class="line"><span class="lk">V Acc</span><span class="lv mono" id="gps_vacc2">—</span></div>
+            <div class="line"><span class="lk">Acc src</span><span class="lv mono" id="gps_accsrc">—</span></div>
             <div class="line"><span class="lk">Age</span><span class="lv mono" id="gps_age">—</span></div>
           </div>
         </div>
@@ -223,6 +228,13 @@ function fmtUptime(ms){
   return h + " h " + (m%60) + " m";
 }
 
+function fmtMeters(m){
+  if (!Number.isFinite(m) || m <= 0) return "—";
+  if (m < 0.05) return (m*1000).toFixed(1) + " mm";
+  if (m < 1.0)  return (m*100).toFixed(1) + " cm";
+  return m.toFixed(2) + " m";
+}
+
 function safe(v, fallback="—"){
   return (v === undefined || v === null || v === "") ? fallback : v;
 }
@@ -264,6 +276,11 @@ async function refresh(){
     $('gps_fix2').textContent   = safe((s.gps?.fix_type && s.gps?.fix_quality) ? (s.gps.fix_type + " / " + s.gps.fix_quality) : undefined);
     $('gps_sats').textContent  = safe(s.gps?.sats_used);
     $('gps_hdop').textContent  = safe((s.gps?.hdop !== undefined) ? s.gps.hdop : undefined);
+    $('gps_hacc').textContent  = fmtMeters(s.gps?.hacc_m);
+    $('gps_hacc2').textContent  = fmtMeters(s.gps?.hacc_m);
+    $('gps_vacc').textContent  = fmtMeters(s.gps?.vacc_m);
+    $('gps_vacc2').textContent  = fmtMeters(s.gps?.vacc_m);
+    $('gps_accsrc').textContent= safe(s.gps?.acc_source);
     $('gps_lat').textContent   = safe((s.gps?.lat !== undefined) ? s.gps.lat : undefined);
     $('gps_lon').textContent   = safe((s.gps?.lon !== undefined) ? s.gps.lon : undefined);
     $('gps_speed').textContent = safe((s.gps?.speed_kmh !== undefined) ? (s.gps.speed_kmh + " km/h") : undefined);
