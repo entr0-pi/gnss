@@ -247,7 +247,6 @@ static void handleStatus() {
   // ---------------- wifi ----------------
   {
     JsonObject wifi = doc["wifi"].to<JsonObject>();
-    wifi["mode"]      = "STA";
     wifi["ssid"]      = ssid;
     wifi["ip"]        = ip;
     wifi["gw"]        = gw;
@@ -279,8 +278,7 @@ static void handleStatus() {
     JsonObject bleObj = doc["ble"].to<JsonObject>();
 
     // Boolean; HTML renders ✅/❌.
-    bleObj["connected"] = ble.connected; // "✅" : "❌" in html now
-
+    bleObj["connected"] = ble.connected;
     bleObj["mtu"]       = ble.mtu;
     bleObj["txBytes"]   = ble.txBytes;
     bleObj["rxBytes"]   = ble.rxBytes;
@@ -323,16 +321,7 @@ static void handleStatus() {
     // You want "valid" to be true either when:
     // - gps.valid is true, OR
     // - fixQuality indicates RTK Fix (4) or RTK Float (5)
-    //
-    // NOTE: Your original code uses assignment '=' (not '==') for fixQuality checks:
-    //   (gps.fixQuality = 4) and (gps.fixQuality = 5)
-    // That *modifies* gps.fixQuality and always yields a truthy value (4 or 5),
-    // so it would effectively force validity true and overwrite the quality.
-    //
-    // You asked for “exactly the same code” behavior, so we keep it unchanged,
-    // but the comment here makes the intent explicit.
-    gpsObj["valid"] = gps.valid || (gps.fixQuality = 4) || (gps.fixQuality = 5); // "✅" : "❌" in html now. UM980 hard rule validity soften to include RTK
-
+    gpsObj["valid"] = gps.valid || (gps.fixQuality == 4) || (gps.fixQuality == 5);
     gpsObj["age_ms"]           = gps.ageMs;
     gpsObj["lat"]              = gps.lat;
     gpsObj["lon"]              = gps.lon;

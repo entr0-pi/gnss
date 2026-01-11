@@ -180,6 +180,29 @@ body{
   content: "❌";
 }
 
+.tabs{
+  display:flex;
+  gap:8px;
+  margin-top:10px;
+  flex-wrap:wrap;
+}
+.tabBtn{
+  border:1px solid rgba(255,255,255,.15);
+  background:rgba(255,255,255,.06);
+  color:inherit;
+  padding:8px 12px;
+  border-radius:10px;
+  cursor:pointer;
+  user-select:none;
+}
+.tabBtn.isActive{
+  background:rgba(219, 142, 78, 0.65);
+  border-color:rgba(255,255,255,.35);
+}
+
+.tabPanel{ display:none; }
+.tabPanel.isActive{ display:block; }
+
 )CSS";
 
 static const size_t STYLE_CSS_LEN = sizeof(STYLE_CSS) - 1;
