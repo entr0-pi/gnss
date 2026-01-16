@@ -20,9 +20,10 @@
 #include <cstring>
 #include <ArduinoJson.h>
 
-#include "index_html.h"
-#include "style_css.h"
-#include "favicon_ico.h"
+#include "app_js.h"
+#include "app_index.h"
+#include "app_style.h"
+#include "app_favicon.h"
 #include "web_ui.h"
 
 // Keep a pointer so helpers/handlers can use the same server instance.
@@ -78,6 +79,17 @@ static void sendProgmem(int code,
 
   // send_P reads from PROGMEM; cast to char* is required by API signature.
   s_server->send_P(code, contentType, (const char*)data, len);
+}
+
+// sendProgmemGzip():
+// Serve a gzipped PROGMEM buffer and set Content-Encoding: gzip.
+static void sendProgmemGzip(int code,
+                            const char* contentType,
+                            const uint8_t* data,
+                            size_t len,
+                            const char* cacheControl) {
+  s_server->sendHeader("Content-Encoding", "gzip");
+  sendProgmem(code, contentType, data, len, cacheControl);
 }
 
 // ------------- API: internet reachable -------------
@@ -399,21 +411,28 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
   // Serve HTML at "/"
   server.on("/", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendProgmem(200, "text/html; charset=utf-8", INDEX_HTML, INDEX_HTML_LEN, "no-store");
+    sendProgmemGzip(200, "text/html; charset=utf-8", APP_INDEX, APP_INDEX_LEN, "no-store");
   });
 
   // Serve CSS at "/style.css"
   // Cache it for 1 day to reduce repeated transfers.
   server.on("/style.css", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendProgmem(200, "text/css; charset=utf-8", STYLE_CSS, STYLE_CSS_LEN, "public, max-age=86400");
+    sendProgmemGzip(200, "text/css; charset=utf-8", APP_STYLE, APP_STYLE_LEN, "public, max-age=86400");
+  });
+
+  // Serve JS at "/app.js"
+  // Cache it for 1 day to reduce repeated transfers.
+  server.on("/app.js", HTTP_GET, []() {
+    markRequestAndGetPrevAgeMs();
+    sendProgmemGzip(200, "application/javascript; charset=utf-8", APP_JS, APP_JS_LEN, "public, max-age=86400");
   });
 
   // Serve favicon at "/favicon.ico"
   // Cache it for 7 days.
   server.on("/favicon.ico", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendProgmem(200, "image/x-icon", FAVICON_ICO, FAVICON_ICO_LEN, "public, max-age=604800");
+    sendProgmemGzip(200, "image/x-icon", APP_FAVICON, APP_FAVICON_LEN, "public, max-age=604800");
   });
 
   // JSON status endpoint

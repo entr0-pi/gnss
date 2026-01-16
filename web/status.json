@@ -1,0 +1,56 @@
+{
+  "device": {
+    "uptime_ms": 1234567,
+    "cpu_mhz": 160,
+    "build": "v1.2.3"
+  },
+  "memory": {
+    "heap_free": 523456,
+    "heap_min_free": 12345,
+    "heap_max_alloc": 1048576
+  },
+  "wifi": {
+    "rssi_dbm": -62,
+    "ssid": "MyWiFi",
+    "ip": "192.168.1.42",
+    "gw": "192.168.1.1",
+    "dns": "192.168.1.1",
+    "subnet": "255.255.255.0",
+    "broadcast": "192.168.1.255",
+    "mac": "AA:BB:CC:DD:EE:FF"
+  },
+  "ble": {
+    "connected": true,
+    "mtu": 247,
+    "txBytes": 10240,
+    "rxBytes": 2048
+  },
+  "gps": {
+    "valid": true,
+    "fix_type": "3D",
+    "fix_quality": "DGPS",
+    "sats_used": 8,
+    "hdop": 0.9,
+    "hacc_m": 0.8,
+    "vacc_m": 1.2,
+    "acc_source": "GNSS",
+    "lat": 48.8566,
+    "lon": 2.3522,
+    "speed_kmh": 12.3,
+    "date_utc": "2026-01-16",
+    "time_utc": "12:34:56",
+    "age_ms": 500
+  },
+  "internet": {
+    "reach": true
+  },
+  "http": {
+    "port": 80,
+    "req_total": 123,
+    "prev_req_age_ms": 1500
+  },
+  "app": {
+    "state": "running",
+    "notes": "Demo status"
+  }
+}
