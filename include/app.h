@@ -33,12 +33,21 @@ static const IPAddress STA_DNS    (172, 20, 10, 1);
 
 // ---------------- BT ----------------
 // BLE advertising name shown on the phone.
-static const char DEVICE_NAME[] = "UM980-BLE";
+#ifndef BLE_DEVICE_NAME
+#define BLE_DEVICE_NAME "UM980-BLE"
+#endif
+static const char DEVICE_NAME[] = BLE_DEVICE_NAME;
 // Requested ATT MTU. Higher MTU can reduce overhead for a stream like NMEA.
-static const uint16_t BLE_MTU = 23;
+#ifndef BLE_MTU_CFG
+#define BLE_MTU_CFG 23
+#endif
+static const uint16_t BLE_MTU = BLE_MTU_CFG;
 
 // UM980 output rate (Hz); used to derive low-rate BLE throttle.
-static const uint16_t UM980_HZ = 1;
+#ifndef UM980_HZ_CFG
+#define UM980_HZ_CFG 1
+#endif
+static const uint16_t UM980_HZ = UM980_HZ_CFG;
 
 // BLE notify sizing and low-rate throttle derived from MTU and UM980 rate.
 static const size_t BLE_MAX_PAYLOAD = BLE_MTU - 3;

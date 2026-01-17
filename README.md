@@ -16,6 +16,17 @@
 ## Build Flags
 - `WEBUI_ENABLE` (default `1`): enables WiFi/WebServer status UI. When `0`, web UI code is excluded and `scripts/gzip_web.py` does not run.
 - `NMEA_ENABLE` (default `0` unless set in an env): enables the optional NMEA parser. When `0`, bytes still stream over BLE but no parsing occurs.
+- `BLE_DEVICE_NAME` (default `"UM980-BLE"`): BLE advertising name override.
+- `BLE_MTU_CFG` (default `23`): requested BLE MTU; used to derive max notify payload.
+- `UM980_HZ_CFG` (default `1`): UM980 output rate (Hz) used for low-rate throttling.
+
+
+## BLE MTU and Throttling
+- `BLE_MTU_CFG` in `include/app.h` is used to derive the max notify payload (`BLE_MAX_PAYLOAD = BLE_MTU - 3`).
+- `BLE_NOTIFY_CHUNK` is tied to `BLE_MAX_PAYLOAD` to avoid oversize notifications.
+- Low-rate throttling is derived from MTU and UM980 rate:
+  - `BLE_LOW_RATE_THRESHOLD = BLE_MAX_PAYLOAD / 2`
+  - `BLE_LOW_RATE_DELAY_MS = min(1000 / (4 * UM980_HZ), 100)`
 
 ## UART, BLE, and Buffer Flow (ESP32 ↔ UM980 ↔ Client)
 The ESP32-C3 firmware acts as a transparent byte-stream bridge between the UM980 UART and a BLE client (phone/tablet). It uses the Nordic UART Service (NUS) for BLE and FreeRTOS StreamBuffers as ring buffers to decouple producer/consumer timing.
@@ -30,7 +41,7 @@ The ESP32-C3 firmware acts as a transparent byte-stream bridge between the UM980
 - **Characteristics:**
   - **RX (phone → ESP32):** WRITE/WRITE_NR, used for RTCM or other inbound bytes.
   - **TX (ESP32 → phone):** NOTIFY, used to stream UM980 output to the client.
-- **MTU:** Requested MTU is 185 to reduce overhead for streaming data.
+- **MTU:** Requested MTU is 23 in `include/app.h` (adjust to match your phone/app behavior).
 
 ### Stream Buffers (Decoupling and Backpressure)
 The firmware uses two FreeRTOS StreamBuffers (ring buffers) to handle bursty traffic and to avoid blocking BLE/UART tasks:
