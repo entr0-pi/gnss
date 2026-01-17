@@ -11,6 +11,14 @@
 #define NMEA_ENABLE 0
 #endif
 
+// ---------------- Dependency rule ----------------
+// If Web UI is disabled, NMEA must be disabled too.
+#if WEBUI_ENABLE == 0 && NMEA_ENABLE != 0
+  #warning "NMEA_ENABLE forced to 0 because WEBUI_ENABLE=0"
+  #undef  NMEA_ENABLE
+  #define NMEA_ENABLE 0
+#endif
+
 #if WEBUI_ENABLE
 // ---------------- STA config (Hotspot) ----------------
 // These are the credentials and the static network config for STA mode.
