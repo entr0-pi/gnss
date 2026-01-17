@@ -312,6 +312,7 @@ void setup() {
 }
 
 void loop() {
+  #if WEBUI_ENABLE
   static unsigned long last_wifi_attempt = 0;
   if (WiFi.status() != WL_CONNECTED) {
     const unsigned long now = millis();
