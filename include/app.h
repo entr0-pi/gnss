@@ -35,7 +35,16 @@ static const IPAddress STA_DNS    (172, 20, 10, 1);
 // BLE advertising name shown on the phone.
 static const char DEVICE_NAME[] = "UM980-BLE";
 // Requested ATT MTU. Higher MTU can reduce overhead for a stream like NMEA.
-static const uint16_t BLE_MTU = 185;
+static const uint16_t BLE_MTU = 23;
+
+// UM980 output rate (Hz); used to derive low-rate BLE throttle.
+static const uint16_t UM980_HZ = 1;
+
+// BLE notify sizing and low-rate throttle derived from MTU and UM980 rate.
+static const size_t BLE_MAX_PAYLOAD = BLE_MTU - 3;
+static const size_t BLE_LOW_RATE_THRESHOLD = BLE_MAX_PAYLOAD / 2;
+static const uint16_t BLE_LOW_RATE_DELAY_MS =
+    ((1000 / (4 * UM980_HZ)) < 100) ? (1000 / (4 * UM980_HZ)) : 100;
 
 // ---------------- UART ----------------
 // Hardware UART pins connected to the UM980.
@@ -50,8 +59,8 @@ static const int SERIAL_BAUD = 115200;
 // ---------------- Tunables ----------------
 // BLE_NOTIFY_CHUNK:
 //   Maximum bytes in a single notification payload we attempt to send.
-//   Practical limit depends on negotiated MTU and NimBLE internals; this size is safe.
-static const size_t BLE_NOTIFY_CHUNK = 120;
+//   Keep it <= (MTU - 3) to avoid oversize notifications.
+static const size_t BLE_NOTIFY_CHUNK = BLE_MAX_PAYLOAD;
 
 // UART_CHUNK:
 //   Maximum bytes transferred per loop iteration for UART read/write buffers.

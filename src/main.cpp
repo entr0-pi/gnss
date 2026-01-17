@@ -500,7 +500,11 @@ static void task_ble_tx(void* arg) {
     // - On success, short yield.
     // - On failure, back off more to reduce pressure on the stack.
     if (ok) {
-      vTaskDelay(BLE_OK_DELAY);
+      if (got < BLE_LOW_RATE_THRESHOLD) {
+        vTaskDelay(pdMS_TO_TICKS(BLE_LOW_RATE_DELAY_MS));
+      } else {
+        vTaskDelay(BLE_OK_DELAY);
+      }
     } else {
       vTaskDelay(BLE_FAIL_DELAY);
     }
