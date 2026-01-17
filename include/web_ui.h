@@ -20,6 +20,8 @@ struct WebuiBleSnapshot {
   uint16_t mtu;
   uint32_t txBytes;          // truncated from uint64_t
   uint32_t rxBytes;          // truncated from uint64_t
+  uint32_t uart2bleDrops;    // drops pushing UART->BLE stream buffer
+  uint32_t ble2uartDrops;    // drops pushing BLE->UART stream buffer
 };
 
 // ---- GPS snapshot interface (implemented in main.cpp) ----

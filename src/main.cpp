@@ -97,14 +97,18 @@ struct BleStatus {
   volatile uint16_t mtu            = 0;      // last negotiated MTU (from connInfo)
   volatile uint64_t txBytes        = 0;      // bytes successfully notified (device -> phone)
   volatile uint64_t rxBytes        = 0;      // bytes received from phone writes (phone -> device)
+  volatile uint32_t uart2bleDrops  = 0;      // drops when UART->BLE buffer is full
+  volatile uint32_t ble2uartDrops  = 0;      // drops when BLE->UART buffer is full
 
   // Convenience: reset the counters (does not affect connection state).
   void resetCounters() {
     txBytes = 0; rxBytes = 0;
+    uart2bleDrops = 0; ble2uartDrops = 0;
   }
 };
 
 static BleStatus g_bleStatus;
+static uint16_t g_ble_mtu = BLE_MTU;
 // ======================= END BLE STATUS (BLOCK) =======================
 
 #if WEBUI_ENABLE
@@ -121,6 +125,8 @@ bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
   // If you want exact long-running counters, change WebuiBleSnapshot to uint64_t.
   out.txBytes = (uint32_t)g_bleStatus.txBytes;
   out.rxBytes = (uint32_t)g_bleStatus.rxBytes;
+  out.uart2bleDrops = g_bleStatus.uart2bleDrops;
+  out.ble2uartDrops = g_bleStatus.ble2uartDrops;
 
   return true;
 }
@@ -182,7 +188,15 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     // ---- status hook ----
     // Capture connection state and negotiated MTU for the web status page.
     g_bleStatus.connected = true;
-    g_bleStatus.mtu = connInfo.getMTU();
+    uint16_t negotiated = connInfo.getMTU();
+
+    if (negotiated >= 23) {
+      g_ble_mtu = negotiated;
+      g_bleStatus.mtu = negotiated;
+    } else {
+      g_ble_mtu = BLE_MTU;
+      g_bleStatus.mtu = BLE_MTU;
+    }
   }
 
   // Called when the central disconnects.
@@ -201,6 +215,8 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     // ---- status hook ----
     g_bleStatus.connected = false;
     g_bleStatus.mtu = 0;
+
+    g_ble_mtu = BLE_MTU;
 
     // Resume advertising so another central can connect.
     NimBLEDevice::startAdvertising();
@@ -241,7 +257,10 @@ class RxCallbacks : public NimBLECharacteristicCallbacks {
 
     // Best-effort push RTCM bytes into BLE->UART buffer.
     // Timeout = 0 means "do not block"; bytes may be dropped if buffer is full.
-    xStreamBufferSend(g_sb_ble2uart, v.data(), v.size(), 0);
+    size_t sent = xStreamBufferSend(g_sb_ble2uart, v.data(), v.size(), 0);
+    if (sent < v.size()) {
+      g_bleStatus.ble2uartDrops += (uint32_t)(v.size() - sent);
+    }
   }
 };
 
@@ -446,7 +465,10 @@ static void task_uart_rx(void* arg) {
       // Push bytes into UART->BLE buffer.
       // Timeout 0 = non-blocking; if full, bytes are dropped (best-effort).
       if (g_sb_uart2ble) {
-        xStreamBufferSend(g_sb_uart2ble, tmp, (size_t)n, 0);
+        size_t sent = xStreamBufferSend(g_sb_uart2ble, tmp, (size_t)n, 0);
+        if (sent < (size_t)n) {
+          g_bleStatus.uart2bleDrops += (uint32_t)((size_t)n - sent);
+        }
       }
     }
   }
@@ -466,6 +488,11 @@ static void task_ble_tx(void* arg) {
   // Scratch buffer for BLE notify payload.
   uint8_t out[BLE_NOTIFY_CHUNK];
 
+  size_t max_payload = BLE_NOTIFY_CHUNK;
+  if (g_ble_mtu > 3 && (g_ble_mtu - 3) < max_payload) {
+    max_payload = g_ble_mtu - 3;
+  }
+
   for (;;) {
     // If not connected or not subscribed, don't drain the UART buffer endlessly.
     // This prevents building "notify backlog handling" complexity and keeps stream live.
@@ -478,7 +505,7 @@ static void task_ble_tx(void* arg) {
     // If there are no bytes, this will block up to BLE_TX_WAIT_TICKS.
     size_t got = 0;
     if (g_sb_uart2ble) {
-      got = xStreamBufferReceive(g_sb_uart2ble, out, sizeof(out), BLE_TX_WAIT_TICKS);
+      got = xStreamBufferReceive(g_sb_uart2ble, out, max_payload, BLE_TX_WAIT_TICKS);
     }
 
     // If nothing received, yield briefly and retry.

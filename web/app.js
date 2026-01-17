@@ -91,6 +91,8 @@ async function refresh(){
     $('ble_mtu').textContent      = safe(s.ble?.mtu);
     $('ble_txBytes').textContent  = fmtBytes(s.ble?.txBytes);
     $('ble_rxBytes').textContent  = fmtBytes(s.ble?.rxBytes);
+    $('ble_uart2bleDrops').textContent = fmtBytes(s.ble?.uart2bleDrops);
+    $('ble_ble2uartDrops').textContent = fmtBytes(s.ble?.ble2uartDrops);
 
     const gpsOk = safe_ok(s.gps?.valid);
     setIcon("gps_valid", gpsOk);

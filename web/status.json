@@ -23,7 +23,9 @@
     "connected": true,
     "mtu": 247,
     "txBytes": 10240,
-    "rxBytes": 2048
+    "rxBytes": 2048,
+    "uart2bleDrops": 250,
+    "ble2uartDrops": 0
   },
   "gps": {
     "valid": true,

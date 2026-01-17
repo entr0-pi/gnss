@@ -17,7 +17,7 @@
 - `WEBUI_ENABLE` (default `1`): enables WiFi/WebServer status UI. When `0`, web UI code is excluded and `scripts/gzip_web.py` does not run.
 - `NMEA_ENABLE` (default `0` unless set in an env): enables the optional NMEA parser. When `0`, bytes still stream over BLE but no parsing occurs.
 - `BLE_DEVICE_NAME` (default `"UM980-BLE"`): BLE advertising name override.
-- `BLE_MTU_CFG` (default `23`): requested BLE MTU; used to derive max notify payload.
+- `BLE_MTU_CFG` (default `23`): requested BLE MTU; if negotiated MTU is valid (>=23) it is used at runtime, otherwise this value is the fallback; used to derive max notify payload.
 - `UM980_HZ_CFG` (default `1`): UM980 output rate (Hz) used for low-rate throttling.
 
 
