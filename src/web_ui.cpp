@@ -42,6 +42,9 @@ static IPAddress s_sta_dns;
 //   Timestamp (millis) of the most recent request.
 static uint32_t g_http_req_total = 0;
 static uint32_t g_http_last_req_ms = 0;
+static String g_cached_status_json;
+static uint32_t g_cached_status_ms = 0;
+static constexpr uint32_t k_status_cache_ms = 1000;
 
 // markRequestAndGetPrevAgeMs():
 // - Updates request counters
@@ -168,6 +171,13 @@ static void handleStatus() {
   // Track request stats and compute time since previous request.
   const uint32_t prev_age_ms = markRequestAndGetPrevAgeMs();
   const uint32_t now = millis();
+
+  if (g_cached_status_ms != 0 &&
+      static_cast<uint32_t>(now - g_cached_status_ms) < k_status_cache_ms) {
+    s_server->sendHeader("Cache-Control", "no-store");
+    s_server->send(200, "application/json", g_cached_status_json);
+    return;
+  }
 
   // --- Device ---
   // Uptime in ms is simply millis().
@@ -370,6 +380,9 @@ static void handleStatus() {
   String output;
   doc.shrinkToFit();
   serializeJson(doc, output);
+
+  g_cached_status_json = output;
+  g_cached_status_ms = now;
 
   s_server->sendHeader("Cache-Control", "no-store");
   s_server->send(200, "application/json", output);
