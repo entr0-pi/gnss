@@ -312,7 +312,15 @@ void setup() {
 }
 
 void loop() {
-  #if WEBUI_ENABLE
+  static unsigned long last_wifi_attempt = 0;
+  if (WiFi.status() != WL_CONNECTED) {
+    const unsigned long now = millis();
+    if ((now - last_wifi_attempt) > 5000) {
+      WiFi.reconnect();
+      last_wifi_attempt = now;
+    }
+  }
+
   // WebServer is polled; it processes one client request per call.
   server.handleClient();
   #endif
@@ -329,6 +337,9 @@ void loop() {
 static void setupWiFiAndWeb() {
   // Station mode: connect to an existing access point / hotspot.
   WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(false);
+  WiFi.setSleep(false);
 
   // Apply static IP configuration for the STA interface.
   // Order: local IP, gateway, subnet, DNS.
