@@ -297,8 +297,6 @@ static void handleStatus() {
     bleObj["mtu"]       = ble.mtu;
     bleObj["txBytes"]       = ble.txBytes;
     bleObj["rxBytes"]       = ble.rxBytes;
-    bleObj["uart2bleDrops"] = ble.uart2bleDrops;
-    bleObj["ble2uartDrops"] = ble.ble2uartDrops;
   }
 
   // ---------------- gps (optional) ----------------

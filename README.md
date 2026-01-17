@@ -28,6 +28,12 @@
   - `BLE_LOW_RATE_THRESHOLD = BLE_MAX_PAYLOAD / 2`
   - `BLE_LOW_RATE_DELAY_MS = min(1000 / (4 * UM980_HZ), 100)`
 
+
+## WiFi + BLE Coexistence Warning
+- When `WEBUI_ENABLE=1` and BLE is enabled, **WiFi modem sleep must be enabled**.
+- If `WiFi.setSleep(false)` is used, the ESP32-C3 can abort with:
+  `Error! Should enable WiFi modem sleep when both WiFi and Bluetooth are enabled!!!!!!`
+
 ## UART, BLE, and Buffer Flow (ESP32 ↔ UM980 ↔ Client)
 The ESP32-C3 firmware acts as a transparent byte-stream bridge between the UM980 UART and a BLE client (phone/tablet). It uses the Nordic UART Service (NUS) for BLE and FreeRTOS StreamBuffers as ring buffers to decouple producer/consumer timing.
 
@@ -60,6 +66,13 @@ The firmware uses two FreeRTOS StreamBuffers (ring buffers) to handle bursty tra
 - BLE notifications are **paced** to avoid overloading the BLE stack.
 - If a buffer fills, new bytes are **dropped** (best-effort, no counters).
 - The BLE TX task will **not drain** the UART buffer when the client is disconnected or hasn’t enabled notifications, so the client sees the most current data when it reconnects.
+
+
+### Drops Tuning (when UI shows drops)
+- **UART→BLE drops**: increase `SB_UART_TO_BLE_SIZE` or reduce BLE send rate (increase `BLE_TX_WAIT_TICKS` / `BLE_LOW_RATE_DELAY_MS`).
+- **BLE→UART drops**: increase `SB_BLE_TO_UART_SIZE` or lower burst size on the phone/app side.
+- **Large MTU**: if your phone supports it, raise `BLE_MTU_CFG` to increase per-notify payload (rebuild required).
+- After tuning, rebuild so the new constants take effect.
 
 ### End-to-End Summary
 ```

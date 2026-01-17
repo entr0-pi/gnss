@@ -189,7 +189,6 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     // Capture connection state and negotiated MTU for the web status page.
     g_bleStatus.connected = true;
     uint16_t negotiated = connInfo.getMTU();
-
     if (negotiated >= 23) {
       g_ble_mtu = negotiated;
       g_bleStatus.mtu = negotiated;
@@ -216,7 +215,6 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     g_bleStatus.connected = false;
     g_bleStatus.mtu = 0;
 
-    g_ble_mtu = BLE_MTU;
 
     // Resume advertising so another central can connect.
     NimBLEDevice::startAdvertising();
@@ -286,6 +284,9 @@ void setup() {
   // Give USB CDC + RTOS some time to settle (especially right after boot).
   vTaskDelay(pdMS_TO_TICKS(200));
 
+  // Configure BLE server + characteristics + advertising.
+  setupBLE();
+
   #if WEBUI_ENABLE
   // Configure HTTP routes / static assets for the status UI.
   // (Doing this before server.begin() is fine; it just registers handlers.)
@@ -318,9 +319,6 @@ void setup() {
 
   // Configure the hardware UART to talk to UM980.
   setupUART();
-
-  // Configure BLE server + characteristics + advertising.
-  setupBLE();
 
   // Create worker tasks.
   // We prioritize UART tasks slightly higher so RTCM bytes (from phone) can reach UM980
@@ -359,7 +357,7 @@ static void setupWiFiAndWeb() {
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   WiFi.persistent(false);
-  WiFi.setSleep(false);
+  WiFi.setSleep(true);
 
   // Apply static IP configuration for the STA interface.
   // Order: local IP, gateway, subnet, DNS.
@@ -464,8 +462,7 @@ static void task_uart_rx(void* arg) {
 
       // Push bytes into UART->BLE buffer.
       // Timeout 0 = non-blocking; if full, bytes are dropped (best-effort).
-      if (g_sb_uart2ble) {
-        size_t sent = xStreamBufferSend(g_sb_uart2ble, tmp, (size_t)n, 0);
+      if (g_sb_uart2ble) {        size_t sent = xStreamBufferSend(g_sb_uart2ble, tmp, (size_t)n, 0);
         if (sent < (size_t)n) {
           g_bleStatus.uart2bleDrops += (uint32_t)((size_t)n - sent);
         }
@@ -492,6 +489,7 @@ static void task_ble_tx(void* arg) {
   if (g_ble_mtu > 3 && (g_ble_mtu - 3) < max_payload) {
     max_payload = g_ble_mtu - 3;
   }
+  const size_t low_rate_threshold = max_payload / 2;
 
   for (;;) {
     // If not connected or not subscribed, don't drain the UART buffer endlessly.
@@ -527,7 +525,7 @@ static void task_ble_tx(void* arg) {
     // - On success, short yield.
     // - On failure, back off more to reduce pressure on the stack.
     if (ok) {
-      if (got < BLE_LOW_RATE_THRESHOLD) {
+      if (got < low_rate_threshold) {
         vTaskDelay(pdMS_TO_TICKS(BLE_LOW_RATE_DELAY_MS));
       } else {
         vTaskDelay(BLE_OK_DELAY);

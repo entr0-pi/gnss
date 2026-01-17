@@ -24,7 +24,7 @@
     "mtu": 247,
     "txBytes": 10240,
     "rxBytes": 2048,
-    "uart2bleDrops": 250,
+    "uart2bleDrops": 0,
     "ble2uartDrops": 0
   },
   "gps": {
