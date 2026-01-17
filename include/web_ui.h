@@ -2,7 +2,14 @@
 #pragma once
 
 #include <Arduino.h>
+#include <Arduino.h>
+#include "app.h"
+
+#if WEBUI_ENABLE
 #include <WebServer.h>
+#else
+class WebServer;
+#endif
 #include <IPAddress.h>
 
 void webui_begin(WebServer& server, const IPAddress& sta_dns);

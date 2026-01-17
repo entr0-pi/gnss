@@ -28,9 +28,13 @@
 
 // ---- (WiFi + WebServer) ----
 // WiFi STA mode connects to an existing hotspot/router and hosts a small status web server.
+#include "app.h"
+
+#if WEBUI_ENABLE
 #include <WiFi.h>
 #include <WebServer.h>
 #include "web_ui.h"   // UI routes + snapshot structs (your own module)
+#endif
 
 // ---- NMEA ----
 // Optional NMEA parsing (compile-time). If disabled, bytes are still streamed.
@@ -44,35 +48,11 @@
 #include "freertos/task.h"
 #include "freertos/stream_buffer.h"
 
-// ---------------- STA config (Hotspot) ----------------
-// These are the credentials and the static network config for STA mode.
-// WiFi.config() sets a fixed IP, gateway, subnet, and DNS for the station interface.
-static const char* STA_SSID = "64NDPVIWJCMG7RUZ9392";
-static const char* STA_PASS = "azerty1234";
-static const IPAddress STA_IP     (172, 20, 10, 2);
-static const IPAddress STA_GW     (172, 20, 10, 1);
-static const IPAddress STA_SUBNET (255, 255, 255, 240);
-static const IPAddress STA_DNS    (172, 20, 10, 1);
-
+#if WEBUI_ENABLE
 // ---- Webserver ----
 // Simple synchronous HTTP server from the Arduino core. We call handleClient() in loop().
 WebServer server(80);
-
-// ---------------- BT ----------------
-// BLE advertising name shown on the phone.
-static const char DEVICE_NAME[] = "UM980-BLE";
-// Requested ATT MTU. Higher MTU can reduce overhead for a stream like NMEA.
-static const uint16_t BLE_MTU = 185;
-
-// ---------------- UART ----------------
-// Hardware UART pins connected to the UM980.
-static const int PIN_UM980_RX = 20;        // ESP32 RX  (UM980 TX)
-static const int PIN_UM980_TX = 21;        // ESP32 TX  (UM980 RX)
-static const uint32_t UM980_BAUD = 115200; // UM980 serial baud rate
-
-// ---------------- SERIAL ----------------
-// USB CDC serial used for debug logs in the Arduino monitor.
-static const int SERIAL_BAUD = 115200;
+#endif
 
 // ---------------- BLE (NUS UUIDs) ----------------
 // Nordic UART Service (NUS) UUIDs:
@@ -82,41 +62,6 @@ static const int SERIAL_BAUD = 115200;
 static NimBLEUUID NUS_SERVICE_UUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
 static NimBLEUUID NUS_RX_UUID     ("6E400002-B5A3-F393-E0A9-E50E24DCCA9E"); // write from phone
 static NimBLEUUID NUS_TX_UUID     ("6E400003-B5A3-F393-E0A9-E50E24DCCA9E"); // notify to phone
-
-// ---------------- Tunables ----------------
-// BLE_NOTIFY_CHUNK:
-//   Maximum bytes in a single notification payload we attempt to send.
-//   Practical limit depends on negotiated MTU and NimBLE internals; this size is safe.
-static const size_t BLE_NOTIFY_CHUNK = 120;
-
-// UART_CHUNK:
-//   Maximum bytes transferred per loop iteration for UART read/write buffers.
-//   This is a local scratch buffer size; it does NOT change baud rate.
-static const size_t UART_CHUNK = 256;
-
-// Ring buffer sizes (StreamBuffers):
-// SB_UART_TO_BLE_SIZE:
-//   Buffer for UM980 -> phone stream (mostly NMEA, continuous).
-static const size_t SB_UART_TO_BLE_SIZE = 4096;
-
-// SB_BLE_TO_UART_SIZE:
-//   Buffer for phone -> UM980 stream (RTCM bursts can be large and spiky).
-//   Increase if RAM allows and you see drops.
-static const size_t SB_BLE_TO_UART_SIZE = 16384;
-
-// StreamBuffer trigger level:
-// A receiver task blocked on xStreamBufferReceive() will unblock once at least this
-// many bytes are present (or timeout). 1 means "wake as soon as any byte arrives".
-static const size_t SB_TRIGGER_LEVEL = 1;
-
-// Backpressure pacing:
-// We deliberately pace BLE notifications to avoid hammering the BLE stack.
-// BLE_TX_WAIT_TICKS: wait time when pulling from UART->BLE buffer.
-// BLE_OK_DELAY:      small delay after successful notify to yield.
-// BLE_FAIL_DELAY:    longer delay after failure (phone not ready / congestion).
-static const TickType_t BLE_TX_WAIT_TICKS = pdMS_TO_TICKS(50);
-static const TickType_t BLE_OK_DELAY      = pdMS_TO_TICKS(1);
-static const TickType_t BLE_FAIL_DELAY    = pdMS_TO_TICKS(15);
 
 // ---------------- Globals ----------------
 // Pointers to the NimBLE server and TX characteristic so tasks/callbacks can use them.
@@ -162,6 +107,7 @@ struct BleStatus {
 static BleStatus g_bleStatus;
 // ======================= END BLE STATUS (BLOCK) =======================
 
+#if WEBUI_ENABLE
 // ---- Snapshot getter for web_ui.cpp (declared in web_ui.h) ----
 // web_ui.cpp calls this to build JSON for the status page without directly
 // depending on NimBLE internals.
@@ -178,8 +124,9 @@ bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
 
   return true;
 }
+#endif
 
-#if NMEA_ENABLE
+#if WEBUI_ENABLE && NMEA_ENABLE
 // GPS snapshot getter for the web UI.
 // It copies data from your NMEA module (nmea_gps.*) to the web_ui snapshot struct.
 bool webui_get_gps_snapshot(WebuiGpsSnapshot& out) {
@@ -302,7 +249,9 @@ class RxCallbacks : public NimBLECharacteristicCallbacks {
 // Declared here so setup() can call them before their definitions below.
 static void setupBLE();
 static void setupUART();
+#if WEBUI_ENABLE
 static void setupWiFiAndWeb();
+#endif
 static void task_uart_rx(void* arg);
 static void task_ble_tx(void* arg);
 static void task_uart_tx(void* arg);
@@ -318,12 +267,14 @@ void setup() {
   // Give USB CDC + RTOS some time to settle (especially right after boot).
   vTaskDelay(pdMS_TO_TICKS(200));
 
+  #if WEBUI_ENABLE
   // Configure HTTP routes / static assets for the status UI.
   // (Doing this before server.begin() is fine; it just registers handlers.)
   webui_begin(server, STA_DNS);
 
   // Connect to WiFi (STA) and start the HTTP server.
   setupWiFiAndWeb();
+  #endif
 
   // Initialize NMEA parser module (optional).
   #if NMEA_ENABLE
@@ -361,8 +312,10 @@ void setup() {
 }
 
 void loop() {
+  #if WEBUI_ENABLE
   // WebServer is polled; it processes one client request per call.
   server.handleClient();
+  #endif
 
   // Small delay yields CPU to other FreeRTOS tasks on ESP32 Arduino.
   delay(2);
@@ -372,6 +325,7 @@ void loop() {
 // ---------------- FUNCTIONS ----------------
 // -------------------------------------------
 
+#if WEBUI_ENABLE
 static void setupWiFiAndWeb() {
   // Station mode: connect to an existing access point / hotspot.
   WiFi.mode(WIFI_STA);
@@ -393,6 +347,7 @@ static void setupWiFiAndWeb() {
   // Start listening for HTTP requests.
   server.begin();
 }
+#endif
 
 // ---------------- Setup BLE ----------------
 static void setupBLE() {

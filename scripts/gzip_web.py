@@ -39,6 +39,27 @@ PAIRS = {
 	"web/style.css": "include/app_style.h",
 }
 
+def _webui_enabled_from_env():
+	# If PlatformIO env is not available, default to enabled (direct script use).
+	if "env" not in globals():
+		return True
+	defs = env.get("CPPDEFINES") or []
+	for d in defs:
+		if isinstance(d, (list, tuple)) and len(d) >= 1:
+			name = str(d[0])
+			val = d[1] if len(d) > 1 else None
+		else:
+			name = str(d)
+			val = None
+		if name == "WEBUI_ENABLE":
+			if val is None:
+				return True
+			try:
+				return int(str(val), 0) != 0
+			except ValueError:
+				return str(val).lower() not in ("0", "false", "off", "no")
+	return True
+
 def to_varname(header_path):
 	name = os.path.splitext(os.path.basename(header_path))[0]
 	return "".join(c if c.isalnum() else "_" for c in name).upper()
@@ -146,6 +167,9 @@ def process_pair(src_rel, hdr_rel):
 	print(f"Wrote binary header {hdr_rel} ({len(gz)} bytes gzipped) -> {varname}")
 
 def main(argv=None):
+	if not _webui_enabled_from_env():
+		print("WEBUI_ENABLE=0: skipping gzip_web.py")
+		return
 	parser = argparse.ArgumentParser(description="Generate PROGMEM headers from web/* files.")
 	parser.add_argument("files", nargs="*", help="optional subset of source paths (relative to repo root) to process")
 	args, _ = parser.parse_known_args(argv)

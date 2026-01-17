@@ -1,4 +1,8 @@
 // ======================= web_ui.cpp (FINAL - JSON built here) =======================
+
+#include "app.h"
+
+#if WEBUI_ENABLE
 //
 // This module owns the HTTP UI endpoints and the JSON status API.
 //
@@ -448,3 +452,14 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
     //server.send(404, "text/plain", "404 Not Found");
   });
 }
+
+#else
+
+#include "web_ui.h"
+
+void webui_begin(WebServer& server, const IPAddress& sta_dns) {
+  (void)server;
+  (void)sta_dns;
+}
+
+#endif
