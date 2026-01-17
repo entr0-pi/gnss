@@ -17,15 +17,6 @@
 - `WEBUI_ENABLE` (default `1`): enables WiFi/WebServer status UI. When `0`, web UI code is excluded and `scripts/gzip_web.py` does not run.
 - `NMEA_ENABLE` (default `0` unless set in an env): enables the optional NMEA parser. When `0`, bytes still stream over BLE but no parsing occurs.
 
-Example:
-```
-[env:nmea]
-build_flags =
-  ${env.build_flags}
-  -DWEBUI_ENABLE=0
-  -DNMEA_ENABLE=1
-```
-
 ## UART, BLE, and Buffer Flow (ESP32 ↔ UM980 ↔ Client)
 The ESP32-C3 firmware acts as a transparent byte-stream bridge between the UM980 UART and a BLE client (phone/tablet). It uses the Nordic UART Service (NUS) for BLE and FreeRTOS StreamBuffers as ring buffers to decouple producer/consumer timing.
 
