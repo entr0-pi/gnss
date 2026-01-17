@@ -139,6 +139,14 @@ static uint8_t               g_sb_uart2ble_storage[SB_UART_TO_BLE_SIZE];
 static uint8_t               g_sb_ble2uart_storage[SB_BLE_TO_UART_SIZE];
 static StreamBufferHandle_t  g_sb_uart2ble = nullptr;
 static StreamBufferHandle_t  g_sb_ble2uart = nullptr;
+static StaticStreamBuffer_t  g_sb_uart2tcp_struct;
+static uint8_t               g_sb_uart2tcp_storage[SB_UART_TO_BLE_SIZE];
+static StreamBufferHandle_t  g_sb_uart2tcp = nullptr;
+
+// ---------------- TCP Server ----------------
+static const uint16_t TCP_SERVER_PORT = 9000;
+static WiFiServer g_tcpServer(TCP_SERVER_PORT);
+static WiFiClient g_tcpClient;
 
 // ========================= BLE STATUS (BLOCK) =========================
 // Small status accumulator used by the web UI snapshots.
@@ -303,9 +311,11 @@ class RxCallbacks : public NimBLECharacteristicCallbacks {
 static void setupBLE();
 static void setupUART();
 static void setupWiFiAndWeb();
+static void setupTCPServer();
 static void task_uart_rx(void* arg);
 static void task_ble_tx(void* arg);
 static void task_uart_tx(void* arg);
+static void task_tcp_server(void* arg);
 
 // -------------------------------------------
 // -------------- SETUP & LOOP ---------------
@@ -341,8 +351,12 @@ void setup() {
       SB_BLE_TO_UART_SIZE, SB_TRIGGER_LEVEL,
       g_sb_ble2uart_storage, &g_sb_ble2uart_struct);
 
+  g_sb_uart2tcp = xStreamBufferCreateStatic(
+      SB_UART_TO_BLE_SIZE, SB_TRIGGER_LEVEL,
+      g_sb_uart2tcp_storage, &g_sb_uart2tcp_struct);
+
   // If allocation fails, we cannot safely run. Halt here (infinite delay loop).
-  if (!g_sb_uart2ble || !g_sb_ble2uart) {
+  if (!g_sb_uart2ble || !g_sb_ble2uart || !g_sb_uart2tcp) {
     for (;;) vTaskDelay(pdMS_TO_TICKS(1000));
   }
 
@@ -352,12 +366,16 @@ void setup() {
   // Configure BLE server + characteristics + advertising.
   setupBLE();
 
+  // Start TCP server for socket clients.
+  setupTCPServer();
+
   // Create worker tasks.
   // We prioritize UART tasks slightly higher so RTCM bytes (from phone) can reach UM980
   // quickly even if BLE notify or HTTP are busy.
   xTaskCreate(task_uart_rx, "uart_rx", 4096, nullptr, 3, nullptr);
   xTaskCreate(task_uart_tx, "uart_tx", 4096, nullptr, 3, nullptr);
   xTaskCreate(task_ble_tx,  "ble_tx",  4096, nullptr, 2, nullptr);
+  xTaskCreate(task_tcp_server, "tcp_server", 4096, nullptr, 2, nullptr);
 }
 
 void loop() {
@@ -392,6 +410,12 @@ static void setupWiFiAndWeb() {
 
   // Start listening for HTTP requests.
   server.begin();
+}
+
+// ---------------- Setup TCP Server ----------------
+static void setupTCPServer() {
+  g_tcpServer.begin();
+  g_tcpServer.setNoDelay(true);
 }
 
 // ---------------- Setup BLE ----------------
@@ -481,6 +505,11 @@ static void task_uart_rx(void* arg) {
       if (g_sb_uart2ble) {
         xStreamBufferSend(g_sb_uart2ble, tmp, (size_t)n, 0);
       }
+
+      // Also push bytes into UART->TCP buffer for TCP clients.
+      if (g_sb_uart2tcp) {
+        xStreamBufferSend(g_sb_uart2tcp, tmp, (size_t)n, 0);
+      }
     }
   }
 }
@@ -562,5 +591,49 @@ static void task_uart_tx(void* arg) {
       // Small delay yields to avoid starving other tasks in tight loops.
       vTaskDelay(pdMS_TO_TICKS(1));
     }
+  }
+}
+
+// TCP server task:
+// Bridges socket clients to the same UART stream buffers.
+// - UM980 bytes -> TCP client (via UART->TCP buffer)
+// - TCP client bytes -> UM980 (via BLE->UART buffer)
+static void task_tcp_server(void* arg) {
+  (void)arg;
+
+  uint8_t tmp[UART_CHUNK];
+
+  for (;;) {
+    if (!g_tcpClient || !g_tcpClient.connected()) {
+      if (g_tcpClient) {
+        g_tcpClient.stop();
+      }
+      WiFiClient newClient = g_tcpServer.available();
+      if (newClient) {
+        g_tcpClient = newClient;
+        g_tcpClient.setNoDelay(true);
+        if (g_sb_uart2tcp) xStreamBufferReset(g_sb_uart2tcp);
+      } else {
+        vTaskDelay(pdMS_TO_TICKS(20));
+        continue;
+      }
+    }
+
+    int avail = g_tcpClient.available();
+    if (avail > 0 && g_sb_ble2uart) {
+      int n = g_tcpClient.readBytes(tmp, (size_t)min(avail, (int)sizeof(tmp)));
+      if (n > 0) {
+        xStreamBufferSend(g_sb_ble2uart, tmp, (size_t)n, 0);
+      }
+    }
+
+    if (g_sb_uart2tcp) {
+      size_t got = xStreamBufferReceive(g_sb_uart2tcp, tmp, sizeof(tmp), pdMS_TO_TICKS(10));
+      if (got > 0) {
+        g_tcpClient.write(tmp, got);
+      }
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(1));
   }
 }
