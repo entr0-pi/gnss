@@ -30,8 +30,11 @@
 // WiFi STA mode connects to an existing hotspot/router and hosts a small status web server.
 #include "app.h"
 
-#if WEBUI_ENABLE
+#if WEBUI_ENABLE || NMEA_TCP_ENABLE
 #include <WiFi.h>
+#endif
+
+#if WEBUI_ENABLE
 #include <WebServer.h>
 #include "web_ui.h"   // UI routes + snapshot structs (your own module)
 #endif
@@ -111,6 +114,25 @@ static BleStatus g_bleStatus;
 static uint16_t g_ble_mtu = BLE_MTU;
 // ======================= END BLE STATUS (BLOCK) =======================
 
+#if NMEA_TCP_ENABLE
+// ========================= TCP NMEA STATUS =========================
+struct NmeaTcpStatus {
+  volatile bool     connected = false;
+  volatile uint32_t txBytes   = 0;
+  volatile uint32_t drops     = 0;
+
+  void resetCounters() {
+    txBytes = 0;
+    drops = 0;
+  }
+};
+
+static NmeaTcpStatus g_tcpStatus;
+static WiFiServer    g_nmeaTcpServer(NMEA_TCP_PORT);
+static WiFiClient    g_nmeaTcpClient;
+// ======================= END TCP NMEA STATUS =======================
+#endif
+
 #if WEBUI_ENABLE
 // ---- Snapshot getter for web_ui.cpp (declared in web_ui.h) ----
 // web_ui.cpp calls this to build JSON for the status page without directly
@@ -129,6 +151,19 @@ bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
   out.ble2uartDrops = g_bleStatus.ble2uartDrops;
 
   return true;
+}
+
+bool webui_get_tcp_snapshot(WebuiTcpSnapshot& out) {
+  #if NMEA_TCP_ENABLE
+  out.connected = g_tcpStatus.connected;
+  out.port      = NMEA_TCP_PORT;
+  out.txBytes   = g_tcpStatus.txBytes;
+  out.drops     = g_tcpStatus.drops;
+  return true;
+  #else
+  (void)out;
+  return false;
+  #endif
 }
 #endif
 
@@ -266,12 +301,16 @@ class RxCallbacks : public NimBLECharacteristicCallbacks {
 // Declared here so setup() can call them before their definitions below.
 static void setupBLE();
 static void setupUART();
-#if WEBUI_ENABLE
-static void setupWiFiAndWeb();
+#if WEBUI_ENABLE || NMEA_TCP_ENABLE
+static void setupWiFiAndServices();
 #endif
 static void task_uart_rx(void* arg);
 static void task_ble_tx(void* arg);
 static void task_uart_tx(void* arg);
+
+#if NMEA_TCP_ENABLE
+static void pollNmeaTcpClient();
+#endif
 
 // -------------------------------------------
 // -------------- SETUP & LOOP ---------------
@@ -291,9 +330,11 @@ void setup() {
   // Configure HTTP routes / static assets for the status UI.
   // (Doing this before server.begin() is fine; it just registers handlers.)
   webui_begin(server, STA_DNS);
+  #endif
 
-  // Connect to WiFi (STA) and start the HTTP server.
-  setupWiFiAndWeb();
+  // Connect to WiFi (STA) and start network services.
+  #if WEBUI_ENABLE || NMEA_TCP_ENABLE
+  setupWiFiAndServices();
   #endif
 
   // Initialize NMEA parser module (optional).
@@ -338,6 +379,15 @@ void loop() {
       last_wifi_attempt = now;
     }
   }
+  #elif NMEA_TCP_ENABLE
+  static unsigned long last_wifi_attempt = 0;
+  if (WiFi.status() != WL_CONNECTED) {
+    const unsigned long now = millis();
+    if ((now - last_wifi_attempt) > 5000) {
+      WiFi.reconnect();
+      last_wifi_attempt = now;
+    }
+  }
 
   // WebServer is polled; it processes one client request per call.
   server.handleClient();
@@ -351,8 +401,8 @@ void loop() {
 // ---------------- FUNCTIONS ----------------
 // -------------------------------------------
 
-#if WEBUI_ENABLE
-static void setupWiFiAndWeb() {
+#if WEBUI_ENABLE || NMEA_TCP_ENABLE
+static void setupWiFiAndServices() {
   // Station mode: connect to an existing access point / hotspot.
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
@@ -373,8 +423,37 @@ static void setupWiFiAndWeb() {
     delay(250);
   }
 
+  #if WEBUI_ENABLE
   // Start listening for HTTP requests.
   server.begin();
+  #endif
+
+  #if NMEA_TCP_ENABLE
+  g_nmeaTcpServer.begin();
+  #endif
+}
+#endif
+
+#if NMEA_TCP_ENABLE
+static void pollNmeaTcpClient() {
+  if (g_nmeaTcpClient && g_nmeaTcpClient.connected()) {
+    return;
+  }
+
+  if (g_nmeaTcpClient) {
+    g_nmeaTcpClient.stop();
+    g_tcpStatus.connected = false;
+  }
+
+  WiFiClient incoming = g_nmeaTcpServer.available();
+  if (incoming) {
+    if (g_nmeaTcpClient) {
+      g_nmeaTcpClient.stop();
+    }
+    g_nmeaTcpClient = incoming;
+    g_nmeaTcpClient.setNoDelay(true);
+    g_tcpStatus.connected = true;
+  }
 }
 #endif
 
@@ -492,9 +571,18 @@ static void task_ble_tx(void* arg) {
   const size_t low_rate_threshold = max_payload / 2;
 
   for (;;) {
+    #if NMEA_TCP_ENABLE
+    pollNmeaTcpClient();
+    const bool tcp_ready = g_nmeaTcpClient && g_nmeaTcpClient.connected();
+    #else
+    const bool tcp_ready = false;
+    #endif
+
+    const bool ble_ready = g_connected && g_notifyEn && g_txChar;
+
     // If not connected or not subscribed, don't drain the UART buffer endlessly.
     // This prevents building "notify backlog handling" complexity and keeps stream live.
-    if (!(g_connected && g_notifyEn && g_txChar)) {
+    if (!(ble_ready || tcp_ready)) {
       vTaskDelay(pdMS_TO_TICKS(50));
       continue;
     }
@@ -512,10 +600,34 @@ static void task_ble_tx(void* arg) {
       continue;
     }
 
-    // Set characteristic value to the chunk and attempt notify.
-    // notify() returns whether it was accepted by the stack.
-    g_txChar->setValue(out, got);
-    bool ok = g_txChar->notify();
+    bool ok = false;
+    if (ble_ready) {
+      // Set characteristic value to the chunk and attempt notify.
+      // notify() returns whether it was accepted by the stack.
+      g_txChar->setValue(out, got);
+      ok = g_txChar->notify();
+    }
+
+    #if NMEA_TCP_ENABLE
+    if (tcp_ready) {
+      int space = g_nmeaTcpClient.availableForWrite();
+      if (space < 0) space = 0;
+      if (space >= (int)got) {
+        size_t wrote = g_nmeaTcpClient.write(out, got);
+        g_tcpStatus.txBytes += wrote;
+        if (wrote < got) {
+          g_tcpStatus.drops += (uint32_t)(got - wrote);
+        }
+      } else {
+        g_tcpStatus.drops += (uint32_t)got;
+      }
+
+      if (!g_nmeaTcpClient.connected()) {
+        g_nmeaTcpClient.stop();
+        g_tcpStatus.connected = false;
+      }
+    }
+    #endif
 
     // ---- status hook ----
     // Only count bytes as "tx" when notify succeeded.
@@ -530,6 +642,8 @@ static void task_ble_tx(void* arg) {
       } else {
         vTaskDelay(BLE_OK_DELAY);
       }
+    } else if (tcp_ready) {
+      vTaskDelay(pdMS_TO_TICKS(1));
     } else {
       vTaskDelay(BLE_FAIL_DELAY);
     }

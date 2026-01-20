@@ -226,6 +226,10 @@ static void handleStatus() {
   WebuiBleSnapshot ble{};
   const bool has_ble = webui_get_ble_snapshot(ble);
 
+  // --- TCP snapshot (optional) ---
+  WebuiTcpSnapshot tcp{};
+  const bool has_tcp = webui_get_tcp_snapshot(tcp);
+
   // --- GPS snapshot (optional) ---
   #if NMEA_ENABLE
   WebuiGpsSnapshot gps{};
@@ -297,6 +301,17 @@ static void handleStatus() {
     bleObj["mtu"]       = ble.mtu;
     bleObj["txBytes"]       = ble.txBytes;
     bleObj["rxBytes"]       = ble.rxBytes;
+    bleObj["uart2bleDrops"] = ble.uart2bleDrops;
+    bleObj["ble2uartDrops"] = ble.ble2uartDrops;
+  }
+
+  // ---------------- tcp (optional) ----------------
+  if (has_tcp) {
+    JsonObject tcpObj = doc["tcp"].to<JsonObject>();
+    tcpObj["connected"] = tcp.connected;
+    tcpObj["port"]      = tcp.port;
+    tcpObj["txBytes"]   = tcp.txBytes;
+    tcpObj["drops"]     = tcp.drops;
   }
 
   // ---------------- gps (optional) ----------------

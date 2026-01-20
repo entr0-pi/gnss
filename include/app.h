@@ -7,6 +7,16 @@
 #define WEBUI_ENABLE 1
 #endif
 
+#ifndef NMEA_TCP_ENABLE
+#define NMEA_TCP_ENABLE 1
+#endif
+
+// ---------------- NMEA TCP ----------------
+// Optional TCP stream for NMEA bytes over WiFi (single client).
+#ifndef NMEA_TCP_PORT
+#define NMEA_TCP_PORT 10110
+#endif
+
 #ifndef NMEA_ENABLE
 #define NMEA_ENABLE 0
 #endif
@@ -19,7 +29,7 @@
   #define NMEA_ENABLE 0
 #endif
 
-#if WEBUI_ENABLE
+#if WEBUI_ENABLE || NMEA_TCP_ENABLE
 // ---------------- STA config (Hotspot) ----------------
 // These are the credentials and the static network config for STA mode.
 // WiFi.config() sets a fixed IP, gateway, subnet, and DNS for the station interface.

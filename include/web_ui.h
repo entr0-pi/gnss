@@ -24,6 +24,14 @@ struct WebuiBleSnapshot {
   uint32_t ble2uartDrops;    // drops pushing BLE->UART stream buffer
 };
 
+// ---- TCP snapshot interface (implemented in main.cpp) ----
+struct WebuiTcpSnapshot {
+  bool     connected;
+  uint16_t port;
+  uint32_t txBytes;
+  uint32_t drops;
+};
+
 // ---- GPS snapshot interface (implemented in main.cpp) ----
 #if NMEA_ENABLE
 struct WebuiGpsSnapshot {
@@ -53,7 +61,7 @@ struct WebuiGpsSnapshot {
 
 // Returns true and fills `out` with a snapshot of BLE and GPS status.
 bool webui_get_ble_snapshot(WebuiBleSnapshot& out);
+bool webui_get_tcp_snapshot(WebuiTcpSnapshot& out);
 #if NMEA_ENABLE
 bool webui_get_gps_snapshot(WebuiGpsSnapshot& out);
 #endif
-

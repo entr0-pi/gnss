@@ -27,6 +27,12 @@
     "uart2bleDrops": 0,
     "ble2uartDrops": 0
   },
+  "tcp": {
+    "connected": true,
+    "port": 10110,
+    "txBytes": 4096,
+    "drops": 0
+  },
   "gps": {
     "valid": true,
     "fix_type": "3D",
