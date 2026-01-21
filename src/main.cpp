@@ -534,9 +534,10 @@ static void task_uart_rx(void* arg) {
       nmea_feed_bytes(tmp, (size_t)n, millis());
       #endif
 
-      // Push bytes into UART->BLE buffer.
-      // Timeout 0 = non-blocking; if full, bytes are dropped (best-effort).
-      if (g_sb_uart2ble) {        size_t sent = xStreamBufferSend(g_sb_uart2ble, tmp, (size_t)n, 0);
+      // Push bytes into UART->BLE buffer only when BLE is actively consuming.
+      // This avoids counting "drops" when BLE is idle but TCP is receiving the stream.
+      if (g_connected && g_notifyEn && g_sb_uart2ble) {
+        size_t sent = xStreamBufferSend(g_sb_uart2ble, tmp, (size_t)n, 0);
         if (sent < (size_t)n) {
           g_bleStatus.uart2bleDrops += (uint32_t)((size_t)n - sent);
         }
