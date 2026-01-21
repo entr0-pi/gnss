@@ -11,6 +11,15 @@
 #define NMEA_ENABLE 0
 #endif
 
+// ---------------- TCP ----------------
+#ifndef TCP_ENABLE
+#define TCP_ENABLE 1
+#endif
+
+#if TCP_ENABLE
+static const uint16_t TCP_PORT = 5000;
+#endif
+
 // ---------------- Dependency rule ----------------
 // If Web UI is disabled, NMEA must be disabled too.
 #if WEBUI_ENABLE == 0 && NMEA_ENABLE != 0
@@ -85,6 +94,16 @@ static const size_t SB_UART_TO_BLE_SIZE = 4096;
 //   Buffer for phone -> UM980 stream (RTCM bursts can be large and spiky).
 //   Increase if RAM allows and you see drops.
 static const size_t SB_BLE_TO_UART_SIZE = 16384;
+
+#if TCP_ENABLE
+// SB_UART_TO_TCP_SIZE:
+//   Buffer for UM980 -> TCP stream (same content as BLE).
+static const size_t SB_UART_TO_TCP_SIZE = 2048;
+
+// SB_TCP_TO_UART_SIZE:
+//   Buffer for TCP -> UM980 stream (RTCM bursts can be large and spiky).
+static const size_t SB_TCP_TO_UART_SIZE = 4096;
+#endif
 
 // StreamBuffer trigger level:
 // A receiver task blocked on xStreamBufferReceive() will unblock once at least this
