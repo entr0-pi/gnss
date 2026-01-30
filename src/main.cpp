@@ -36,6 +36,13 @@
 #include "web_ui.h"   // UI routes + snapshot structs (your own module)
 #endif
 
+#if TCP_ENABLE
+#include <WiFi.h>
+#include <WiFiServer.h>
+#include <WiFiClient.h>
+#include "web_ui.h"
+#endif
+
 // ---- NMEA ----
 // Optional NMEA parsing (compile-time). If disabled, bytes are still streamed.
 #if NMEA_ENABLE
@@ -85,6 +92,21 @@ static uint8_t               g_sb_ble2uart_storage[SB_BLE_TO_UART_SIZE];
 static StreamBufferHandle_t  g_sb_uart2ble = nullptr;
 static StreamBufferHandle_t  g_sb_ble2uart = nullptr;
 
+#if TCP_ENABLE
+// StreamBuffers for TCP (static allocation).
+// - g_sb_uart2tcp: bytes from UM980 UART RX -> TCP client
+// - g_sb_tcp2uart: bytes from TCP client -> UM980 UART TX
+static StaticStreamBuffer_t  g_sb_uart2tcp_struct;
+static StaticStreamBuffer_t  g_sb_tcp2uart_struct;
+static uint8_t               g_sb_uart2tcp_storage[SB_UART_TO_TCP_SIZE];
+static uint8_t               g_sb_tcp2uart_storage[SB_TCP_TO_UART_SIZE];
+static StreamBufferHandle_t  g_sb_uart2tcp = nullptr;
+static StreamBufferHandle_t  g_sb_tcp2uart = nullptr;
+
+// TCP server (single-client).
+static WiFiServer g_tcpServer(TCP_PORT);
+static WiFiClient g_tcpClient;
+#endif
 // ========================= BLE STATUS (BLOCK) =========================
 // Small status accumulator used by the web UI snapshots.
 //
@@ -111,6 +133,25 @@ static BleStatus g_bleStatus;
 static uint16_t g_ble_mtu = BLE_MTU;
 // ======================= END BLE STATUS (BLOCK) =======================
 
+#if TCP_ENABLE
+// ========================= TCP STATUS (BLOCK) =========================
+// Simple TCP status accumulator used by the web UI snapshots.
+struct TcpStatus {
+  volatile bool     connected      = false;  // last known connected state
+  volatile uint64_t txBytes        = 0;      // bytes sent to client
+  volatile uint64_t rxBytes        = 0;      // bytes received from client
+  volatile uint32_t uart2tcpDrops  = 0;      // drops when UART->TCP buffer is full
+  volatile uint32_t tcp2uartDrops  = 0;      // drops when TCP->UART buffer is full
+
+  void resetCounters() {
+    txBytes = 0; rxBytes = 0;
+    uart2tcpDrops = 0; tcp2uartDrops = 0;
+  }
+};
+
+static TcpStatus g_tcpStatus;
+// ======================= END TCP STATUS (BLOCK) =======================
+#endif
 #if WEBUI_ENABLE
 // ---- Snapshot getter for web_ui.cpp (declared in web_ui.h) ----
 // web_ui.cpp calls this to build JSON for the status page without directly
@@ -128,6 +169,17 @@ bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
   out.uart2bleDrops = g_bleStatus.uart2bleDrops;
   out.ble2uartDrops = g_bleStatus.ble2uartDrops;
 
+  return true;
+}
+#endif
+
+#if WEBUI_ENABLE && TCP_ENABLE
+bool webui_get_tcp_snapshot(WebuiTcpSnapshot& out) {
+  out.connected     = g_tcpStatus.connected;
+  out.txBytes       = (uint32_t)g_tcpStatus.txBytes;
+  out.rxBytes       = (uint32_t)g_tcpStatus.rxBytes;
+  out.uart2tcpDrops = g_tcpStatus.uart2tcpDrops;
+  out.tcp2uartDrops = g_tcpStatus.tcp2uartDrops;
   return true;
 }
 #endif
@@ -272,6 +324,9 @@ static void setupWiFiAndWeb();
 static void task_uart_rx(void* arg);
 static void task_ble_tx(void* arg);
 static void task_uart_tx(void* arg);
+#if TCP_ENABLE
+static void task_tcp_io(void* arg);
+#endif
 
 // -------------------------------------------
 // -------------- SETUP & LOOP ---------------
@@ -312,8 +367,22 @@ void setup() {
       SB_BLE_TO_UART_SIZE, SB_TRIGGER_LEVEL,
       g_sb_ble2uart_storage, &g_sb_ble2uart_struct);
 
+#if TCP_ENABLE
+  g_sb_uart2tcp = xStreamBufferCreateStatic(
+      SB_UART_TO_TCP_SIZE, SB_TRIGGER_LEVEL,
+      g_sb_uart2tcp_storage, &g_sb_uart2tcp_struct);
+
+  g_sb_tcp2uart = xStreamBufferCreateStatic(
+      SB_TCP_TO_UART_SIZE, SB_TRIGGER_LEVEL,
+      g_sb_tcp2uart_storage, &g_sb_tcp2uart_struct);
+#endif
+
   // If allocation fails, we cannot safely run. Halt here (infinite delay loop).
-  if (!g_sb_uart2ble || !g_sb_ble2uart) {
+  if (!g_sb_uart2ble || !g_sb_ble2uart
+#if TCP_ENABLE
+      || !g_sb_uart2tcp || !g_sb_tcp2uart
+#endif
+      ) {
     for (;;) vTaskDelay(pdMS_TO_TICKS(1000));
   }
 
@@ -326,6 +395,11 @@ void setup() {
   xTaskCreate(task_uart_rx, "uart_rx", 4096, nullptr, 3, nullptr);
   xTaskCreate(task_uart_tx, "uart_tx", 4096, nullptr, 3, nullptr);
   xTaskCreate(task_ble_tx,  "ble_tx",  4096, nullptr, 2, nullptr);
+#if TCP_ENABLE
+  g_tcpServer.begin();
+  g_tcpServer.setNoDelay(true);
+  xTaskCreate(task_tcp_io,  "tcp_io",  4096, nullptr, 2, nullptr);
+#endif
 }
 
 void loop() {
@@ -460,13 +534,24 @@ static void task_uart_rx(void* arg) {
       nmea_feed_bytes(tmp, (size_t)n, millis());
       #endif
 
-      // Push bytes into UART->BLE buffer.
-      // Timeout 0 = non-blocking; if full, bytes are dropped (best-effort).
-      if (g_sb_uart2ble) {        size_t sent = xStreamBufferSend(g_sb_uart2ble, tmp, (size_t)n, 0);
+      // Push bytes into UART->BLE buffer only when BLE is actively consuming.
+      // This avoids counting "drops" when BLE is idle but TCP is receiving the stream.
+      if (g_connected && g_notifyEn && g_sb_uart2ble) {
+        size_t sent = xStreamBufferSend(g_sb_uart2ble, tmp, (size_t)n, 0);
         if (sent < (size_t)n) {
           g_bleStatus.uart2bleDrops += (uint32_t)((size_t)n - sent);
         }
       }
+
+      #if TCP_ENABLE
+      // Mirror the same stream to TCP.
+      if (g_sb_uart2tcp) {
+        size_t sent = xStreamBufferSend(g_sb_uart2tcp, tmp, (size_t)n, 0);
+        if (sent < (size_t)n) {
+          g_tcpStatus.uart2tcpDrops += (uint32_t)((size_t)n - sent);
+        }
+      }
+      #endif
     }
   }
 }
@@ -545,18 +630,94 @@ static void task_uart_tx(void* arg) {
   uint8_t tmp[UART_CHUNK];
 
   for (;;) {
-    // Wait for up to 50 ms for inbound bytes (phone -> BLE -> buffer).
+    bool did_work = false;
+
+    // Non-blocking read from BLE->UART buffer.
     size_t got = 0;
     if (g_sb_ble2uart) {
-      got = xStreamBufferReceive(g_sb_ble2uart, tmp, sizeof(tmp), pdMS_TO_TICKS(50));
+      got = xStreamBufferReceive(g_sb_ble2uart, tmp, sizeof(tmp), 0);
     }
 
     // If we received bytes, forward them to GNSS.
     if (got > 0) {
       Serial1.write(tmp, got);
+      did_work = true;
+    }
 
-      // Small delay yields to avoid starving other tasks in tight loops.
+    #if TCP_ENABLE
+    // Non-blocking read from TCP->UART buffer.
+    size_t got_tcp = 0;
+    if (g_sb_tcp2uart) {
+      got_tcp = xStreamBufferReceive(g_sb_tcp2uart, tmp, sizeof(tmp), 0);
+    }
+    if (got_tcp > 0) {
+      Serial1.write(tmp, got_tcp);
+      did_work = true;
+    }
+    #endif
+
+    if (!did_work) {
+      vTaskDelay(pdMS_TO_TICKS(10));
+    } else {
       vTaskDelay(pdMS_TO_TICKS(1));
     }
   }
 }
+
+#if TCP_ENABLE
+// TCP I/O task:
+// - Accepts a single TCP client at a time.
+// - Receives bytes from TCP -> stream buffer -> UART TX.
+// - Sends bytes from UART->TCP buffer -> TCP client.
+static void task_tcp_io(void* arg) {
+  (void)arg;
+
+  uint8_t out[256];
+  uint8_t in[256];
+
+  for (;;) {
+    if (!g_tcpClient || !g_tcpClient.connected()) {
+      WiFiClient newClient = g_tcpServer.available();
+      if (newClient) {
+        if (g_tcpClient) g_tcpClient.stop();
+        g_tcpClient = newClient;
+        g_tcpClient.setNoDelay(true);
+        g_tcpStatus.connected = true;
+        if (g_sb_uart2tcp) xStreamBufferReset(g_sb_uart2tcp);
+      } else {
+        g_tcpStatus.connected = false;
+        vTaskDelay(pdMS_TO_TICKS(50));
+        continue;
+      }
+    }
+
+    // TCP -> UART
+    int avail = g_tcpClient.available();
+    if (avail > 0) {
+      int n = g_tcpClient.read(in, (size_t)min(avail, (int)sizeof(in)));
+      if (n > 0 && g_sb_tcp2uart) {
+        g_tcpStatus.rxBytes += (uint32_t)n;
+        size_t sent = xStreamBufferSend(g_sb_tcp2uart, in, (size_t)n, 0);
+        if (sent < (size_t)n) {
+          g_tcpStatus.tcp2uartDrops += (uint32_t)((size_t)n - sent);
+        }
+      }
+    }
+
+    // UART -> TCP
+    size_t got = 0;
+    if (g_sb_uart2tcp) {
+      got = xStreamBufferReceive(g_sb_uart2tcp, out, sizeof(out), pdMS_TO_TICKS(20));
+    }
+    if (got > 0) {
+      size_t wrote = g_tcpClient.write(out, got);
+      if (wrote > 0) g_tcpStatus.txBytes += wrote;
+      if (wrote < got) {
+        g_tcpStatus.uart2tcpDrops += (uint32_t)(got - wrote);
+      }
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+}
+#endif

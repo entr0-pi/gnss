@@ -297,7 +297,23 @@ static void handleStatus() {
     bleObj["mtu"]       = ble.mtu;
     bleObj["txBytes"]       = ble.txBytes;
     bleObj["rxBytes"]       = ble.rxBytes;
+    bleObj["uart2bleDrops"] = ble.uart2bleDrops;
+    bleObj["ble2uartDrops"] = ble.ble2uartDrops;
   }
+
+  // ---------------- tcp (optional) ----------------
+  #if TCP_ENABLE
+  WebuiTcpSnapshot tcp{};
+  const bool has_tcp = webui_get_tcp_snapshot(tcp);
+  if (has_tcp) {
+    JsonObject tcpObj = doc["tcp"].to<JsonObject>();
+    tcpObj["connected"]    = tcp.connected;
+    tcpObj["txBytes"]      = tcp.txBytes;
+    tcpObj["rxBytes"]      = tcp.rxBytes;
+    tcpObj["uart2tcpDrops"] = tcp.uart2tcpDrops;
+    tcpObj["tcp2uartDrops"] = tcp.tcp2uartDrops;
+  }
+  #endif
 
   // ---------------- gps (optional) ----------------
   #if NMEA_ENABLE
