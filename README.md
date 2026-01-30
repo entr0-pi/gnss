@@ -39,6 +39,29 @@
 - When `WEBUI_ENABLE=1`, the build runs `scripts/gzip_web.py` to regenerate `include/app_*.h` from `web/*`.
 - After editing `web/index.html`, `web/app.js`, or `web/style.css`, rebuild so the headers are refreshed.
 
+### Proposed Build Matrix Script
+Use `scripts/build_matrix.py` as a proposal for automating PlatformIO environment builds.
+It lists a small matrix of flag-driven configurations and can either print or execute the
+corresponding `pio run -e <env>` commands.
+
+Preview the matrix without building:
+```
+python3 scripts/build_matrix.py
+```
+
+Execute the builds:
+```
+python3 scripts/build_matrix.py --execute
+```
+
+Limit to specific environments:
+```
+python3 scripts/build_matrix.py --execute --env nmea --env tcp_off
+```
+
+The matrix entries in the script cover the same flags documented above and are intended
+as a starting point for CI or local automation.
+
 ## UART, BLE, and Buffer Flow
 The ESP32-C3 firmware acts as a transparent byte-stream bridge between the UM980 UART and both a BLE client (phone/tablet) and a TCP client. It uses the Nordic UART Service (NUS) for BLE and FreeRTOS StreamBuffers as ring buffers to decouple producer/consumer timing.
 
@@ -120,6 +143,4 @@ Client TCP WRITE -> [TCP->UART StreamBuffer] -> ESP32 UART TX -> UM980 UART RX
 - Build and upload with PlatformIO using the standard `pio run` and `pio run -t upload` commands.
 - When adding new code, prefer keeping device logic in `src/` and generic helpers in `lib/`.
 - If you add a frontend, keep assets in `web/` and document any build steps here.
-
-
 
