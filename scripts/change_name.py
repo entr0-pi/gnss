@@ -7,7 +7,7 @@ def after_build(source, target, env):
     build_dir = env.subst("$BUILD_DIR")
 
     src = os.path.join(build_dir, "firmware.bin")
-    dst = os.path.join(build_dir, "UM980_BLE.bin")
+    dst = os.path.join(build_dir, "GNSS_BLE.bin")
 
     if not os.path.exists(src):
         print("✖ firmware.bin not found")

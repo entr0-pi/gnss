@@ -1,5 +1,5 @@
 /*
-  ESP32-C3 (Arduino) BLE <-> UART bridge for UM980
+  ESP32-C3 (Arduino) BLE <-> UART bridge for GNSS
   + WiFi STA + WebServer for Status
 
   - BLE (NUS) using NimBLE-Arduino (h2zero)
@@ -8,15 +8,15 @@
   - Backpressure aware: does not drain UART->BLE faster than notify succeeds
 
   Direction (byte stream, no framing):
-    UM980 -> iPhone : UART RX -> stream buffer -> BLE notify (NUS TX)
-    iPhone -> UM980 : BLE write (NUS RX) -> stream buffer -> UART TX
+    GNSS -> iPhone : UART RX -> stream buffer -> BLE notify (NUS TX)
+    iPhone -> GNSS : BLE write (NUS RX) -> stream buffer -> UART TX
 
   Pins (ESP32-C3):
-    GPIO20 = RX  (connect to UM980 TX)
-    GPIO21 = TX  (connect to UM980 RX)
+    GPIO20 = RX  (connect to GNSS TX)
+    GPIO21 = TX  (connect to GNSS RX)
 
   Notes:
-    - Streams raw bytes (NMEA + any other UM980 output)
+    - Streams raw bytes (NMEA + any other GNSS output)
     - RTCM bursts are buffered; when buffers fill, new bytes are dropped (no counters)
 */
 
@@ -76,8 +76,8 @@ static bool                  g_notifyEn  = false;
 
 // StreamBuffers (static allocation)
 // Using xStreamBufferCreateStatic() avoids dynamic allocations and fragmentation.
-// - g_sb_uart2ble: bytes from UM980 UART RX -> BLE notify task
-// - g_sb_ble2uart: bytes from BLE writes -> UM980 UART TX task
+// - g_sb_uart2ble: bytes from GNSS UART RX -> BLE notify task
+// - g_sb_ble2uart: bytes from BLE writes -> GNSS UART TX task
 static StaticStreamBuffer_t  g_sb_uart2ble_struct;
 static StaticStreamBuffer_t  g_sb_ble2uart_struct;
 static uint8_t               g_sb_uart2ble_storage[SB_UART_TO_BLE_SIZE];
@@ -302,7 +302,7 @@ void setup() {
   #endif
 
   // Create StreamBuffers using static storage (no heap allocation for the buffers).
-  // - UART->BLE buffer holds bytes read from Serial1 (UM980 output).
+  // - UART->BLE buffer holds bytes read from Serial1 (GNSS output).
   // - BLE->UART buffer holds bytes written by phone to BLE RX characteristic.
   g_sb_uart2ble = xStreamBufferCreateStatic(
       SB_UART_TO_BLE_SIZE, SB_TRIGGER_LEVEL,
@@ -317,11 +317,11 @@ void setup() {
     for (;;) vTaskDelay(pdMS_TO_TICKS(1000));
   }
 
-  // Configure the hardware UART to talk to UM980.
+  // Configure the hardware UART to talk to GNSS.
   setupUART();
 
   // Create worker tasks.
-  // We prioritize UART tasks slightly higher so RTCM bytes (from phone) can reach UM980
+  // We prioritize UART tasks slightly higher so RTCM bytes (from phone) can reach GNSS
   // quickly even if BLE notify or HTTP are busy.
   xTaskCreate(task_uart_rx, "uart_rx", 4096, nullptr, 3, nullptr);
   xTaskCreate(task_uart_tx, "uart_tx", 4096, nullptr, 3, nullptr);
@@ -427,12 +427,12 @@ static void setupUART() {
   // - Serial  = USB CDC (debug)
   // - Serial1 = hardware UART
   //
-  // Configure Serial1 to talk to the UM980 module at UM980_BAUD using 8N1.
-  Serial1.begin(UM980_BAUD, SERIAL_8N1, PIN_UM980_RX, PIN_UM980_TX);
+  // Configure Serial1 to talk to the GNSS module at GNSS_BAUD using 8N1.
+  Serial1.begin(GNSS_BAUD, SERIAL_8N1, PIN_GNSS_RX, PIN_GNSS_TX);
 }
 
 // UART RX task:
-// Continuously reads bytes from the UM980 (Serial1) and pushes them into the
+// Continuously reads bytes from the GNSS (Serial1) and pushes them into the
 // UART->BLE stream buffer. Also feeds the NMEA parser if enabled.
 static void task_uart_rx(void* arg) {
   (void)arg;
@@ -537,7 +537,7 @@ static void task_ble_tx(void* arg) {
 }
 
 // UART TX task:
-// Pulls bytes from BLE->UART buffer (typically RTCM corrections) and writes to UM980 (Serial1).
+// Pulls bytes from BLE->UART buffer (typically RTCM corrections) and writes to GNSS (Serial1).
 static void task_uart_tx(void* arg) {
   (void)arg;
 
@@ -551,7 +551,7 @@ static void task_uart_tx(void* arg) {
       got = xStreamBufferReceive(g_sb_ble2uart, tmp, sizeof(tmp), pdMS_TO_TICKS(50));
     }
 
-    // If we received bytes, forward them to UM980.
+    // If we received bytes, forward them to GNSS.
     if (got > 0) {
       Serial1.write(tmp, got);
 
