@@ -34,7 +34,7 @@ static const IPAddress STA_DNS    (172, 20, 10, 1);
 // ---------------- BT ----------------
 // BLE advertising name shown on the phone.
 #ifndef BLE_DEVICE_NAME
-#define BLE_DEVICE_NAME "UM980-BLE"
+#define BLE_DEVICE_NAME "GNSS-BLE"
 #endif
 static const char DEVICE_NAME[] = BLE_DEVICE_NAME;
 // Requested ATT MTU. Higher MTU can reduce overhead for a stream like NMEA.
@@ -43,23 +43,23 @@ static const char DEVICE_NAME[] = BLE_DEVICE_NAME;
 #endif
 static const uint16_t BLE_MTU = BLE_MTU_CFG;
 
-// UM980 output rate (Hz); used to derive low-rate BLE throttle.
-#ifndef UM980_HZ_CFG
-#define UM980_HZ_CFG 1
+// GNSS output rate (Hz); used to derive low-rate BLE throttle.
+#ifndef GNSS_HZ_CFG
+#define GNSS_HZ_CFG 1
 #endif
-static const uint16_t UM980_HZ = UM980_HZ_CFG;
+static const uint16_t GNSS_HZ = GNSS_HZ_CFG;
 
-// BLE notify sizing and low-rate throttle derived from MTU and UM980 rate.
+// BLE notify sizing and low-rate throttle derived from MTU and GNSS rate.
 static const size_t BLE_MAX_PAYLOAD = BLE_MTU - 3;
 static const size_t BLE_LOW_RATE_THRESHOLD = BLE_MAX_PAYLOAD / 2;
 static const uint16_t BLE_LOW_RATE_DELAY_MS =
-    ((1000 / (4 * UM980_HZ)) < 100) ? (1000 / (4 * UM980_HZ)) : 100;
+    ((1000 / (4 * GNSS_HZ)) < 100) ? (1000 / (4 * GNSS_HZ)) : 100;
 
 // ---------------- UART ----------------
-// Hardware UART pins connected to the UM980.
-static const int PIN_UM980_RX = 20;        // ESP32 RX  (UM980 TX)
-static const int PIN_UM980_TX = 21;        // ESP32 TX  (UM980 RX)
-static const uint32_t UM980_BAUD = 115200; // UM980 serial baud rate
+// Hardware UART pins connected to the GNSS.
+static const int PIN_GNSS_RX = 20;        // ESP32 RX  (GNSS TX)
+static const int PIN_GNSS_TX = 21;        // ESP32 TX  (GNSS RX)
+static const uint32_t GNSS_BAUD = 115200; // GNSS serial baud rate
 
 // ---------------- SERIAL ----------------
 // USB CDC serial used for debug logs in the Arduino monitor.
@@ -78,11 +78,11 @@ static const size_t UART_CHUNK = 256;
 
 // Ring buffer sizes (StreamBuffers):
 // SB_UART_TO_BLE_SIZE:
-//   Buffer for UM980 -> phone stream (mostly NMEA, continuous).
+//   Buffer for GNSS -> phone stream (mostly NMEA, continuous).
 static const size_t SB_UART_TO_BLE_SIZE = 4096;
 
 // SB_BLE_TO_UART_SIZE:
-//   Buffer for phone -> UM980 stream (RTCM bursts can be large and spiky).
+//   Buffer for phone -> GNSS stream (RTCM bursts can be large and spiky).
 //   Increase if RAM allows and you see drops.
 static const size_t SB_BLE_TO_UART_SIZE = 16384;
 

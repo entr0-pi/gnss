@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 WEB_DIR = ROOT / "web"
 STATUS_FILE = WEB_DIR / "status.json"
 
-app = FastAPI(title="UM980-BLE-STATUS (dev server)")
+app = FastAPI(title="GNSS-BLE-STATUS (dev server)")
 
 # API endpoints (define before static mount so routes take precedence)
 @app.get("/api/status")
