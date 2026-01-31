@@ -44,6 +44,30 @@ Full parameter list: see `include/README` and `include/app.h`.
 - When `WEBUI_ENABLE=1`, the build runs `scripts/gzip_web.py` to regenerate `include/app_*.h` from `web/*`.
 - After editing `web/index.html`, `web/app.js`, or `web/style.css`, rebuild so the headers are refreshed.
 
+### Flash From BIN (Espressif Flash Download Tool)
+You can flash prebuilt `.bin` files directly using Espressif's Flash Download Tool (Windows GUI).
+
+Key parameters in the tool:
+- `ChipType`: select the chip type for your device.
+- `WorkMode`: `Develop` and `LoadMode=UART`.
+- `Download Path Config`: select the `.bin` file and set the flash address.
+- `SPI SPEED` / `SPI MODE`: SPI flash parameters.
+- `COM` / `BAUD`: serial port and baud rate.
+- `START`: start flashing.
+
+### Flash 3 BINs (bootloader + partitions + app)
+For this project (PlatformIO `lolin_c3_mini` / ESP32-C3), I use these offsets in `Download Path Config`:
+- `bootloader.bin` at `0x1000`
+- `partitions.bin` at `0x8000`
+- `firmware.bin` (factory app) at `0x10000`
+
+Typical steps:
+1. Put the device into download mode (board-specific).
+2. Open the tool, set `ChipType`, `WorkMode`, `LoadMode=UART`, and add each `.bin` + address.
+3. Set `COM` and `BAUD`, then click `START`.
+
+Note: offsets can change with custom partition tables. If you use a custom partition CSV, flash the app at the offset shown in that table.
+
 ### Proposed Build Matrix Script
 Use `scripts/build_matrix.py` as a proposal for automating PlatformIO environment builds.
 It lists a small matrix of flag-driven configurations and can either print or execute the
