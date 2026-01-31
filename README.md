@@ -18,10 +18,13 @@
 - `WEBUI_ENABLE` (default `1`): enables WiFi/WebServer status UI. When `0`, web UI code is excluded and `scripts/gzip_web.py` does not run.
 - `NMEA_ENABLE` (default `0` unless set in an env): enables the optional NMEA parser. When `0`, bytes still stream over BLE but no parsing occurs.
 - `TCP_ENABLE` (default `1`): enables the TCP server that mirrors the BLE stream.
+- `WIFI_ENABLE` (default `WEBUI_ENABLE || TCP_ENABLE`): enables WiFi STA (required for web UI or TCP).
 - `TCP_PORT` (default `5000`): TCP port for the single-client server.
 - `BLE_DEVICE_NAME` (default `"UM980-BLE"`): BLE advertising name override.
 - `BLE_MTU_CFG` (default `23`): requested BLE MTU; if negotiated MTU is valid (>=23) it is used at runtime, otherwise this value is the fallback; used to derive max notify payload.
 - `GNSS_HZ_CFG` (default `1`): GNSS output rate (Hz) used for low-rate throttling.
+- Full parameter list: see `include/README.md` and `include/app.h`.
+- WiFi credentials: copy `include/secrets.example.h` to `include/secrets.h` (gitignored).
 
 ### BLE MTU and Throttling
 - `BLE_MTU_CFG` in `include/app.h` is used to derive the max notify payload (`BLE_MAX_PAYLOAD = BLE_MTU - 3`).

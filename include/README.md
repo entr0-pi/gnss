@@ -1,7 +1,7 @@
 
 This directory holds project header files. Configuration parameters live in
-`include/app.h`. Update that file (or override with PlatformIO build flags)
-to change device behavior.
+`include/app.h`. WiFi secrets are defined in `include/secrets.h` (ignored by
+git); copy `include/secrets.example.h` to get started.
 
 ## Parameters in app.h
 
@@ -9,6 +9,7 @@ Build flags (override in `platformio.ini`):
 - `WEBUI_ENABLE` (default `1`): enable WiFi/Web UI.
 - `NMEA_ENABLE` (default `0`): enable NMEA parsing.
 - `TCP_ENABLE` (default `1`): enable TCP mirror.
+- `WIFI_ENABLE` (default `WEBUI_ENABLE || TCP_ENABLE`): enable WiFi STA (required for web UI or TCP).
 - `BLE_DEVICE_NAME` (default `"GNSS-BLE"`): BLE advertising name.
 - `BLE_MTU_CFG` (default `23`): requested BLE MTU.
 - `GNSS_HZ_CFG` (default `1`): GNSS output rate in Hz.
@@ -16,7 +17,7 @@ Build flags (override in `platformio.ini`):
 TCP:
 - `TCP_PORT` (default `5000`): TCP server port.
 
-WiFi STA (when `WEBUI_ENABLE=1`):
+WiFi STA (when `WEBUI_ENABLE=1`, usually set in `include/secrets.h`):
 - `STA_SSID`
 - `STA_PASS`
 - `STA_IP`
