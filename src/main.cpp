@@ -29,6 +29,7 @@
 // ---- (WiFi + WebServer) ----
 // WiFi STA mode connects to an existing hotspot/router and hosts a small status web server.
 #include "app.h"
+#include "um980_config.h"
 
 #if WEBUI_ENABLE
 #include <WiFi.h>
@@ -342,6 +343,9 @@ void setup() {
   // Configure BLE server + characteristics + advertising.
   setupBLE();
 
+  // Load persisted UART configuration (LittleFS) if available.
+  um980_config_begin();
+
   #if WEBUI_ENABLE
   // Configure HTTP routes / static assets for the status UI.
   // (Doing this before server.begin() is fine; it just registers handlers.)
@@ -502,7 +506,23 @@ static void setupUART() {
   // - Serial1 = hardware UART
   //
   // Configure Serial1 to talk to the UM980 module at UM980_BAUD using 8N1.
-  Serial1.begin(UM980_BAUD, SERIAL_8N1, PIN_UM980_RX, PIN_UM980_TX);
+  const Um980Config& cfg = um980_config_get();
+  Serial1.begin(cfg.baud, SERIAL_8N1, cfg.rx_pin, cfg.tx_pin);
+}
+
+bool um980_apply_runtime_config(const Um980Config& cfg, String* error) {
+  if (!um980_config_validate(cfg, error)) return false;
+
+  Serial1.flush();
+  Serial1.end();
+  Serial1.begin(cfg.baud, SERIAL_8N1, cfg.rx_pin, cfg.tx_pin);
+
+  if (!um980_config_save(cfg)) {
+    if (error) *error = "Failed to persist config to LittleFS.";
+    return false;
+  }
+
+  return true;
 }
 
 // UART RX task:

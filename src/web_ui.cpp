@@ -28,6 +28,7 @@
 #include "app_index.h"
 #include "app_style.h"
 #include "app_favicon.h"
+#include "um980_config.h"
 #include "web_ui.h"
 
 // Keep a pointer so helpers/handlers can use the same server instance.
@@ -417,6 +418,78 @@ static void handleRestart() {
   ESP.restart();
 }
 
+// ------------- API: /api/config -------------
+static void handleConfigGet() {
+  markRequestAndGetPrevAgeMs();
+
+  const Um980Config& cfg = um980_config_get();
+  const Um980Config defaults = um980_config_defaults();
+
+  JsonDocument doc;
+  doc["rx_pin"] = cfg.rx_pin;
+  doc["tx_pin"] = cfg.tx_pin;
+  doc["baud"] = cfg.baud;
+
+  JsonObject defObj = doc["defaults"].to<JsonObject>();
+  defObj["rx_pin"] = defaults.rx_pin;
+  defObj["tx_pin"] = defaults.tx_pin;
+  defObj["baud"] = defaults.baud;
+
+  String output;
+  doc.shrinkToFit();
+  serializeJson(doc, output);
+
+  s_server->sendHeader("Cache-Control", "no-store");
+  s_server->send(200, "application/json", output);
+}
+
+static void handleConfigPost() {
+  markRequestAndGetPrevAgeMs();
+
+  if (!s_server->hasArg("plain")) {
+    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Missing body\"}");
+    return;
+  }
+
+  JsonDocument doc;
+  const DeserializationError err = deserializeJson(doc, s_server->arg("plain"));
+  if (err) {
+    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Invalid JSON\"}");
+    return;
+  }
+
+  if (!doc.containsKey("rx_pin") || !doc.containsKey("tx_pin") || !doc.containsKey("baud")) {
+    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"rx_pin, tx_pin, and baud are required\"}");
+    return;
+  }
+
+  Um980Config cfg = um980_config_get();
+  cfg.rx_pin = doc["rx_pin"].as<int>();
+  cfg.tx_pin = doc["tx_pin"].as<int>();
+  cfg.baud = doc["baud"].as<uint32_t>();
+
+  String error;
+  if (!um980_apply_runtime_config(cfg, &error)) {
+    String response = String("{\"ok\":false,\"error\":\"") + error + "\"}";
+    s_server->send(400, "application/json", response);
+    return;
+  }
+
+  JsonDocument resp;
+  resp["ok"] = true;
+  resp["message"] = "Config saved";
+  JsonObject cfgObj = resp["config"].to<JsonObject>();
+  cfgObj["rx_pin"] = cfg.rx_pin;
+  cfgObj["tx_pin"] = cfg.tx_pin;
+  cfgObj["baud"] = cfg.baud;
+
+  String output;
+  resp.shrinkToFit();
+  serializeJson(resp, output);
+  s_server->sendHeader("Cache-Control", "no-store");
+  s_server->send(200, "application/json", output);
+}
+
 // webui_begin():
 // Called once from main.cpp to register routes and provide dependencies.
 // Parameters:
@@ -457,6 +530,10 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
 
   // JSON status endpoint
   server.on("/api/status", HTTP_GET, handleStatus);
+
+  // Config endpoints
+  server.on("/api/config", HTTP_GET, handleConfigGet);
+  server.on("/api/config", HTTP_POST, handleConfigPost);
 
   // Restart endpoint (POST)
   server.on("/api/restart", HTTP_POST, handleRestart);
