@@ -153,3 +153,8 @@ Client BLE WRITE -> [BLE->UART StreamBuffer] -> ESP32 UART TX -> GNSS UART RX
 - When adding new code, prefer keeping device logic in `src/` and generic helpers in `lib/`.
 - If you add a frontend, keep assets in `web/` and document any build steps here.
 
+## WEB UI
+
+<p align="center">
+  <img src="assets/IMG_2696.PNG" alt="Dashboard" width="200">
+</p>
