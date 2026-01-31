@@ -73,7 +73,7 @@ flowchart LR
   ESP32C3 -->|NUS Notify NMEA| USER[SW Maps]
   USER -->|NUS Write RTCM| ESP32C3
   ESP32C3 -->|TCP NMEA| TCP[QField]
-  ESP32C3 -->|SSID| WIFI[Web UI]
+  ESP32C3 <-->|SSID| WIFI[Web UI]
 ```
 
 ### UART (ESP32 -> GNSS)
