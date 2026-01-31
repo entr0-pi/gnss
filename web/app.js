@@ -84,7 +84,32 @@ async function loadConfig(){
     if ($("cfg_tx")) $("cfg_tx").value = cfg.tx_pin ?? "";
     if ($("cfg_baud")) $("cfg_baud").value = cfg.baud ?? "";
 
-    setConfigNote("Loaded from device");
+    // Handle locked state
+    const isLocked = cfg.locked === true;
+    const saveBtn = $("saveConfigBtn");
+
+    if (isLocked) {
+      // Make inputs readonly
+      if ($("cfg_rx")) $("cfg_rx").readOnly = true;
+      if ($("cfg_tx")) $("cfg_tx").readOnly = true;
+      if ($("cfg_baud")) $("cfg_baud").readOnly = true;
+
+      // Hide save button
+      if (saveBtn) saveBtn.style.display = "none";
+
+      // Show lock message
+      setConfigNote("🔒 Configuration locked (compile-time flags)", true);
+    } else {
+      // Normal mode: editable
+      if ($("cfg_rx")) $("cfg_rx").readOnly = false;
+      if ($("cfg_tx")) $("cfg_tx").readOnly = false;
+      if ($("cfg_baud")) $("cfg_baud").readOnly = false;
+
+      // Show save button
+      if (saveBtn) saveBtn.style.display = "";
+
+      setConfigNote("Loaded from device");
+    }
   } catch (e) {
     setConfigNote("Failed to load config", false);
   }

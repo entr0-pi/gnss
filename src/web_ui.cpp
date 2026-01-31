@@ -430,6 +430,13 @@ static void handleConfigGet() {
   doc["tx_pin"] = cfg.tx_pin;
   doc["baud"] = cfg.baud;
 
+  // Check if config is locked via build flags
+  #ifdef FORCE_HARDCODED_UART
+    doc["locked"] = true;
+  #else
+    doc["locked"] = false;
+  #endif
+
   JsonObject defObj = doc["defaults"].to<JsonObject>();
   defObj["rx_pin"] = defaults.rx_pin;
   defObj["tx_pin"] = defaults.tx_pin;
@@ -445,6 +452,12 @@ static void handleConfigGet() {
 
 static void handleConfigPost() {
   markRequestAndGetPrevAgeMs();
+
+  // Check if config is locked via build flags
+  #ifdef FORCE_HARDCODED_UART
+    s_server->send(403, "application/json", "{\"ok\":false,\"error\":\"UART config is locked via build flags\"}");
+    return;
+  #endif
 
   if (!s_server->hasArg("plain")) {
     s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Missing body\"}");

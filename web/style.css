@@ -116,6 +116,12 @@ body{
   outline:none;
   border-color: rgba(255,255,255,.3);
 }
+.input:read-only{
+  background: rgba(0,0,0,.35);
+  border-color: rgba(255,255,255,.04);
+  color: var(--muted);
+  cursor: not-allowed;
+}
 
 #rssi.good { color: #2ecc71; font-weight:bold; animation: blink 1s infinite; }
 #rssi.ok   { color: #f1c40f ; font-weight:bold; animation: blink 1s infinite; }

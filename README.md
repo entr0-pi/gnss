@@ -204,13 +204,40 @@ On first boot with no build flags:
 ### Configuration via Web UI
 
 1. **Access Web UI**: `http://<device-ip>`
-2. **Navigate to Settings**: UART Configuration section
-3. **Enter values**:
-   - RX Pin (ESP32 RX, connects to GNSS TX): `0-21` (ESP32-C3)
-   - TX Pin (ESP32 TX, connects to GNSS RX): `0-21` (ESP32-C3)
-   - Baud Rate: `1200-2000000`
-4. **Save**: Config persists to `/gnss.json` in LittleFS
-5. **Restart**: Changes applied immediately (or reboot for cold start)
+2. **Navigate to Device Tab**: GNSS UART section
+3. **Configuration Behavior**: The web UI automatically adapts based on build mode
+
+#### Unlocked Mode (Runtime Configuration)
+When `FORCE_HARDCODED_UART` is **not** defined in build flags:
+
+- **Input Fields**: Editable (white background)
+- **Save Button**: Visible and functional
+- **Status Message**: "Loaded from device"
+- **Workflow**:
+  1. Enter values:
+     - RX Pin (ESP32 RX, connects to GNSS TX): `0-21` (ESP32-C3)
+     - TX Pin (ESP32 TX, connects to GNSS RX): `0-21` (ESP32-C3)
+     - Baud Rate: `1200-2000000`
+  2. Click "Save UART Config"
+  3. Config persists to `/gnss.json` in LittleFS
+  4. Device automatically restarts and applies new settings
+
+#### Locked Mode (Compile-Time Configuration)
+When `FORCE_HARDCODED_UART=1` is defined in build flags:
+
+- **Input Fields**: Read-only (greyed out, darker background)
+- **Save Button**: Hidden
+- **Status Message**: "🔒 Configuration locked (compile-time flags)"
+- **Behavior**:
+  - Displays current hardcoded values from build flags
+  - Values cannot be modified via web UI
+  - Any attempt to POST config changes returns HTTP 403 error
+  - To change: modify `platformio.ini` build flags and rebuild firmware
+
+**Visual Indicators:**
+- Locked inputs have darker background and "not-allowed" cursor
+- Lock emoji (🔒) clearly indicates read-only state
+- Users cannot accidentally attempt to save locked configuration
 
 ### LittleFS Partition Details
 
@@ -255,7 +282,7 @@ build_flags =
 - Pins hardcoded to GPIO4/5 @ 9600 baud
 - No LittleFS dependency for UART config
 - Faster boot, more reliable
-- Config cannot be changed via web UI
+- **Web UI**: Displays locked config (read-only fields, no save button)
 
 #### Example 2: Multi-Variant Hardware
 ```ini
@@ -278,6 +305,7 @@ build_flags =
 - Same codebase, different builds
 - Each variant has fixed pins
 - No runtime configuration needed
+- **Web UI**: Each variant shows its locked values
 
 #### Example 3: User-Configurable (Default)
 ```ini
@@ -291,6 +319,7 @@ build_flags =
 - Config stored in LittleFS
 - Flexible for field deployment
 - Survives firmware updates
+- **Web UI**: Editable fields with save button
 
 ### Troubleshooting
 
@@ -335,6 +364,25 @@ pio run -t upload
 2. **Delete config file:** Flash erase or delete `/gnss.json`
 3. **Factory reset:** Erase flash, re-upload
 
+#### Problem: Cannot change UART config in web UI
+**Symptom:** Input fields are greyed out, save button is hidden, lock icon displayed
+
+**Cause:** Configuration is locked via `FORCE_HARDCODED_UART` build flag
+
+**Solution:**
+1. Open `platformio.ini`
+2. Comment out or remove these lines:
+   ```ini
+   -DFORCE_HARDCODED_UART=1
+   -DHARD_RX_PIN=20
+   -DHARD_TX_PIN=21
+   -DHARD_BAUD=115200
+   ```
+3. Rebuild and upload firmware: `pio run -t upload`
+4. Web UI will now show editable fields
+
+**Note:** This is intentional for production builds to prevent accidental configuration changes.
+
 ### ESP32-C3 Pin Compatibility Notes
 
 **Safe Pins (Generally Reliable):**
@@ -356,6 +404,9 @@ pio run -t upload
 - Default values: `include/app.h` (lines 79-109)
 - Partition table: `partitions.csv`
 - Build configuration: `platformio.ini`
+- Web UI backend (API endpoints): `src/web_ui.cpp` (lines 422-491)
+- Web UI frontend (locked state handling): `web/app.js` (lines 77-116)
+- Web UI styling (readonly inputs): `web/style.css` (lines 119-124)
 
 ## UART, BLE, and Buffer Flow
 The ESP32-C3 firmware acts as a transparent byte-stream bridge between the GNSS UART and a BLE client (phone/tablet). It uses the Nordic UART Service (NUS) for BLE and FreeRTOS StreamBuffers as ring buffers to decouple producer/consumer timing.
@@ -456,7 +507,7 @@ The firmware uses FreeRTOS StreamBuffers (ring buffers) to handle bursty traffic
 <p align="center">
   <img src="assets/IMG_2696.PNG" alt="Dashboard" width="200">
   <img src="assets/IMG_2697.PNG" alt="Dashboard" width="100">
-  <img src="assets/IMG_2698.PNG" alt="Dashboard" width="100">
+  <img src="assets/IMG_2702.PNG" alt="Dashboard" width="100">
   <img src="assets/IMG_2699.PNG" alt="Dashboard" width="100">
   <img src="assets/IMG_2700.PNG" alt="Dashboard" width="100">
 </p>
