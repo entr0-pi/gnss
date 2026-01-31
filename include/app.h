@@ -4,20 +4,23 @@
 
 // Centralized build flags (override via build_flags in platformio.ini).
 #ifndef WEBUI_ENABLE
-#define WEBUI_ENABLE 1
+#define WEBUI_ENABLE 0
 #endif
 
 #ifndef NMEA_ENABLE
 #define NMEA_ENABLE 0
 #endif
 
-// ---------------- TCP ----------------
 #ifndef TCP_ENABLE
-#define TCP_ENABLE 1
+#define TCP_ENABLE 0
 #endif
 
-#if TCP_ENABLE
-static const uint16_t TCP_PORT = 5000;
+#ifndef TCP_PORT
+#define TCP_PORT 5000
+#endif
+
+#ifndef WIFI_ENABLE
+#define WIFI_ENABLE (WEBUI_ENABLE || TCP_ENABLE)
 #endif
 
 // ---------------- Dependency rule ----------------
@@ -28,16 +31,25 @@ static const uint16_t TCP_PORT = 5000;
   #define NMEA_ENABLE 0
 #endif
 
-#if WEBUI_ENABLE
+#if WIFI_ENABLE
 // ---------------- STA config (Hotspot) ----------------
 // These are the credentials and the static network config for STA mode.
 // WiFi.config() sets a fixed IP, gateway, subnet, and DNS for the station interface.
-static const char* STA_SSID = "64NDPVIWJCMG7RUZ9392";
-static const char* STA_PASS = "azerty1234";
-static const IPAddress STA_IP     (172, 20, 10, 2);
-static const IPAddress STA_GW     (172, 20, 10, 1);
-static const IPAddress STA_SUBNET (255, 255, 255, 240);
-static const IPAddress STA_DNS    (172, 20, 10, 1);
+#if __has_include("secrets.h")
+#include "secrets.h"
+#endif
+
+#if !defined(STA_SSID_VALUE) || !defined(STA_PASS_VALUE) || !defined(STA_IP_VALUE) || \
+    !defined(STA_GW_VALUE) || !defined(STA_SUBNET_VALUE) || !defined(STA_DNS_VALUE)
+  #error "Define STA_*_VALUE in include/secrets.h (copy from include/secrets.example.h)."
+#endif
+
+static const char* STA_SSID = STA_SSID_VALUE;
+static const char* STA_PASS = STA_PASS_VALUE;
+static const IPAddress STA_IP     = STA_IP_VALUE;
+static const IPAddress STA_GW     = STA_GW_VALUE;
+static const IPAddress STA_SUBNET = STA_SUBNET_VALUE;
+static const IPAddress STA_DNS    = STA_DNS_VALUE;
 #endif
 
 // ---------------- BT ----------------
@@ -45,7 +57,7 @@ static const IPAddress STA_DNS    (172, 20, 10, 1);
 #ifndef BLE_DEVICE_NAME
 #define BLE_DEVICE_NAME "GNSS-BLE"
 #endif
-static const char DEVICE_NAME[] = BLE_DEVICE_NAME;
+
 // Requested ATT MTU. Higher MTU can reduce overhead for a stream like NMEA.
 #ifndef BLE_MTU_CFG
 #define BLE_MTU_CFG 23

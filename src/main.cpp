@@ -31,17 +31,18 @@
 #include "app.h"
 #include "gnss_config.h"
 
-#if WEBUI_ENABLE
+#if WIFI_ENABLE
 #include <WiFi.h>
+#endif
+
+#if WEBUI_ENABLE
 #include <WebServer.h>
 #include "web_ui.h"   // UI routes + snapshot structs (your own module)
 #endif
 
 #if TCP_ENABLE
-#include <WiFi.h>
 #include <WiFiServer.h>
 #include <WiFiClient.h>
-#include "web_ui.h"
 #endif
 
 // ---- NMEA ----
@@ -319,8 +320,8 @@ class RxCallbacks : public NimBLECharacteristicCallbacks {
 // Declared here so setup() can call them before their definitions below.
 static void setupBLE();
 static void setupUART();
-#if WEBUI_ENABLE
-static void setupWiFiAndWeb();
+#if WIFI_ENABLE
+static void setupWiFi();
 #endif
 static void task_uart_rx(void* arg);
 static void task_ble_tx(void* arg);
@@ -350,9 +351,16 @@ void setup() {
   // Configure HTTP routes / static assets for the status UI.
   // (Doing this before server.begin() is fine; it just registers handlers.)
   webui_begin(server, STA_DNS);
+  #endif
 
-  // Connect to WiFi (STA) and start the HTTP server.
-  setupWiFiAndWeb();
+  #if WIFI_ENABLE
+  // Connect to WiFi (STA).
+  setupWiFi();
+  #endif
+
+  #if WEBUI_ENABLE
+  // Start listening for HTTP requests.
+  server.begin();
   #endif
 
   // Initialize NMEA parser module (optional).
@@ -407,7 +415,7 @@ void setup() {
 }
 
 void loop() {
-  #if WEBUI_ENABLE
+  #if WIFI_ENABLE
   static unsigned long last_wifi_attempt = 0;
   if (WiFi.status() != WL_CONNECTED) {
     const unsigned long now = millis();
@@ -416,7 +424,9 @@ void loop() {
       last_wifi_attempt = now;
     }
   }
+  #endif
 
+  #if WEBUI_ENABLE
   // WebServer is polled; it processes one client request per call.
   server.handleClient();
   #endif
@@ -429,8 +439,8 @@ void loop() {
 // ---------------- FUNCTIONS ----------------
 // -------------------------------------------
 
-#if WEBUI_ENABLE
-static void setupWiFiAndWeb() {
+#if WIFI_ENABLE
+static void setupWiFi() {
   // Station mode: connect to an existing access point / hotspot.
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
@@ -451,15 +461,13 @@ static void setupWiFiAndWeb() {
     delay(250);
   }
 
-  // Start listening for HTTP requests.
-  server.begin();
 }
 #endif
 
 // ---------------- Setup BLE ----------------
 static void setupBLE() {
   // Initialize NimBLE and set the device name used in advertising.
-  NimBLEDevice::init(DEVICE_NAME);
+  NimBLEDevice::init(BLE_DEVICE_NAME);
 
   // RF power level; higher can improve range but increases current consumption.
   NimBLEDevice::setPower(ESP_PWR_LVL_P6);
@@ -657,6 +665,8 @@ static void task_uart_tx(void* arg) {
     if (g_sb_ble2uart) {
       got = xStreamBufferReceive(g_sb_ble2uart, tmp, sizeof(tmp), 0);
     }
+
+    // If we received bytes, forward them to GNSS.
     if (got > 0) {
       Serial1.write(tmp, got);
       did_work = true;
