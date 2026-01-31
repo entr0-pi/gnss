@@ -70,9 +70,9 @@ The ESP32-C3 firmware acts as a transparent byte-stream bridge between the GNSS 
 flowchart LR
   GNSS[GNSS Module] -->|UART NMEA| ESP32C3["ESP32-C3 Firmware"]
   ESP32C3 -->|UART RTCM| GNSS
-  ESP32C3 -->|NUS Notify Mirror NMEA| USER[User App / Client]
+  ESP32C3 -->|NUS Notify NMEA| USER[User App / Client]
   USER -->|NUS Write NTRIP| ESP32C3
-  ESP32C3 -->|TCP Mirror NMEA| TCP[User TCP Client]
+  ESP32C3 -->|TCP NMEA| TCP[User TCP Client]
 ```
 
 ### UART (ESP32 -> GNSS)
