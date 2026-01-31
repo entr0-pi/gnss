@@ -65,6 +65,16 @@ as a starting point for CI or local automation.
 ## UART, BLE, and Buffer Flow
 The ESP32-C3 firmware acts as a transparent byte-stream bridge between the GNSS UART and a BLE client (phone/tablet). It uses the Nordic UART Service (NUS) for BLE and FreeRTOS StreamBuffers as ring buffers to decouple producer/consumer timing.
 
+### Data Transit Flow Graph
+```mermaid
+flowchart LR
+  GNSS[GNSS Module] <-->|UART (NMEA/RTCM)| ESP32[ESP32-C3 Firmware]
+  ESP32 -->|BLE NUS Notify| USER[User App / Client]
+  USER -->|BLE NUS Write| ESP32
+  ESP32 -->|TCP Mirror (optional)| TCP[User TCP Client]
+  TCP -->|RTCM or commands| ESP32
+```
+
 ### UART (ESP32 -> GNSS)
 - **Pins:** ESP32 GPIO20 = RX (connected to GNSS TX), GPIO21 = TX (connected to GNSS RX).
 - **Baud:** 115200 (matches GNSS serial baud rate).
