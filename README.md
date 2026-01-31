@@ -90,6 +90,273 @@ python3 scripts/build_matrix.py --execute --env nmea --env tcp_off
 The matrix entries in the script cover the same flags documented above and are intended
 as a starting point for CI or local automation.
 
+## UART Configuration System
+
+The firmware supports flexible UART pin and baud rate configuration through a three-tier system: **Build Flags**, **LittleFS Persistent Storage**, and **Fallback Defaults**. This allows both development flexibility (runtime configuration via web UI) and production reliability (compile-time hardcoded values).
+
+### Configuration Tiers (Priority Order)
+
+#### Tier 1: Build Flags (Highest Priority)
+Override all runtime configuration by defining pins at compile time:
+
+```ini
+# In platformio.ini:
+build_flags =
+  -DFORCE_HARDCODED_UART=1
+  -DHARD_RX_PIN=20
+  -DHARD_TX_PIN=21
+  -DHARD_BAUD=115200
+```
+
+**When to use:**
+- Production firmware with known hardware
+- Embedded systems where configuration must not change
+- Faster boot time (no filesystem I/O)
+- Maximum reliability (no dependency on LittleFS)
+
+**Behavior:**
+- UART pins/baud are compiled into firmware
+- LittleFS config is ignored
+- Web UI displays current config but cannot change it
+- Requires recompilation to modify
+
+#### Tier 2: LittleFS Config (Normal Priority)
+Runtime configuration stored in `/gnss.json` on LittleFS partition:
+
+```json
+{
+  "rx_pin": 20,
+  "tx_pin": 21,
+  "baud": 115200
+}
+```
+
+**When to use:**
+- Development and testing
+- User-configurable devices
+- Field-deployable systems where pin assignments vary
+- Prototyping with different GNSS modules
+
+**Behavior:**
+- User configures via web UI
+- Config persists across reboots and firmware updates
+- Can be changed without recompilation
+- Default mode (no build flags required)
+
+#### Tier 3: Fallback Config (Lowest Priority)
+Hardcoded safety values in `include/app.h`:
+
+```cpp
+FALLBACK_GNSS_RX   = 20
+FALLBACK_GNSS_TX   = 21
+FALLBACK_GNSS_BAUD = 9600
+```
+
+**When to use:**
+- Automatic fallback when LittleFS fails/corrupts
+- Emergency recovery mode
+- First boot before user configuration
+
+**Behavior:**
+- Only activates if LittleFS mount fails completely
+- Prevents total boot failure
+- Allows recovery via web UI after boot
+
+### Configuration Flow Diagram
+
+```mermaid
+flowchart TD
+    A[Boot] --> B{FORCE_HARDCODED_UART defined?}
+    B -->|YES| C[Use HARD_RX_PIN, HARD_TX_PIN, HARD_BAUD]
+    B -->|NO| D[Mount LittleFS]
+    D --> E{Mount successful?}
+    E -->|YES| F[Read /gnss.json]
+    E -->|NO| G[Try format + remount]
+    G --> H{Remount successful?}
+    H -->|YES| F
+    H -->|NO| I[Use FALLBACK values]
+    F --> J{Config valid?}
+    J -->|YES| K[Use loaded config]
+    J -->|NO| L{Pins = -1 or Baud = 0?}
+    L -->|YES| M[Skip UART init - Unconfigured]
+    L -->|NO| N[Save defaults to file]
+    C --> O[Initialize UART]
+    K --> O
+    I --> O
+    M --> P[Boot complete - Web UI accessible]
+    N --> M
+    O --> P
+```
+
+### Default Behavior (Unconfigured State)
+
+On first boot with no build flags:
+- `PIN_GNSS_RX = -1` (unconfigured)
+- `PIN_GNSS_TX = -1` (unconfigured)
+- `GNSS_BAUD = 0` (unconfigured)
+
+**Result:**
+- UART initialization is **skipped**
+- Device boots successfully
+- Web UI is accessible
+- User **must** configure pins via web UI before UART works
+
+### Configuration via Web UI
+
+1. **Access Web UI**: `http://<device-ip>`
+2. **Navigate to Settings**: UART Configuration section
+3. **Enter values**:
+   - RX Pin (ESP32 RX, connects to GNSS TX): `0-21` (ESP32-C3)
+   - TX Pin (ESP32 TX, connects to GNSS RX): `0-21` (ESP32-C3)
+   - Baud Rate: `1200-2000000`
+4. **Save**: Config persists to `/gnss.json` in LittleFS
+5. **Restart**: Changes applied immediately (or reboot for cold start)
+
+### LittleFS Partition Details
+
+- **Partition Name**: `spiffs` (LittleFS uses SPIFFS partition type)
+- **Partition SubType**: `spiffs` (compatible with LittleFS driver)
+- **Size**: 64KB (`0x10000`)
+- **Location**: See `partitions.csv`
+- **Filesystem**: LittleFS (configured via `board_build.filesystem = littlefs`)
+
+**File Structure:**
+```
+/gnss.json    # UART configuration (rx_pin, tx_pin, baud)
+```
+
+### Validation Rules
+
+| Parameter | Unconfigured | Valid Range | Notes |
+|-----------|-------------|-------------|-------|
+| `rx_pin` | `-1` | `0-21` | ESP32-C3 GPIO range |
+| `tx_pin` | `-1` | `0-21` | Must differ from rx_pin |
+| `baud` | `0` | `1200-2000000` | Common: 9600, 115200 |
+
+**Special Values:**
+- `-1` (pins) or `0` (baud) = Unconfigured → UART skipped
+- Allows explicit "not configured" state vs. invalid values
+
+### Production Deployment Examples
+
+#### Example 1: Fixed Hardware (Recommended for Production)
+```ini
+# platformio.ini
+[env:production]
+build_flags =
+  ${env.build_flags}
+  -DFORCE_HARDCODED_UART=1
+  -DHARD_RX_PIN=4
+  -DHARD_TX_PIN=5
+  -DHARD_BAUD=9600
+```
+
+**Result:**
+- Pins hardcoded to GPIO4/5 @ 9600 baud
+- No LittleFS dependency for UART config
+- Faster boot, more reliable
+- Config cannot be changed via web UI
+
+#### Example 2: Multi-Variant Hardware
+```ini
+[env:variant_a]
+build_flags =
+  -DFORCE_HARDCODED_UART=1
+  -DHARD_RX_PIN=20
+  -DHARD_TX_PIN=21
+  -DHARD_BAUD=115200
+
+[env:variant_b]
+build_flags =
+  -DFORCE_HARDCODED_UART=1
+  -DHARD_RX_PIN=4
+  -DHARD_TX_PIN=5
+  -DHARD_BAUD=9600
+```
+
+**Result:**
+- Same codebase, different builds
+- Each variant has fixed pins
+- No runtime configuration needed
+
+#### Example 3: User-Configurable (Default)
+```ini
+# No FORCE_HARDCODED_UART flags
+build_flags =
+  -DBLE_DEVICE_NAME=\"MyGNSS\"
+```
+
+**Result:**
+- User configures pins via web UI
+- Config stored in LittleFS
+- Flexible for field deployment
+- Survives firmware updates
+
+### Troubleshooting
+
+#### Problem: Device won't boot / resets continuously
+**Cause:** UART pins causing hardware hang (ESP32-C3 known issue with certain pins)
+
+**Solution 1 - Factory Reset:**
+1. Erase flash: `pio run -t erase`
+2. Re-upload firmware
+3. Configure different pins via web UI
+
+**Solution 2 - Use Fallback:**
+1. Corrupt/delete LittleFS (flash erase)
+2. Device boots with fallback pins (20/21)
+3. Access web UI to reconfigure
+
+#### Problem: LittleFS mount fails
+**Error:** `[GNSS] LittleFS mount failed after format!`
+
+**Automatic Recovery:**
+- Firmware uses fallback config (20/21/9600)
+- Device boots with UART active
+- Web UI accessible (if WiFi works)
+
+**Manual Recovery:**
+```bash
+# Erase and re-flash
+pio run -t erase
+pio run -t upload
+```
+
+#### Problem: Config changes don't persist
+**Check:**
+1. LittleFS mounted? Look for `[GNSS] LittleFS mounted successfully`
+2. Save successful? Look for `[GNSS] Config loaded from file`
+3. Partition table correct? Check `partitions.csv`
+
+#### Problem: Want to reset to unconfigured state
+**Options:**
+
+1. **Via Web UI:** Set all values to `-1` (RX), `-1` (TX), `0` (baud)
+2. **Delete config file:** Flash erase or delete `/gnss.json`
+3. **Factory reset:** Erase flash, re-upload
+
+### ESP32-C3 Pin Compatibility Notes
+
+**Safe Pins (Generally Reliable):**
+- GPIO 0, 1, 2, 3
+- GPIO 4, 5, 6, 7
+- GPIO 20, 21 (recommended for UART)
+
+**Avoid:**
+- GPIO 18, 19 (USB pins)
+- GPIO 8, 9 (strapping pins)
+- Pins used by onboard peripherals (board-specific)
+
+**Note:** Pin compatibility varies by board variant. The default pins (16/17) are intentionally set to "unconfigured" (-1) to force user selection of working pins for their specific hardware.
+
+### File References
+
+- Configuration struct: `include/gnss_config.h`
+- LittleFS implementation: `src/gnss_config.cpp`
+- Default values: `include/app.h` (lines 79-109)
+- Partition table: `partitions.csv`
+- Build configuration: `platformio.ini`
+
 ## UART, BLE, and Buffer Flow
 The ESP32-C3 firmware acts as a transparent byte-stream bridge between the GNSS UART and a BLE client (phone/tablet). It uses the Nordic UART Service (NUS) for BLE and FreeRTOS StreamBuffers as ring buffers to decouple producer/consumer timing.
 
@@ -105,8 +372,11 @@ flowchart LR
 ```
 
 ### UART (ESP32 <-> GNSS)
-- **Pins:** ESP32 GPIO20 = RX (connected to GNSS TX), GPIO21 = TX (connected to GNSS RX).
-- **Baud:** 115200 (matches GNSS serial baud rate).
+- **Pins:** Configurable via web UI or build flags (see [UART Configuration System](#uart-configuration-system)).
+  - Default: Unconfigured (`-1/-1`) - must be set by user
+  - Fallback: GPIO20 (RX) / GPIO21 (TX) if LittleFS fails
+  - Production: Set via `HARD_RX_PIN`/`HARD_TX_PIN` build flags
+- **Baud:** Configurable (`1200-2000000`), default unconfigured (`0`).
 - **Payload:** Raw GNSS output (NMEA and any other serial bytes). There is no framing or parsing required for the pass-through path.
 
 ### BLE (ESP32 -> Client)

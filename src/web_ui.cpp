@@ -458,7 +458,7 @@ static void handleConfigPost() {
     return;
   }
 
-  if (!doc.containsKey("rx_pin") || !doc.containsKey("tx_pin") || !doc.containsKey("baud")) {
+  if (!doc["rx_pin"].is<int>() || !doc["tx_pin"].is<int>() || !doc["baud"].is<uint32_t>()) {
     s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"rx_pin, tx_pin, and baud are required\"}");
     return;
   }
@@ -515,10 +515,10 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
   });
 
   // Serve JS at "/app.js"
-  // Cache it for 1 day to reduce repeated transfers.
+  // No-store to avoid stale UI behavior after firmware updates.
   server.on("/app.js", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendProgmemGzip(200, "application/javascript; charset=utf-8", APP_JS, APP_JS_LEN, "public, max-age=86400");
+    sendProgmemGzip(200, "application/javascript; charset=utf-8", APP_JS, APP_JS_LEN, "no-store");
   });
 
   // Serve favicon at "/favicon.ico"

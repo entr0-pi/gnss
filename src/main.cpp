@@ -56,6 +56,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/stream_buffer.h"
+#include "esp_task_wdt.h"
 
 #if WEBUI_ENABLE
 // ---- Webserver ----
@@ -341,33 +342,11 @@ void setup() {
   // Give USB CDC + RTOS some time to settle (especially right after boot).
   vTaskDelay(pdMS_TO_TICKS(200));
 
-  // Configure BLE server + characteristics + advertising.
-  setupBLE();
-
+  Serial.println("[SETUP] Loading config...");
   // Load persisted UART configuration (LittleFS) if available.
   gnss_config_begin();
 
-  #if WEBUI_ENABLE
-  // Configure HTTP routes / static assets for the status UI.
-  // (Doing this before server.begin() is fine; it just registers handlers.)
-  webui_begin(server, STA_DNS);
-  #endif
-
-  #if WIFI_ENABLE
-  // Connect to WiFi (STA).
-  setupWiFi();
-  #endif
-
-  #if WEBUI_ENABLE
-  // Start listening for HTTP requests.
-  server.begin();
-  #endif
-
-  // Initialize NMEA parser module (optional).
-  #if NMEA_ENABLE
-   nmea_begin();
-  #endif
-
+  Serial.println("[SETUP] Creating stream buffers...");
   // Create StreamBuffers using static storage (no heap allocation for the buffers).
   // - UART->BLE buffer holds bytes read from Serial1 (GNSS output).
   // - BLE->UART buffer holds bytes written by phone to BLE RX characteristic.
@@ -395,12 +374,52 @@ void setup() {
       || !g_sb_uart2tcp || !g_sb_tcp2uart
 #endif
       ) {
+    Serial.println("[SETUP] ERROR: Stream buffer creation failed!");
     for (;;) vTaskDelay(pdMS_TO_TICKS(1000));
   }
 
-  // Configure the hardware UART to talk to GNSS.
-  setupUART();
+  // CRITICAL: Initialize UART BEFORE WiFi/BLE to avoid ESP32-C3 hang issue
+  // Skip UART if not configured (-1/0)
+  const GnssConfig& cfg = gnss_config_get();
+  if (cfg.rx_pin == -1 || cfg.tx_pin == -1 || cfg.baud == 0) {
+    Serial.println("[SETUP] UART not configured - configure via web UI");
+  } else {
+    Serial.println("[SETUP] Setting up UART...");
+    setupUART();
+  }
 
+  Serial.println("[SETUP] Starting BLE...");
+  // Configure BLE server + characteristics + advertising.
+  setupBLE();
+
+  #if WEBUI_ENABLE
+  Serial.println("[SETUP] Initializing WebUI...");
+  // Configure HTTP routes / static assets for the status UI.
+  // (Doing this before server.begin() is fine; it just registers handlers.)
+  webui_begin(server, STA_DNS);
+  #endif
+
+  #if WIFI_ENABLE
+  Serial.println("[SETUP] Connecting to WiFi...");
+  // Connect to WiFi (STA).
+  setupWiFi();
+  Serial.println("[SETUP] WiFi setup complete");
+  #endif
+
+  #if WEBUI_ENABLE
+  Serial.println("[SETUP] Starting web server...");
+  // Start listening for HTTP requests.
+  server.begin();
+  Serial.println("[SETUP] Web server started");
+  #endif
+
+  // Initialize NMEA parser module (optional).
+  #if NMEA_ENABLE
+  Serial.println("[SETUP] Initializing NMEA...");
+  nmea_begin();
+  #endif
+
+  Serial.println("[SETUP] Creating tasks...");
   // Create worker tasks.
   // We prioritize UART tasks slightly higher so RTCM bytes (from phone) can reach GNSS
   // quickly even if BLE notify or HTTP are busy.
@@ -412,9 +431,16 @@ void setup() {
   g_tcpServer.setNoDelay(true);
   xTaskCreate(task_tcp_io,  "tcp_io",  4096, nullptr, 2, nullptr);
 #endif
+  Serial.println("[SETUP] Setup complete!");
 }
 
 void loop() {
+  static bool first_loop = true;
+  if (first_loop) {
+    Serial.println("[LOOP] Entered main loop");
+    first_loop = false;
+  }
+
   #if WIFI_ENABLE
   static unsigned long last_wifi_attempt = 0;
   if (WiFi.status() != WL_CONNECTED) {
@@ -449,18 +475,25 @@ static void setupWiFi() {
 
   // Apply static IP configuration for the STA interface.
   // Order: local IP, gateway, subnet, DNS.
-  WiFi.config(STA_IP, STA_GW, STA_SUBNET, STA_DNS);
+  if (!WiFi.config(STA_IP, STA_GW, STA_SUBNET, STA_DNS)) {
+    Serial.println("[WiFi] Config failed!");
+  }
 
   // Start connection attempt using SSID/PASS.
   WiFi.begin(STA_SSID, STA_PASS);
 
-  // Wait up to 15 seconds for connection.
-  // (If not connected, we still start the server; you can view status / retry logic elsewhere.)
+  // Wait up to 10 seconds for connection with yield to prevent watchdog.
   unsigned long t0 = millis();
-  while (WiFi.status() != WL_CONNECTED && (millis() - t0) < 15000) {
-    delay(250);
+  while (WiFi.status() != WL_CONNECTED && (millis() - t0) < 10000) {
+    delay(500);
+    Serial.print(".");
   }
 
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\n[WiFi] Connected: " + WiFi.localIP().toString());
+  } else {
+    Serial.println("\n[WiFi] Connection failed, will retry in loop");
+  }
 }
 #endif
 
@@ -509,13 +542,14 @@ static void setupBLE() {
 
 // ---------------- Setup UART ----------------
 static void setupUART() {
-  // ESP32-C3 Arduino:
-  // - Serial  = USB CDC (debug)
-  // - Serial1 = hardware UART
-  //
-  // Configure Serial1 to talk to the GNSS module at GNSS_BAUD using 8N1.
   const GnssConfig& cfg = gnss_config_get();
+  Serial.printf("[UART] Configuring: RX=%d, TX=%d, Baud=%u\n",
+                cfg.rx_pin, cfg.tx_pin, cfg.baud);
+
   Serial1.begin(cfg.baud, SERIAL_8N1, cfg.rx_pin, cfg.tx_pin);
+  delay(100); // Give UART time to initialize
+
+  Serial.println("[UART] UART configured successfully");
 }
 
 bool gnss_apply_runtime_config(const GnssConfig& cfg, String* error) {

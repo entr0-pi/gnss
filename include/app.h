@@ -78,9 +78,35 @@ static const uint16_t BLE_LOW_RATE_DELAY_MS =
 
 // ---------------- UART ----------------
 // Hardware UART pins connected to the GNSS receiver.
-static const int PIN_GNSS_RX = 20;        // ESP32 RX  (GNSS TX)
-static const int PIN_GNSS_TX = 21;        // ESP32 TX  (GNSS RX)
-static const uint32_t GNSS_BAUD = 115200; // GNSS serial baud rate
+// Default to -1/0 (unconfigured) - user must configure via web UI
+// Can be overridden at compile time via build_flags in platformio.ini
+
+#ifndef FORCE_HARDCODED_UART
+  // Normal mode: unconfigured defaults, use LittleFS config
+  static const int PIN_GNSS_RX = -1;        // Unconfigured
+  static const int PIN_GNSS_TX = -1;        // Unconfigured
+  static const uint32_t GNSS_BAUD = 0;     // Unconfigured
+#else
+  // Forced hardcoded mode: use build flags
+  #ifndef HARD_RX_PIN
+    #error "FORCE_HARDCODED_UART requires HARD_RX_PIN to be defined"
+  #endif
+  #ifndef HARD_TX_PIN
+    #error "FORCE_HARDCODED_UART requires HARD_TX_PIN to be defined"
+  #endif
+  #ifndef HARD_BAUD
+    #error "FORCE_HARDCODED_UART requires HARD_BAUD to be defined"
+  #endif
+
+  static const int PIN_GNSS_RX = HARD_RX_PIN;
+  static const int PIN_GNSS_TX = HARD_TX_PIN;
+  static const uint32_t GNSS_BAUD = HARD_BAUD;
+#endif
+
+// Fallback values if LittleFS fails/corrupt (safety net)
+static const int FALLBACK_GNSS_RX = 20;
+static const int FALLBACK_GNSS_TX = 21;
+static const uint32_t FALLBACK_GNSS_BAUD = 9600;
 
 // ---------------- SERIAL ----------------
 // USB CDC serial used for debug logs in the Arduino monitor.

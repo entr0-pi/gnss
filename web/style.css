@@ -136,8 +136,8 @@ body{
   padding:12px 14px;
   font-weight:900;
   font-size:15px;
-  color:white;
-  background: rgba(45,125,255,.95);
+  color:rgb(255, 255, 255);
+  background: rgba(26, 59, 112, 0.95);
   box-shadow: 0 10px 30px rgba(45,125,255,.18);
   cursor:pointer;
 }
@@ -146,6 +146,7 @@ body{
   background: rgba(255,59,48,.95);
   box-shadow: 0 10px 30px rgba(255,59,48,.16);
 }
+
 .note{
   flex:1;
   color:var(--muted);

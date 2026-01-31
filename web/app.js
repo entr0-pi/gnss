@@ -206,6 +206,8 @@ if (saveConfigBtn) {
         $("cfg_tx").value = payload.config.tx_pin ?? tx;
         $("cfg_baud").value = payload.config.baud ?? baud;
       }
+      // Apply changes by restarting the device.
+      try { await fetch('/api/restart', { method: 'POST' }); } catch (e) {}
     } catch (e) {
       setConfigNote("Failed to reach device", false);
     }
