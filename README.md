@@ -73,7 +73,6 @@ flowchart LR
   ESP32C3 -->|BLE NUS Notify| USER[User App / Client]
   USER -->|BLE NUS Write| ESP32C3
   ESP32C3 -->|TCP Mirror optional| TCP[User TCP Client]
-  TCP -->|RTCM or commands| ESP32C3
 ```
 
 ### UART (ESP32 -> GNSS)
