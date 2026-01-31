@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in contributing!
+Thanks for your interest in contributing! But I do not expect help here for now.
 
 ## Dependencies
 This project uses third-party libraries managed via PlatformIO (`platformio.ini`):
