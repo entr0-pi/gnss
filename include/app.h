@@ -106,7 +106,7 @@ static const uint16_t BLE_LOW_RATE_DELAY_MS =
 // Fallback values if LittleFS fails/corrupt (safety net)
 static const int FALLBACK_GNSS_RX = 20;
 static const int FALLBACK_GNSS_TX = 21;
-static const uint32_t FALLBACK_GNSS_BAUD = 9600;
+static const uint32_t FALLBACK_GNSS_BAUD = 115200;
 
 // ---------------- SERIAL ----------------
 // USB CDC serial used for debug logs in the Arduino monitor.
