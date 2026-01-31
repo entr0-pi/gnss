@@ -197,3 +197,121 @@ body{
 
 .tabPanel{ display:none; }
 .tabPanel.isActive{ display:block; }
+
+.skyplot-wrap{
+  position:relative;
+  min-height:260px;
+}
+.skyplot{
+  position:relative;
+  width:100%;
+  aspect-ratio:1 / 1;
+  border-radius:50%;
+  border:1px solid var(--stroke);
+  background:
+    radial-gradient(circle at center, rgba(255,255,255,.12) 1px, transparent 1px),
+    radial-gradient(circle at center, rgba(255,255,255,.06) 2px, transparent 40%),
+    radial-gradient(circle at center, rgba(255,255,255,.08) 2px, transparent 66%),
+    radial-gradient(circle at center, rgba(255,255,255,.12) 2px, transparent 85%),
+    rgba(0,0,0,.2);
+  box-shadow: inset 0 0 40px rgba(0,0,0,.5);
+  margin:0 auto;
+}
+.skyplot::before,
+.skyplot::after{
+  content:"";
+  position:absolute;
+  top:50%;
+  left:50%;
+  width:100%;
+  height:1px;
+  background:rgba(255,255,255,.08);
+  transform:translate(-50%,-50%);
+}
+.skyplot::after{
+  width:1px;
+  height:100%;
+}
+.skyplot-label{
+  position:absolute;
+  font-size:10px;
+  color:var(--muted);
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.skyplot-label.n{ top:8px; left:50%; transform:translateX(-50%); }
+.skyplot-label.s{ bottom:8px; left:50%; transform:translateX(-50%); }
+.skyplot-label.e{ right:10px; top:50%; transform:translateY(-50%); }
+.skyplot-label.w{ left:10px; top:50%; transform:translateY(-50%); }
+.skyplot-marker{
+  position:absolute;
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  border:2px solid rgba(0,0,0,.35);
+  box-shadow:0 0 0 2px rgba(0,0,0,.2);
+  transform:translate(-50%,-50%) rotate(var(--marker-rotate, 0deg));
+}
+.skyplot-marker.gps,
+.skyplot-legend-dot.gps{
+  background:#3fa9f5;
+}
+.skyplot-marker.galileo,
+.skyplot-legend-dot.galileo{
+  background:#ffc857;
+  border-radius:3px;
+}
+.skyplot-marker.glonass,
+.skyplot-legend-dot.glonass{
+  background:#ef476f;
+  clip-path:polygon(50% 0%, 0% 100%, 100% 100%);
+}
+.skyplot-marker.beidou,
+.skyplot-legend-dot.beidou{
+  background:#06d6a0;
+  border-radius:3px;
+}
+.skyplot-marker.qzss,
+.skyplot-legend-dot.qzss{
+  background:#9b5de5;
+}
+.skyplot-marker.sbas,
+.skyplot-legend-dot.sbas{
+  background:#4cc9f0;
+  border-radius:2px;
+}
+.skyplot-marker.other,
+.skyplot-legend-dot.other{
+  background:#adb5bd;
+}
+.skyplot-legend{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px 12px;
+  margin-top:12px;
+  font-size:12px;
+  color:var(--muted);
+}
+.skyplot-legend-item{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.skyplot-legend-dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  border:1px solid rgba(255,255,255,.25);
+}
+.skyplot-empty{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--muted);
+  font-size:12px;
+  text-align:center;
+  padding:16px;
+  pointer-events:none;
+}

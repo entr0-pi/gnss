@@ -41,7 +41,39 @@
     "speed_kmh": 12.3,
     "date_utc": "2026-01-16",
     "time_utc": "12:34:56",
-    "age_ms": 500
+    "age_ms": 500,
+    "satellites": [
+      {
+        "constellation": "GPS",
+        "signal_power": 42.5,
+        "lat": 50.1,
+        "lon": 2.9
+      },
+      {
+        "constellation": "Galileo",
+        "signal_power": 38.2,
+        "lat": 46.8,
+        "lon": 3.6
+      },
+      {
+        "constellation": "GLONASS",
+        "signal_power": 35.7,
+        "lat": 49.4,
+        "lon": 1.1
+      },
+      {
+        "constellation": "BeiDou",
+        "signal_power": 40.3,
+        "lat": 47.2,
+        "lon": 0.4
+      },
+      {
+        "constellation": "SBAS",
+        "signal_power": 31.4,
+        "lat": 51.0,
+        "lon": 4.2
+      }
+    ]
   },
   "internet": {
     "reach": true

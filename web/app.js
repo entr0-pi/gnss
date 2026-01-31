@@ -67,6 +67,123 @@ function safe_ok(v, fallback=false){
   return (v === undefined || v === null || v === "") ? fallback : v;
 }
 
+function clamp(n, min, max){
+  return Math.min(Math.max(n, min), max);
+}
+
+function toRad(deg){
+  return (deg * Math.PI) / 180;
+}
+
+function skyplotPosition(observer, target){
+  if (!observer || !target) return null;
+  const lat1 = toRad(observer.lat);
+  const lon1 = toRad(observer.lon);
+  const lat2 = toRad(target.lat);
+  const lon2 = toRad(target.lon);
+  if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return null;
+
+  const dLon = lon2 - lon1;
+  const sinLat1 = Math.sin(lat1);
+  const cosLat1 = Math.cos(lat1);
+  const sinLat2 = Math.sin(lat2);
+  const cosLat2 = Math.cos(lat2);
+
+  const centralAngle = Math.acos(clamp(sinLat1 * sinLat2 + cosLat1 * cosLat2 * Math.cos(dLon), -1, 1));
+  const elevation = 90 - (centralAngle * 180 / Math.PI);
+  if (elevation <= 0) return null;
+
+  const y = Math.sin(dLon) * cosLat2;
+  const x = cosLat1 * sinLat2 - sinLat1 * cosLat2 * Math.cos(dLon);
+  const bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+
+  return { bearing, elevation };
+}
+
+function updateSkyplot(satellites, observer){
+  const plot = $("skyplot");
+  const legend = $("skyplot_legend");
+  const empty = $("skyplot_empty");
+  if (!plot || !legend || !empty) return;
+
+  plot.innerHTML = "";
+  legend.innerHTML = "";
+
+  const labels = [
+    { cls: "n", text: "N" },
+    { cls: "e", text: "E" },
+    { cls: "s", text: "S" },
+    { cls: "w", text: "W" }
+  ];
+  labels.forEach(({ cls, text }) => {
+    const el = document.createElement("div");
+    el.className = `skyplot-label ${cls}`;
+    el.textContent = text;
+    plot.appendChild(el);
+  });
+
+  if (!Array.isArray(satellites) || satellites.length === 0 || !observer) {
+    empty.style.display = "flex";
+    return;
+  }
+
+  const constellationStyles = {
+    GPS: { label: "GPS", className: "gps", rotate: "0deg" },
+    GALILEO: { label: "Galileo", className: "galileo", rotate: "0deg" },
+    GLONASS: { label: "GLONASS", className: "glonass", rotate: "0deg" },
+    BEIDOU: { label: "BeiDou", className: "beidou", rotate: "45deg" },
+    QZSS: { label: "QZSS", className: "qzss", rotate: "0deg" },
+    SBAS: { label: "SBAS", className: "sbas", rotate: "0deg" }
+  };
+
+  const seen = new Set();
+  let plotted = 0;
+
+  satellites.forEach((sat) => {
+    const position = skyplotPosition(observer, { lat: sat.lat, lon: sat.lon });
+    if (!position) return;
+
+    const key = (sat.constellation || "").toUpperCase();
+    const style = constellationStyles[key] || { label: key || "Other", className: "other", rotate: "0deg" };
+    seen.add(style.className);
+
+    const radius = (90 - position.elevation) / 90;
+    const r = radius * 48 + 2;
+    const angle = toRad(position.bearing - 90);
+    const x = 50 + r * Math.cos(angle);
+    const y = 50 + r * Math.sin(angle);
+
+    const signal = Number(sat.signal_power);
+    const size = Number.isFinite(signal) ? clamp(6 + (signal - 20) * 0.35, 8, 16) : 10;
+
+    const marker = document.createElement("div");
+    marker.className = `skyplot-marker ${style.className}`;
+    marker.style.left = `${x}%`;
+    marker.style.top = `${y}%`;
+    marker.style.width = `${size}px`;
+    marker.style.height = `${size}px`;
+    marker.style.setProperty("--marker-rotate", style.rotate);
+    marker.title = `${style.label} • ${Number.isFinite(signal) ? signal.toFixed(1) + " dB-Hz" : "—"}`;
+    plot.appendChild(marker);
+    plotted += 1;
+  });
+
+  empty.style.display = plotted === 0 ? "flex" : "none";
+
+  Array.from(seen).forEach((className) => {
+    const styleEntry = Object.values(constellationStyles).find((item) => item.className === className);
+    const legendItem = document.createElement("div");
+    legendItem.className = "skyplot-legend-item";
+    const dot = document.createElement("span");
+    dot.className = `skyplot-legend-dot ${className}`;
+    const text = document.createElement("span");
+    text.textContent = styleEntry ? styleEntry.label : "Other";
+    legendItem.appendChild(dot);
+    legendItem.appendChild(text);
+    legend.appendChild(legendItem);
+  });
+}
+
 async function refresh(){
   try {
     const r = await fetch('/api/status', { cache:'no-store' });
@@ -113,6 +230,7 @@ async function refresh(){
     const utc = (s.gps?.date_utc && s.gps?.time_utc) ? (s.gps.date_utc + " " + s.gps.time_utc) : undefined;
     $('gps_utc').textContent   = safe(utc);
     $('gps_age').textContent   = safe((s.gps?.age_ms !== undefined) ? (s.gps.age_ms + " ms") : undefined);
+    updateSkyplot(s.gps?.satellites, { lat: s.gps?.lat, lon: s.gps?.lon });
 
     const reachOk = safe_ok(s.internet?.reach);
     setIcon("reach", reachOk);
@@ -142,6 +260,7 @@ async function refresh(){
     $('dot').className = "dot bad";
     $('note').textContent = "Failed to reach device";
     updateColorRssi(NaN);
+    updateSkyplot([], null);
   }
 }
 
