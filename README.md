@@ -118,8 +118,8 @@ flowchart LR
 
 ### TCP (ESP32 -> Client)
 - **Server:** Single-client TCP server (`WiFiServer`) on `TCP_PORT`.
-- **Direction:** Same raw byte stream as BLE (NMEA + any other UM980 serial bytes).
-- **Inbound:** TCP bytes are forwarded to UM980 UART (RTCM or other binary payloads).
+- **Direction:** Same raw byte stream as BLE (NMEA + any other GNSS serial bytes).
+- **Inbound:** TCP bytes are forwarded to GNSS UART (RTCM or other binary payloads).
 
 ### Stream Buffers (Decoupling and Backpressure)
 The firmware uses FreeRTOS StreamBuffers (ring buffers) to handle bursty traffic and to avoid blocking BLE/UART tasks:
@@ -135,14 +135,14 @@ The firmware uses FreeRTOS StreamBuffers (ring buffers) to handle bursty traffic
    - **Flow:** BLE write callback pushes bytes -> UART TX task pulls bytes -> GNSS UART.
 
 3. **UART -> TCP buffer**
-   - **Purpose:** Stores bytes read from the UM980 UART until the TCP task can send them.
+   - **Purpose:** Stores bytes read from the GNSS UART until the TCP task can send them.
    - **Size:** 2048 bytes (same stream as BLE, smaller footprint).
    - **Flow:** UART RX task pushes bytes -> TCP task pulls bytes -> TCP socket.
 
 4. **TCP -> UART buffer**
    - **Purpose:** Stores bytes written by the TCP client until the UART TX task can forward them.
    - **Size:** 4096 bytes.
-   - **Flow:** TCP task pushes bytes -> UART TX task pulls bytes -> UM980 UART.
+   - **Flow:** TCP task pushes bytes -> UART TX task pulls bytes -> GNSS UART.
 
 ### Backpressure and Drops
 - BLE notifications are **paced** to avoid overloading the BLE stack.
@@ -172,8 +172,6 @@ The firmware uses FreeRTOS StreamBuffers (ring buffers) to handle bursty traffic
 ```
 
 ## Scripts
-- `scripts/build_matrix.py`: Prints (or runs with `--execute`) a small matrix of PlatformIO builds for common flag combos.
-- `scripts/change_name.py`: Post-build hook that renames `firmware.bin` to `GNSS_BLE.bin` and removes the original.
 - `scripts/gzip_web.py`: Gzips `web/*` assets and emits `include/app_*.h` PROGMEM headers (skips when `WEBUI_ENABLE=0`).
 - `scripts/render_web.py`: Simple FastAPI dev server to serve `web/` and mock `/api/status` + `/api/restart`.
 
