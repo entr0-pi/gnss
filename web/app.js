@@ -67,6 +67,29 @@ function safe_ok(v, fallback=false){
   return (v === undefined || v === null || v === "") ? fallback : v;
 }
 
+function setConfigNote(message, ok = true) {
+  const note = $("cfg_note");
+  if (!note) return;
+  note.textContent = message;
+  note.style.color = ok ? "" : "#e74c3c";
+}
+
+async function loadConfig(){
+  try {
+    const r = await fetch('/api/config', { cache:'no-store' });
+    if (!r.ok) throw new Error("http " + r.status);
+    const cfg = await r.json();
+
+    if ($("cfg_rx")) $("cfg_rx").value = cfg.rx_pin ?? "";
+    if ($("cfg_tx")) $("cfg_tx").value = cfg.tx_pin ?? "";
+    if ($("cfg_baud")) $("cfg_baud").value = cfg.baud ?? "";
+
+    setConfigNote("Loaded from device");
+  } catch (e) {
+    setConfigNote("Failed to load config", false);
+  }
+}
+
 async function refresh(){
   try {
     const r = await fetch('/api/status', { cache:'no-store' });
@@ -153,6 +176,42 @@ $('restartBtn').addEventListener('click', async () => {
   setTimeout(refresh, 1500);
 });
 
+const saveConfigBtn = $("saveConfigBtn");
+if (saveConfigBtn) {
+  saveConfigBtn.addEventListener("click", async () => {
+    const rx = Number.parseInt($("cfg_rx").value, 10);
+    const tx = Number.parseInt($("cfg_tx").value, 10);
+    const baud = Number.parseInt($("cfg_baud").value, 10);
+
+    if (!Number.isFinite(rx) || !Number.isFinite(tx) || !Number.isFinite(baud)) {
+      setConfigNote("Enter valid RX, TX, and baud values.", false);
+      return;
+    }
+
+    setConfigNote("Saving…");
+    try {
+      const resp = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rx_pin: rx, tx_pin: tx, baud })
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        setConfigNote(payload.error || "Failed to save config", false);
+        return;
+      }
+      setConfigNote("Saved and applied.");
+      if (payload.config) {
+        $("cfg_rx").value = payload.config.rx_pin ?? rx;
+        $("cfg_tx").value = payload.config.tx_pin ?? tx;
+        $("cfg_baud").value = payload.config.baud ?? baud;
+      }
+    } catch (e) {
+      setConfigNote("Failed to reach device", false);
+    }
+  });
+}
+
 // Tabs logic (simple show/hide)
 (function initTabs(){
   const btns = Array.from(document.querySelectorAll(".tabBtn"));
@@ -168,4 +227,5 @@ $('restartBtn').addEventListener('click', async () => {
 })();
 
 refresh();
+loadConfig();
 setInterval(refresh, 1000);

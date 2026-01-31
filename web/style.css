@@ -104,6 +104,18 @@ body{
 .line:last-child{ border-bottom:0; }
 .lk{ color:var(--muted); font-size:13px; }
 .lv{ font-weight:800; font-size:13px; }
+.input{
+  width:120px;
+  padding:6px 8px;
+  border-radius:10px;
+  border:1px solid var(--stroke);
+  background: rgba(0,0,0,.2);
+  color: var(--text);
+}
+.input:focus{
+  outline:none;
+  border-color: rgba(255,255,255,.3);
+}
 
 #rssi.good { color: #2ecc71; font-weight:bold; animation: blink 1s infinite; }
 #rssi.ok   { color: #f1c40f ; font-weight:bold; animation: blink 1s infinite; }

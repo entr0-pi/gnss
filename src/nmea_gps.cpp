@@ -303,7 +303,7 @@ static inline void feed_byte(uint8_t b, uint32_t nowMs) {
 // These functions are called by the rest of your project:
 //
 // - nmea_begin():       reset internal state at boot
-// - nmea_feed_bytes():  feed raw UART bytes from UM980
+// - nmea_feed_bytes():  feed raw UART bytes from GNSS
 // - nmea_get_snapshot():copy the latest state into an output struct (thread-safe-ish)
 
 void nmea_begin() {
@@ -332,9 +332,9 @@ bool nmea_get_snapshot(NmeaGpsSnapshot& out) {
   lock();
 
   // Copy core navigation fields.
-  // Note: you intentionally keep `valid` as is, even though UM980 may report RMC validity
+  // Note: you intentionally keep `valid` as is, even though GNSS may report RMC validity
   // differently during RTK. Your HTML logic handles that interpretation.
-  out.valid      = g_gps.valid; // UM980 considers non valid when RTK. Response changed in html to include RTK in the validaty domain
+  out.valid      = g_gps.valid; // GNSS considers non valid when RTK. Response changed in html to include RTK in the validaty domain
   out.lat        = g_gps.lat;
   out.lon        = g_gps.lon;
   out.speedKmh   = g_gps.speedKmh;

@@ -11,7 +11,7 @@
   <div class="wrap">
     <header class="top">
       <div class="title">STATUS REPORT</div>
-      <div class="sub">Web Server on ESP32-C3 with UM980</div>
+      <div class="sub">Web Server on ESP32-C3 with GNSS</div>
       <!-- Dot online -->
       <div class="status-inline">
         <span class="dot" id="dot"></span>
@@ -102,6 +102,28 @@
             <div class="line"><span class="lk">Free</span><span class="lv mono" id="heap_free">—</span></div>
             <div class="line"><span class="lk">Min Free</span><span class="lv mono" id="heap_min">—</span></div>
             <div class="line"><span class="lk">Max Alloc</span><span class="lv mono" id="heap_max">—</span></div>
+          </div>
+        </div>
+
+        <div class="cat">
+          <div class="catTitle">GNSS UART</div>
+          <div class="catBody">
+            <div class="line">
+              <label class="lk" for="cfg_rx">RX Pin</label>
+              <input class="input mono" id="cfg_rx" type="number" min="0" max="21" step="1">
+            </div>
+            <div class="line">
+              <label class="lk" for="cfg_tx">TX Pin</label>
+              <input class="input mono" id="cfg_tx" type="number" min="0" max="21" step="1">
+            </div>
+            <div class="line">
+              <label class="lk" for="cfg_baud">Baud</label>
+              <input class="input mono" id="cfg_baud" type="number" min="1200" max="2000000" step="100">
+            </div>
+            <div class="actions">
+              <button id="saveConfigBtn" class="btn" type="button">Save UART Config</button>
+              <div class="note" id="cfg_note">—</div>
+            </div>
           </div>
         </div>
 
