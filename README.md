@@ -68,12 +68,12 @@ The ESP32-C3 firmware acts as a transparent byte-stream bridge between the GNSS 
 ### Data Transit Flow Graph
 ```mermaid
 flowchart LR
-  GNSS[GNSS Module] -->|UART NMEA| ESP32C3["ESP32-C3 Firmware"]
+  GNSS[GNSS Module] -->|UART NMEA| ESP32C3[ESP32 C3 Firmware]
   ESP32C3 -->|UART RTCM| GNSS
-  ESP32C3 -->|NUS Notify NMEA| USER[App (eg. SWMaps)]
+  ESP32C3 -->|NUS Notify NMEA| USER[SWmaps]
   USER -->|NUS Write NTRIP| ESP32C3
-  ESP32C3 -->|TCP NMEA| TCP[App(eg. Qfield)]
-  ESP32C3 -->|SSID| WIFI[Dashboard]
+  ESP32C3 -->|TCP NMEA| TCP[Qfield]
+  ESP32C3 -->|WiFi SSID| WIFI[Web UI]
 ```
 
 ### UART (ESP32 -> GNSS)
