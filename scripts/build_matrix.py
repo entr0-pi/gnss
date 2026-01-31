@@ -45,7 +45,7 @@ MATRIX: tuple[MatrixEntry, ...] = (
     MatrixEntry(
         name="custom_name",
         description="Override BLE advertising name for field deployments.",
-        flags=('BLE_DEVICE_NAME="UM980-FIELD"',),
+        flags=('BLE_DEVICE_NAME="GNSS-FIELD"',),
     ),
 )
 

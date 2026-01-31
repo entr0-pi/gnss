@@ -1,4 +1,4 @@
-#include "um980_config.h"
+#include "gnss_config.h"
 
 #include <ArduinoJson.h>
 #include <LittleFS.h>
@@ -6,12 +6,12 @@
 #include "app.h"
 
 namespace {
-constexpr const char* kConfigPath = "/um980.json";
+constexpr const char* kConfigPath = "/gnss.json";
 
 bool g_fs_ready = false;
-Um980Config g_config{};
+GnssConfig g_config{};
 
-bool load_config_file(Um980Config& cfg) {
+bool load_config_file(GnssConfig& cfg) {
   if (!g_fs_ready) return false;
   if (!LittleFS.exists(kConfigPath)) return false;
 
@@ -31,11 +31,11 @@ bool load_config_file(Um980Config& cfg) {
 }
 } // namespace
 
-Um980Config um980_config_defaults() {
-  return Um980Config{PIN_UM980_RX, PIN_UM980_TX, UM980_BAUD};
+GnssConfig gnss_config_defaults() {
+  return GnssConfig{PIN_GNSS_RX, PIN_GNSS_TX, GNSS_BAUD};
 }
 
-bool um980_config_validate(const Um980Config& cfg, String* error) {
+bool gnss_config_validate(const GnssConfig& cfg, String* error) {
   if (cfg.rx_pin < 0 || cfg.tx_pin < 0) {
     if (error) *error = "Pins must be non-negative.";
     return false;
@@ -51,25 +51,25 @@ bool um980_config_validate(const Um980Config& cfg, String* error) {
   return true;
 }
 
-bool um980_config_begin() {
+bool gnss_config_begin() {
   g_fs_ready = LittleFS.begin(true);
-  g_config = um980_config_defaults();
+  g_config = gnss_config_defaults();
 
   if (!g_fs_ready) return false;
 
-  Um980Config loaded = g_config;
-  if (load_config_file(loaded) && um980_config_validate(loaded, nullptr)) {
+  GnssConfig loaded = g_config;
+  if (load_config_file(loaded) && gnss_config_validate(loaded, nullptr)) {
     g_config = loaded;
   }
 
   return true;
 }
 
-const Um980Config& um980_config_get() {
+const GnssConfig& gnss_config_get() {
   return g_config;
 }
 
-bool um980_config_save(const Um980Config& cfg) {
+bool gnss_config_save(const GnssConfig& cfg) {
   if (!g_fs_ready) return false;
 
   File file = LittleFS.open(kConfigPath, "w");

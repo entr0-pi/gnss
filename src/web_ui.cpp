@@ -28,7 +28,7 @@
 #include "app_index.h"
 #include "app_style.h"
 #include "app_favicon.h"
-#include "um980_config.h"
+#include "gnss_config.h"
 #include "web_ui.h"
 
 // Keep a pointer so helpers/handlers can use the same server instance.
@@ -422,8 +422,8 @@ static void handleRestart() {
 static void handleConfigGet() {
   markRequestAndGetPrevAgeMs();
 
-  const Um980Config& cfg = um980_config_get();
-  const Um980Config defaults = um980_config_defaults();
+  const GnssConfig& cfg = gnss_config_get();
+  const GnssConfig defaults = gnss_config_defaults();
 
   JsonDocument doc;
   doc["rx_pin"] = cfg.rx_pin;
@@ -463,13 +463,13 @@ static void handleConfigPost() {
     return;
   }
 
-  Um980Config cfg = um980_config_get();
+  GnssConfig cfg = gnss_config_get();
   cfg.rx_pin = doc["rx_pin"].as<int>();
   cfg.tx_pin = doc["tx_pin"].as<int>();
   cfg.baud = doc["baud"].as<uint32_t>();
 
   String error;
-  if (!um980_apply_runtime_config(cfg, &error)) {
+  if (!gnss_apply_runtime_config(cfg, &error)) {
     String response = String("{\"ok\":false,\"error\":\"") + error + "\"}";
     s_server->send(400, "application/json", response);
     return;
