@@ -157,8 +157,8 @@ Client BLE WRITE -> [BLE->UART StreamBuffer] -> ESP32 UART TX -> GNSS UART RX
 
 <p align="center">
   <img src="assets/IMG_2696.PNG" alt="Dashboard" width="200">
-  <img src="assets/IMG_2697.PNG" alt="Dashboard" width="200">
-  <img src="assets/IMG_2698.PNG" alt="Dashboard" width="200">
-  <img src="assets/IMG_2699.PNG" alt="Dashboard" width="200">
-  <img src="assets/IMG_2700.PNG" alt="Dashboard" width="200">
+  <img src="assets/IMG_2697.PNG" alt="Dashboard" width="100">
+  <img src="assets/IMG_2698.PNG" alt="Dashboard" width="100">
+  <img src="assets/IMG_2699.PNG" alt="Dashboard" width="100">
+  <img src="assets/IMG_2700.PNG" alt="Dashboard" width="100">
 </p>
