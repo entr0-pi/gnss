@@ -1,4 +1,4 @@
-# GNSS PlatformIO Project
+# GNSS Arduino Project
 
 ## Overview
 - Provide a clean PlatformIO-based firmware workspace for the GNSS device.
@@ -29,6 +29,8 @@
 - Low-rate throttling is derived from MTU and GNSS rate:
   - `BLE_LOW_RATE_THRESHOLD = BLE_MAX_PAYLOAD / 2`
   - `BLE_LOW_RATE_DELAY_MS = min(1000 / (4 * GNSS_HZ), 100)`
+
+Full parameter list: see `include/README` and `include/app.h`.
 
 ### WiFi + BLE Coexistence Warning
 - When `WEBUI_ENABLE=1` and BLE is enabled, **WiFi modem sleep must be enabled**.
