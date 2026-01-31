@@ -70,13 +70,13 @@ The ESP32-C3 firmware acts as a transparent byte-stream bridge between the GNSS 
 flowchart LR
   GNSS[GNSS Module] -->|UART NMEA| ESP32C3[ESP32 C3 Firmware]
   ESP32C3 -->|UART RTCM| GNSS
-  ESP32C3 -->|NUS Notify NMEA| USER[SW Maps]
+  ESP32C3 -->|NUS Notify NMEA| USER[BLE Client App]
   USER -->|NUS Write RTCM| ESP32C3
-  ESP32C3 -->|TCP NMEA| TCP[QField]
-  ESP32C3 <-->|SSID| WIFI[Web UI]
+  ESP32C3 -->|TCP NMEA| TCP[TCP Client]
+  ESP32C3 -->|WiFi SSID| WIFI[Web UI]
 ```
 
-### UART (ESP32 -> GNSS)
+### UART (ESP32 <-> GNSS)
 - **Pins:** ESP32 GPIO20 = RX (connected to GNSS TX), GPIO21 = TX (connected to GNSS RX).
 - **Baud:** 115200 (matches GNSS serial baud rate).
 - **Payload:** Raw GNSS output (NMEA and any other serial bytes). There is no framing or parsing required for the pass-through path.
@@ -130,11 +130,6 @@ The firmware uses FreeRTOS StreamBuffers (ring buffers) to handle bursty traffic
 - **Large MTU**: if your phone supports it, raise `BLE_MTU_CFG` to increase per-notify payload (rebuild required).
 - After tuning, rebuild so the new constants take effect.
 
-### End-to-End Summary
-```
-GNSS UART TX -> ESP32 UART RX -> [UART->BLE StreamBuffer] -> BLE NOTIFY -> Client
-Client BLE WRITE -> [BLE->UART StreamBuffer] -> ESP32 UART TX -> GNSS UART RX
-```
 
 ## Folder Structure
 ```
@@ -143,17 +138,24 @@ Client BLE WRITE -> [BLE->UART StreamBuffer] -> ESP32 UART TX -> GNSS UART RX
 |- lib/            # Reusable libraries
 |- scripts/        # Build or development helper scripts
 |- src/            # Firmware source files (main entry points)
-|- web/            # Web UI or static assets
+|- web/            # Web UI or static assets. Render locally with scripts/render_web.py (fake data in status.json)
 |- platformio.ini  # PlatformIO project configuration
 `- README.md       # Project documentation
 ```
+
+## Scripts
+- `scripts/build_matrix.py`: Prints (or runs with `--execute`) a small matrix of PlatformIO builds for common flag combos.
+- `scripts/change_name.py`: Post-build hook that renames `firmware.bin` to `GNSS_BLE.bin` and removes the original.
+- `scripts/gzip_web.py`: Gzips `web/*` assets and emits `include/app_*.h` PROGMEM headers (skips when `WEBUI_ENABLE=0`).
+- `scripts/render_web.py`: Simple FastAPI dev server to serve `web/` and mock `/api/status` + `/api/restart`.
 
 ## Additional Information
 - Build and upload with PlatformIO using the standard `pio run` and `pio run -t upload` commands.
 - When adding new code, prefer keeping device logic in `src/` and generic helpers in `lib/`.
 - If you add a frontend, keep assets in `web/` and document any build steps here.
+- Example clients: BLE apps like SW Maps; TCP clients like QField.
 
-## WEB UI
+## Web UI
 
 <p align="center">
   <img src="assets/IMG_2696.PNG" alt="Dashboard" width="200">
