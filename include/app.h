@@ -4,7 +4,7 @@
 
 // Centralized build flags (override via build_flags in platformio.ini).
 #ifndef WEBUI_ENABLE
-#define WEBUI_ENABLE 1
+#define WEBUI_ENABLE 0
 #endif
 
 #ifndef NMEA_ENABLE
@@ -12,16 +12,15 @@
 #endif
 
 #ifndef TCP_ENABLE
-#define TCP_ENABLE 1
+#define TCP_ENABLE 0
+#endif
+
+#ifndef TCP_PORT
+#define TCP_PORT 5000
 #endif
 
 #ifndef WIFI_ENABLE
 #define WIFI_ENABLE (WEBUI_ENABLE || TCP_ENABLE)
-#endif
-
-// ---------------- TCP ----------------
-#if TCP_ENABLE
-static const uint16_t TCP_PORT = 5000;
 #endif
 
 // ---------------- Dependency rule ----------------
@@ -58,7 +57,7 @@ static const IPAddress STA_DNS    = STA_DNS_VALUE;
 #ifndef BLE_DEVICE_NAME
 #define BLE_DEVICE_NAME "GNSS-BLE"
 #endif
-static const char DEVICE_NAME[] = BLE_DEVICE_NAME;
+
 // Requested ATT MTU. Higher MTU can reduce overhead for a stream like NMEA.
 #ifndef BLE_MTU_CFG
 #define BLE_MTU_CFG 23

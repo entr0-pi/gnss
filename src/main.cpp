@@ -95,8 +95,8 @@ static StreamBufferHandle_t  g_sb_ble2uart = nullptr;
 
 #if TCP_ENABLE
 // StreamBuffers for TCP (static allocation).
-// - g_sb_uart2tcp: bytes from UM980 UART RX -> TCP client
-// - g_sb_tcp2uart: bytes from TCP client -> UM980 UART TX
+// - g_sb_uart2tcp: bytes from GNSS UART RX -> TCP client
+// - g_sb_tcp2uart: bytes from TCP client -> GNSS UART TX
 static StaticStreamBuffer_t  g_sb_uart2tcp_struct;
 static StaticStreamBuffer_t  g_sb_tcp2uart_struct;
 static uint8_t               g_sb_uart2tcp_storage[SB_UART_TO_TCP_SIZE];
@@ -463,7 +463,7 @@ static void setupWiFi() {
 // ---------------- Setup BLE ----------------
 static void setupBLE() {
   // Initialize NimBLE and set the device name used in advertising.
-  NimBLEDevice::init(DEVICE_NAME);
+  NimBLEDevice::init(BLE_DEVICE_NAME);
 
   // RF power level; higher can improve range but increases current consumption.
   NimBLEDevice::setPower(ESP_PWR_LVL_P6);
