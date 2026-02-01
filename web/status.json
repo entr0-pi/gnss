@@ -41,7 +41,25 @@
     "speed_kmh": 12.3,
     "date_utc": "2026-01-16",
     "time_utc": "12:34:56",
-    "age_ms": 500
+    "age_ms": 500,
+    "satellites_in_view": 15,
+    "satellites": [
+      { "constellation": "GPS", "signal_power": 45, "azimuth": 12.0, "elevation": 65.0 },
+      { "constellation": "GPS", "signal_power": 38, "azimuth": 58.0, "elevation": 42.0 },
+      { "constellation": "GPS", "signal_power": 51, "azimuth": 102.0, "elevation": 75.0 },
+      { "constellation": "GLONASS", "signal_power": 44, "azimuth": 210.0, "elevation": 55.0 },
+      { "constellation": "GLONASS", "signal_power": 36, "azimuth": 145.0, "elevation": 30.0 },
+      { "constellation": "GLONASS", "signal_power": 48, "azimuth": 5.0, "elevation": 70.0 },
+      { "constellation": "Galileo", "signal_power": 46, "azimuth": 260.0, "elevation": 48.0 },
+      { "constellation": "Galileo", "signal_power": 41, "azimuth": 78.0, "elevation": 25.0 },
+      { "constellation": "Galileo", "signal_power": 35, "azimuth": 330.0, "elevation": 15.0 },
+      { "constellation": "BeiDou", "signal_power": 49, "azimuth": 120.0, "elevation": 52.0 },
+      { "constellation": "BeiDou", "signal_power": 40, "azimuth": 300.0, "elevation": 62.0 },
+      { "constellation": "BeiDou", "signal_power": 37, "azimuth": 35.0, "elevation": 18.0 },
+      { "constellation": "GPS", "signal_power": 32, "azimuth": 190.0, "elevation": 10.0 },
+      { "constellation": "GLONASS", "signal_power": 39, "azimuth": 250.0, "elevation": 35.0 },
+      { "constellation": "Galileo", "signal_power": 43, "azimuth": 15.0, "elevation": 80.0 }
+    ]
   },
   "internet": {
     "reach": true

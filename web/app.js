@@ -67,6 +67,48 @@ function safe_ok(v, fallback=false){
   return (v === undefined || v === null || v === "") ? fallback : v;
 }
 
+function clamp(n, min, max){
+  return Math.min(max, Math.max(min, n));
+}
+
+function renderSkyplot(satellites){
+  const markers = $("skyplot_markers");
+  if (!markers) return;
+  markers.innerHTML = "";
+
+  if (!Array.isArray(satellites) || satellites.length === 0) return;
+
+  const classMap = {
+    GPS: "constellation-gps",
+    GLONASS: "constellation-glonass",
+    Galileo: "constellation-galileo",
+    BeiDou: "constellation-beidou"
+  };
+
+  satellites.forEach((sat) => {
+    const azimuth = Number(sat?.azimuth);
+    const elevation = Number(sat?.elevation);
+    const power = Number(sat?.signal_power ?? sat?.power_dbhz ?? sat?.power);
+    if (!Number.isFinite(azimuth) || !Number.isFinite(elevation)) return;
+
+    const theta = (azimuth - 90) * (Math.PI / 180);
+    const radial = clamp((90 - elevation) / 90, 0, 1) * 45;
+    const x = clamp(50 + radial * Math.cos(theta), 4, 96);
+    const y = clamp(50 + radial * Math.sin(theta), 4, 96);
+    const size = clamp(8 + ((Number.isFinite(power) ? power : 30) - 20) / 40 * 6, 8, 14);
+
+    const marker = document.createElement("span");
+    marker.className = `skyplot-marker ${classMap[sat?.constellation] || "constellation-other"}`;
+    marker.style.left = `${x}%`;
+    marker.style.top = `${y}%`;
+    marker.style.width = `${size}px`;
+    marker.style.height = `${size}px`;
+    const powerLabel = Number.isFinite(power) ? `${power} dBHz` : "— dBHz";
+    marker.title = `${sat?.constellation || "Unknown"} • ${powerLabel} • Az ${azimuth.toFixed(1)}° El ${elevation.toFixed(1)}°`;
+    markers.appendChild(marker);
+  });
+}
+
 function setConfigNote(message, ok = true) {
   const note = $("cfg_note");
   if (!note) return;
@@ -222,6 +264,11 @@ async function refresh(){
     const utc = (s.gps?.date_utc && s.gps?.time_utc) ? (s.gps.date_utc + " " + s.gps.time_utc) : undefined;
     $('gps_utc').textContent   = safe(utc);
     $('gps_age').textContent   = safe((s.gps?.age_ms !== undefined) ? (s.gps.age_ms + " ms") : undefined);
+    const satsView = Number.isFinite(s.gps?.satellites_in_view)
+      ? s.gps.satellites_in_view
+      : (Array.isArray(s.gps?.satellites) ? s.gps.satellites.length : null);
+    $('gps_sats_view').textContent = safe(satsView);
+    renderSkyplot(s.gps?.satellites);
 
     const reachOk = safe_ok(s.internet?.reach);
     setIcon("reach", reachOk);
@@ -251,6 +298,8 @@ async function refresh(){
     $('dot').className = "dot bad";
     $('note').textContent = "Failed to reach device";
     updateColorRssi(NaN);
+    if ($("gps_sats_view")) $("gps_sats_view").textContent = "—";
+    renderSkyplot(null);
   }
 }
 
