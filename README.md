@@ -12,16 +12,16 @@ You can either **build from source** (recommended) or **flash a prebuilt binary*
 
 ---
 
-## Option 1 — Build & Flash from Source (Recommended)
+### Build & Flash from Source (Recommended)
 
-### Prerequisites
+#### Prerequisites
 - VS Code with **PlatformIO** extension  
   **or**
 - PlatformIO Core (CLI)
 - USB cable
 - ESP32-C3 board
 
-### Clone and Upload
+#### Clone and Upload
 ```bash
 git clone https://github.com/<your-org>/<your-repo>.git
 cd <your-repo>
@@ -32,7 +32,7 @@ PlatformIO automatically installs dependencies, builds the firmware, and flashes
 
 ---
 
-### WiFi Credentials (Optional)
+#### WiFi Credentials (Optional)
 If WiFi is enabled (`WEBUI_ENABLE=1` or `TCP_ENABLE=1`):
 
 ```bash
@@ -40,48 +40,6 @@ cp include/secrets.example.h include/secrets.h
 ```
 
 Edit `include/secrets.h`, then rebuild.
-
----
-
-## Option 2 — Flash Prebuilt Binary (Windows, No Build)
-
-Flash precompiled `.bin` files using **Espressif Flash Download Tool**.
-
-### Required Files
-- `bootloader.bin`
-- `partitions.bin`
-- `firmware.bin`
-
-### Flash Offsets (ESP32-C3 / lolin_c3_mini)
-
-| File | Address |
-|---|---|
-| `bootloader.bin` | `0x1000` |
-| `partitions.bin` | `0x8000` |
-| `firmware.bin` | `0x10000` |
-
-### Steps
-1. Put the board into **download mode**
-2. Open **Espressif Flash Download Tool**
-3. Set:
-   - **ChipType**: ESP32-C3
-   - **WorkMode**: Develop
-   - **LoadMode**: UART
-4. Add each `.bin` with its address
-5. Select **COM** port and **BAUD**
-6. Click **START**
-
-> Flash offsets may change if you use a custom `partitions.csv`.
-
----
-
-## First Boot Behavior
-- GNSS UART is **unconfigured by default**
-- Device always boots safely
-- Web UI is accessible
-- UART initialization is skipped until configured
-
-Configure GNSS RX/TX pins and baud rate from the Web UI, or hardcode them at build time for production.
 
 ---
 
