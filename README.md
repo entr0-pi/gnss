@@ -67,29 +67,6 @@ Typical steps:
 
 Note: offsets can change with custom partition tables. If you use a custom partition CSV, flash the app at the offset shown in that table.
 
-### Proposed Build Matrix Script
-Use `scripts/build_matrix.py` as a proposal for automating PlatformIO environment builds.
-It lists a small matrix of flag-driven configurations and can either print or execute the
-corresponding `pio run -e <env>` commands.
-
-Preview the matrix without building:
-```
-python3 scripts/build_matrix.py
-```
-
-Execute the builds:
-```
-python3 scripts/build_matrix.py --execute
-```
-
-Limit to specific environments:
-```
-python3 scripts/build_matrix.py --execute --env nmea --env tcp_off
-```
-
-The matrix entries in the script cover the same flags documented above and are intended
-as a starting point for CI or local automation.
-
 ## UART Configuration System
 
 The firmware supports flexible UART pin and baud rate configuration through a three-tier system: **Build Flags**, **LittleFS Persistent Storage**, and **Fallback Defaults**. This allows both development flexibility (runtime configuration via web UI) and production reliability (compile-time hardcoded values).
@@ -120,7 +97,7 @@ build_flags =
 - Web UI displays current config but cannot change it
 - Requires recompilation to modify
 
-#### Tier 2: LittleFS Config (Normal Priority)
+#### Tier 2: LittleFS Config (Normal Priority, the provided bin)
 Runtime configuration stored in `/gnss.json` on LittleFS partition:
 
 ```json
@@ -307,7 +284,7 @@ build_flags =
 - No runtime configuration needed
 - **Web UI**: Each variant shows its locked values
 
-#### Example 3: User-Configurable (Default)
+#### Example 3: User-Configurable (Default, this bin)
 ```ini
 # No FORCE_HARDCODED_UART flags
 build_flags =
@@ -382,20 +359,6 @@ pio run -t upload
 4. Web UI will now show editable fields
 
 **Note:** This is intentional for production builds to prevent accidental configuration changes.
-
-### ESP32-C3 Pin Compatibility Notes
-
-**Safe Pins (Generally Reliable):**
-- GPIO 0, 1, 2, 3
-- GPIO 4, 5, 6, 7
-- GPIO 20, 21 (recommended for UART)
-
-**Avoid:**
-- GPIO 18, 19 (USB pins)
-- GPIO 8, 9 (strapping pins)
-- Pins used by onboard peripherals (board-specific)
-
-**Note:** Pin compatibility varies by board variant. The default pins (16/17) are intentionally set to "unconfigured" (-1) to force user selection of working pins for their specific hardware.
 
 ### File References
 
@@ -502,7 +465,7 @@ The firmware uses FreeRTOS StreamBuffers (ring buffers) to handle bursty traffic
 - If you add a frontend, keep assets in `web/` and document any build steps here.
 - Example clients: BLE apps like SW Maps; TCP clients like QField.
 
-## Web UI
+## Web UI Screenshot
 
 <p align="center">
   <img src="assets/IMG_2696.PNG" alt="Dashboard" width="200">
