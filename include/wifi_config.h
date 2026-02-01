@@ -6,6 +6,7 @@
 struct WifiConfig {
   String ssid;
   String pass;
+  bool dhcp = false;
   IPAddress ip;
   IPAddress gw;
   IPAddress subnet;

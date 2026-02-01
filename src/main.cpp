@@ -490,6 +490,7 @@ static void setupWiFi() {
 
   const char* ssid = use_file_cfg ? file_cfg.ssid.c_str() : STA_SSID;
   const char* pass = use_file_cfg ? file_cfg.pass.c_str() : STA_PASS;
+  const bool use_dhcp = use_file_cfg && file_cfg.dhcp;
   const IPAddress ip = use_file_cfg ? file_cfg.ip : STA_IP;
   const IPAddress gw = use_file_cfg ? file_cfg.gw : STA_GW;
   const IPAddress subnet = use_file_cfg ? file_cfg.subnet : STA_SUBNET;
@@ -497,8 +498,14 @@ static void setupWiFi() {
 
   // Apply static IP configuration for the STA interface.
   // Order: local IP, gateway, subnet, DNS.
-  if (!WiFi.config(ip, gw, subnet, dns)) {
-    Serial.println("[WiFi] Config failed!");
+  if (use_dhcp) {
+    if (!WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0))) {
+      Serial.println("[WiFi] DHCP config failed!");
+    }
+  } else {
+    if (!WiFi.config(ip, gw, subnet, dns)) {
+      Serial.println("[WiFi] Config failed!");
+    }
   }
 
   // Start connection attempt using SSID/PASS.

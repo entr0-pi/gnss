@@ -64,15 +64,17 @@ bool wifi_config_load(WifiConfig& cfg, String* error) {
     return false;
   }
 
-  if (!doc["ssid"].is<const char*>() || !doc["pass"].is<const char*>()) {
+  if (!doc["ssid"].is<const char*>() || !doc["pass"].is<const char*>() ||
+      !doc["dhcp"].is<bool>()) {
     if (error) {
-      *error = "WiFi config requires ssid and pass";
+      *error = "WiFi config requires ssid, pass, and dhcp";
     }
     return false;
   }
 
   cfg.ssid = doc["ssid"].as<String>();
   cfg.pass = doc["pass"].as<String>();
+  cfg.dhcp = doc["dhcp"].as<bool>();
   if (cfg.ssid.isEmpty()) {
     if (error) {
       *error = "WiFi config ssid is empty";
@@ -80,10 +82,17 @@ bool wifi_config_load(WifiConfig& cfg, String* error) {
     return false;
   }
 
-  if (!parse_ip_field(doc["ip"], "ip", cfg.ip, error)) return false;
-  if (!parse_ip_field(doc["gw"], "gw", cfg.gw, error)) return false;
-  if (!parse_ip_field(doc["subnet"], "subnet", cfg.subnet, error)) return false;
-  if (!parse_ip_field(doc["dns"], "dns", cfg.dns, error)) return false;
+  if (!cfg.dhcp) {
+    if (!parse_ip_field(doc["ip"], "ip", cfg.ip, error)) return false;
+    if (!parse_ip_field(doc["gw"], "gw", cfg.gw, error)) return false;
+    if (!parse_ip_field(doc["subnet"], "subnet", cfg.subnet, error)) return false;
+    if (!parse_ip_field(doc["dns"], "dns", cfg.dns, error)) return false;
+  } else {
+    cfg.ip = IPAddress(0, 0, 0, 0);
+    cfg.gw = IPAddress(0, 0, 0, 0);
+    cfg.subnet = IPAddress(0, 0, 0, 0);
+    cfg.dns = IPAddress(0, 0, 0, 0);
+  }
 
   return true;
 }
