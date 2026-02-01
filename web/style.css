@@ -109,7 +109,7 @@ body{
   border:1px solid var(--stroke);
   background:
     radial-gradient(circle at center, rgba(255,255,255,.08), rgba(0,0,0,.3) 70%);
-  overflow:hidden;
+  overflow:visible;
 }
 .skyplot-ring{
   position:absolute;
@@ -127,15 +127,15 @@ body{
   background: rgba(255,255,255,.08);
 }
 .skyplot-axis.axis-h{
-  height:1px;
-  left:10%;
-  right:10%;
+  height:2px;
+  left:2%;
+  right:2%;
   top:50%;
 }
 .skyplot-axis.axis-v{
-  width:1px;
-  top:10%;
-  bottom:10%;
+  width:2px;
+  top:2%;
+  bottom:2%;
   left:50%;
 }
 .skyplot-center{
@@ -148,6 +148,26 @@ body{
   left:50%;
   transform:translate(-50%,-50%);
 }
+.skyplot-dir{
+  position:absolute;
+  font-size:11px;
+  font-weight:900;
+  color:rgba(255,255,255,.75);
+  text-shadow: 0 1px 2px rgba(0,0,0,.6);
+  pointer-events:none;
+}
+.skyplot-dir.dir-n{ top:-16px; left:50%; transform:translateX(-50%); }
+.skyplot-dir.dir-s{ bottom:-16px; left:50%; transform:translateX(-50%); }
+.skyplot-dir.dir-e{ right:-9px; top:50%; transform:translateY(-50%); }
+.skyplot-dir.dir-w{ left:-10px; top:50%; transform:translateY(-50%); }
+.skyplot-ring-label{
+  position:absolute;
+  font-size:10px;
+  color:rgba(255,255,255,.55);
+  pointer-events:none;
+}
+.skyplot-ring-label.ring-mid{ right:15%; top:50%; transform:translateY(-50%); width:auto; height:auto; }
+.skyplot-ring-label.ring-inner{ right:31.5%; top:50%; transform:translateY(-50%); width:auto; height:auto; }
 .skyplot-markers{
   position:absolute;
   inset:0;
@@ -185,7 +205,7 @@ body{
   flex-wrap:wrap;
   justify-content:center;
   gap:10px 16px;
-  margin-top:12px;
+  margin-top:18px;
   color:var(--muted);
   font-size:12px;
 }

@@ -37,6 +37,20 @@ struct WebuiTcpSnapshot {
 
 // ---- GPS snapshot interface (implemented in main.cpp) ----
 #if NMEA_ENABLE
+
+#ifndef NMEA_MAX_SATS
+#define NMEA_MAX_SATS 48
+#endif
+
+// Per-satellite info for the web UI (mirrors NmeaSatInfo from nmea_gps.h).
+struct WebuiSatInfo {
+  int16_t  nr;            // satellite PRN number
+  int16_t  elevation;     // degrees above horizon (0-90)
+  int16_t  azimuth;       // degrees from true north (0-359)
+  int16_t  snr;           // signal-to-noise ratio (dBHz), 0 = not tracked
+  uint8_t  constellation; // 0=GPS, 1=GLONASS, 2=Galileo, 3=BeiDou, 4=other
+};
+
 struct WebuiGpsSnapshot {
   bool     valid;
   double   lat;
@@ -59,6 +73,10 @@ struct WebuiGpsSnapshot {
   uint8_t  month, day;
 
   uint32_t ageMs;
+
+  // Satellite details from GSV
+  uint8_t      satCount;
+  WebuiSatInfo sats[NMEA_MAX_SATS];
 };
 #endif
 

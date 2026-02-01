@@ -219,6 +219,17 @@ bool webui_get_gps_snapshot(WebuiGpsSnapshot& out) {
   out.day        = s.day;
 
   out.ageMs      = s.ageMs;
+
+  // Copy satellite details (GSV).
+  out.satCount = s.satCount;
+  for (uint8_t i = 0; i < s.satCount; i++) {
+    out.sats[i].nr            = s.sats[i].nr;
+    out.sats[i].elevation     = s.sats[i].elevation;
+    out.sats[i].azimuth       = s.sats[i].azimuth;
+    out.sats[i].snr           = s.sats[i].snr;
+    out.sats[i].constellation = s.sats[i].constellation;
+  }
+
   return true;
 }
 #endif

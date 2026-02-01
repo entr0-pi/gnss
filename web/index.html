@@ -84,13 +84,10 @@
         </div>
 
         <div class="cat">
-          <div class="catTitle">Satellites</div>
+          <div class="catTitle">SKYPLOT</div>
           <div class="catBody">
             <div class="skyplot-stats">
-              <div class="kv">
-                <div class="k">Satellites in view</div>
-                <div class="v" id="gps_sats_view">—</div>
-              </div>
+                <div class="line"><span class="lk">Satellites in view</span><span class="lv mono" id="gps_sats_view">—</span></div>
             </div>
             <div class="skyplot" id="skyplot">
               <div class="skyplot-ring ring-outer"></div>
@@ -99,6 +96,12 @@
               <div class="skyplot-axis axis-h"></div>
               <div class="skyplot-axis axis-v"></div>
               <div class="skyplot-center"></div>
+              <div class="skyplot-dir dir-n">N</div>
+              <div class="skyplot-dir dir-e">E</div>
+              <div class="skyplot-dir dir-s">S</div>
+              <div class="skyplot-dir dir-w">W</div>
+              <div class="skyplot-ring-label ring-mid">30°</div>
+              <div class="skyplot-ring-label ring-inner">60°</div>
               <div class="skyplot-markers" id="skyplot_markers"></div>
             </div>
             <div class="skyplot-legend">

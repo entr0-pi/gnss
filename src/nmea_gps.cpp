@@ -1,5 +1,6 @@
 #if NMEA_ENABLE
 #include "nmea_gps.h"   // Your public snapshot struct + function declarations
+#include "app.h"
 
 // minmea is a small, fast NMEA parser library (C).
 // We include it as C to avoid C++ name mangling issues.
@@ -8,6 +9,7 @@ extern "C" {
 }
 
 #include <math.h>
+#include <string.h>
 
 // ================= Internal GPS state =================
 //
@@ -49,6 +51,11 @@ struct GpsState {
   uint8_t  accSource   = 0;      // 0=none, 1=GST, 2=HDOP-est
   uint32_t accLastMs   = 0;      // millis timestamp of last accuracy update
 
+  // ---- Satellite details (from GSV) ----
+  // Committed from a staging buffer once a full epoch of GSV messages has been received.
+  uint8_t     satCount = 0;
+  NmeaSatInfo sats[NMEA_MAX_SATS];
+
   // ---- Freshness tracking ----
   // Timestamp (millis) of the last valid NMEA sentence we accepted (checksum OK + parsed OK).
   uint32_t lastMs      = 0;
@@ -56,6 +63,21 @@ struct GpsState {
 
 // Global instance holding the latest state.
 static GpsState g_gps;
+
+// Map NMEA talker ID to constellation index.
+// GP=GPS, GL=GLONASS, GA=Galileo, GB/BD=BeiDou, anything else=Other.
+static inline uint8_t talker_to_constellation(char t0, char t1) {
+  if (t0 == 'G') {
+    switch (t1) {
+      case 'P': return 0;   // GPS
+      case 'L': return 1;   // GLONASS
+      case 'A': return 2;   // Galileo
+      case 'B': return 3;   // BeiDou
+    }
+  }
+  if (t0 == 'B' && t1 == 'D') return 3;  // BeiDou alternate talker
+  return 4;  // Other / unknown
+}
 
 // ================= Line collector =================
 //
@@ -82,6 +104,65 @@ static int  g_len = 0;
 static portMUX_TYPE g_mux = portMUX_INITIALIZER_UNLOCKED;
 static inline void lock()   { portENTER_CRITICAL(&g_mux); }
 static inline void unlock() { portEXIT_CRITICAL(&g_mux);  }
+
+// ================= GSV staging buffers =================
+// Accumulate per-constellation GSV data across all messages in a sequence.
+// When msg_nr == total_msgs, we commit that constellation into the live list.
+
+static struct {
+  uint8_t     count;
+  uint8_t     total_msgs;
+  uint32_t    lastUpdateMs;
+  NmeaSatInfo sats[NMEA_MAX_SATS];
+} g_gsv_buf[5] = {};
+
+static inline int find_sat_idx(uint8_t cons, int16_t nr) {
+  for (uint8_t i = 0; i < g_gsv_buf[cons].count; i++) {
+    if (g_gsv_buf[cons].sats[i].nr == nr) return i;
+  }
+  return -1;
+}
+
+static inline void buffer_sat(uint8_t cons, const struct minmea_sat_info& in) {
+  if (in.nr == 0) return;
+  if (in.snr == 0) return;
+  int idx = find_sat_idx(cons, (int16_t)in.nr);
+  if (idx >= 0) {
+    NmeaSatInfo& s = g_gsv_buf[cons].sats[idx];
+    s.elevation = (int16_t)in.elevation;
+    s.azimuth = (int16_t)in.azimuth;
+    s.snr = (int16_t)in.snr;
+    return;
+  }
+  if (g_gsv_buf[cons].count >= NMEA_MAX_SATS) return;
+  NmeaSatInfo& s = g_gsv_buf[cons].sats[g_gsv_buf[cons].count++];
+  s.nr = (int16_t)in.nr;
+  s.elevation = (int16_t)in.elevation;
+  s.azimuth = (int16_t)in.azimuth;
+  s.snr = (int16_t)in.snr;
+  s.constellation = cons;
+}
+
+static inline void rebuild_live_sat_list(uint32_t nowMs) {
+  lock();
+  g_gps.satCount = 0;
+  for (uint8_t cons = 0; cons < 5; cons++) {
+    const uint32_t age = nowMs - g_gsv_buf[cons].lastUpdateMs;
+    if (g_gsv_buf[cons].count == 0) continue;
+    if (g_gsv_buf[cons].lastUpdateMs == 0 || age > NMEA_GSV_STALE_MS) continue;
+
+    const uint8_t can_copy =
+        (g_gps.satCount + g_gsv_buf[cons].count <= NMEA_MAX_SATS)
+            ? g_gsv_buf[cons].count
+            : (uint8_t)(NMEA_MAX_SATS - g_gps.satCount);
+    if (can_copy == 0) break;
+    memcpy(&g_gps.sats[g_gps.satCount],
+           g_gsv_buf[cons].sats,
+           can_copy * sizeof(NmeaSatInfo));
+    g_gps.satCount += can_copy;
+  }
+  unlock();
+}
 
 // ================= Sentence processor =================
 //
@@ -253,6 +334,35 @@ static inline void process_line(const char* line, uint32_t nowMs) {
       }
     } break;
 
+    // ---------------- GSV: Satellites in View ----------------
+    // Contains: per-satellite PRN, elevation, azimuth, and SNR.
+    // Multi-message: each message carries up to 4 satellites; sequences repeat
+    // per constellation (GP, GL, GA, GB).
+    case MINMEA_SENTENCE_GSV: {
+      struct minmea_sentence_gsv gsv;
+      if (!minmea_parse_gsv(&gsv, line)) break;
+
+      // Derive constellation from the raw talker ID in the NMEA line
+      // (e.g. $GPGSV → 'G','P' → GPS).
+      const uint8_t cons = talker_to_constellation(line[1], line[2]);
+
+      if (gsv.msg_nr == 1) {
+        g_gsv_buf[cons].count = 0;
+        g_gsv_buf[cons].total_msgs = (uint8_t)gsv.total_msgs;
+      }
+
+      // Accumulate satellites from this GSV message (up to 4 per message).
+      for (int i = 0; i < 4; i++) {
+        if (gsv.sats[i].nr == 0) continue; // empty slot
+        buffer_sat(cons, gsv.sats[i]);
+      }
+
+      if (gsv.msg_nr == gsv.total_msgs && gsv.total_msgs > 0) {
+        g_gsv_buf[cons].lastUpdateMs = nowMs;
+        rebuild_live_sat_list(nowMs);
+      }
+    } break;
+
     // Any other sentence type is ignored.
     default:
       break;
@@ -312,8 +422,9 @@ void nmea_begin() {
   g_gps = GpsState{};
   unlock();
 
-  // Reset the line collector state too.
+  // Reset the line collector and GSV staging buffer.
   g_len = 0;
+  memset(g_gsv_buf, 0, sizeof(g_gsv_buf));
 }
 
 void nmea_feed_bytes(const uint8_t* data, size_t len, uint32_t nowMs) {
@@ -328,6 +439,10 @@ void nmea_feed_bytes(const uint8_t* data, size_t len, uint32_t nowMs) {
 bool nmea_get_snapshot(NmeaGpsSnapshot& out) {
   // We'll copy g_gps into out while locked, then compute ageMs outside the lock.
   uint32_t last = 0;
+  const uint32_t now = millis();
+
+  // Rebuild live satellite list, skipping stale constellations.
+  rebuild_live_sat_list(now);
 
   lock();
 
@@ -358,6 +473,12 @@ bool nmea_get_snapshot(NmeaGpsSnapshot& out) {
   out.month      = g_gps.month;
   out.day        = g_gps.day;
 
+  // Copy satellite details.
+  out.satCount = g_gps.satCount;
+  if (g_gps.satCount > 0) {
+    memcpy(out.sats, g_gps.sats, g_gps.satCount * sizeof(NmeaSatInfo));
+  }
+
   // Capture last update timestamp for freshness computation.
   last = g_gps.lastMs;
 
@@ -366,7 +487,6 @@ bool nmea_get_snapshot(NmeaGpsSnapshot& out) {
   // Compute "age" in milliseconds:
   // - If we've never seen a valid sentence, last == 0 -> ageMs = 0
   // - Otherwise ageMs = now - last
-  const uint32_t now = millis();
   out.ageMs = (last == 0) ? 0 : (now - last);
 
   return true;

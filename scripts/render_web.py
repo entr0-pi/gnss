@@ -64,4 +64,4 @@ async def api_config_post(req: Request):
 app.mount("/", StaticFiles(directory=str(WEB_DIR), html=True), name="static")
 
 if __name__ == "__main__":
-    uvicorn.run("render_web:app", host="127.0.0.1", port=8000, log_level="info", reload=False)
+    uvicorn.run("render_web:app", host="127.0.0.1", port=8000, log_level="info", reload=True)

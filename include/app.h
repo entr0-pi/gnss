@@ -169,3 +169,8 @@ static const size_t SB_TRIGGER_LEVEL = 1;
 static const TickType_t BLE_TX_WAIT_TICKS = pdMS_TO_TICKS(50);
 static const TickType_t BLE_OK_DELAY      = pdMS_TO_TICKS(1);
 static const TickType_t BLE_FAIL_DELAY    = pdMS_TO_TICKS(15);
+
+// ---------------- NMEA ----------------
+// GSV buffer expiration: if a constellation hasn't updated within this window,
+// its satellites are dropped from the "in view" list.
+static const uint32_t NMEA_GSV_STALE_MS = 10000;

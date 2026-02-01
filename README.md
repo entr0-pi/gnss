@@ -2,17 +2,39 @@
 
 ESP32-C3 firmware acting as a transparent GNSS bridge (UART ↔ BLE ↔ TCP) with optional Web UI configuration.
 
----
-
 ## 🚀 Installation
 
-This project is built with **PlatformIO** and targets **ESP32-C3 (LOLIN C3 Mini)** boards.
+This project is built with **PlatformIO** and targets **ESP32** boards.
 
-You can either **build from source** (recommended) or **flash a prebuilt binary**.
+You can either **build from source** or **flash a prebuilt binary** (recommended).
 
 ---
 
-### Build & Flash from Source (Recommended)
+### Flash the provided bin and use LittleFS Uploader
+
+1. **Get the firmware bin**  
+   - Download a prebuilt `.bin` (in the realease section), **or** rebuild with PlatformIO:
+     ```bash
+     pio run
+     ```
+
+2. **Flash**
+   - Use your favorite tool (I use esptool)
+
+3. **Prepare your JSON files**  
+   - Create/modify (you will find example in /data):
+     - `utils/data/gnss.json`
+     - `utils/data/wifi.json`
+
+4. **Upload LittleFS**  
+   - Run the GUI tool:
+     - `utils/littlefs_uploaderGUI.py`
+   - Select your COM port and upload the generated LittleFS image to the ESP32. Read the instruction for the dependencies
+
+After upload, reboot the device and the Web UI will show the new values.
+
+
+### Build & Flash from Source
 
 #### Prerequisites
 - VS Code with **PlatformIO** extension  
@@ -28,18 +50,27 @@ cd <your-repo>
 pio run -t upload
 ```
 
+#### WiFi Configuration (Optional)
+If WiFi is enabled (`WEBUI_ENABLE=1` or `TCP_ENABLE=1`), you have two options:
+
+1) **Web UI (runtime)**  
+   - Edit SSID/password (and DHCP/static IP) in the **WiFi tab**  
+   - Saved to `/wifi.json` in LittleFS  
+   - Device restarts and applies changes automatically
+
+2) **Compile-time secrets (locked)**  
+   ```bash
+   cp include/secrets.example.h include/secrets.h
+   ```
+   Edit `include/secrets.h`, then rebuild.  
+   To force secrets and skip LittleFS WiFi config, add:
+   ```
+   -DFORCE_WIFI_SECRETS=1
+   ```
+   to `platformio.ini` build flags.
+
 PlatformIO automatically installs dependencies, builds the firmware, and flashes the board.
 
----
-
-#### WiFi Credentials (Optional)
-If WiFi is enabled (`WEBUI_ENABLE=1` or `TCP_ENABLE=1`):
-
-```bash
-cp include/secrets.example.h include/secrets.h
-```
-
-Edit `include/secrets.h`, then rebuild.
 
 ---
 
@@ -49,6 +80,15 @@ Edit `include/secrets.h`, then rebuild.
 - Configure GNSS UART via Web UI
 - Settings stored in LittleFS (`/gnss.json`)
 - Persists across reboots and firmware updates
+
+### WiFi + UART via Web UI (LittleFS)
+You can change GNSS pins/baud and WiFi credentials directly in the Web UI:
+- UART config saves to `/gnss.json`
+- WiFi config saves to `/wifi.json`
+- After clicking **Save**, the device restarts and applies the new settings
+
+If you want to pre-load these settings (before first boot or after a flash erase),
+upload the LittleFS image using the GUI tool as described above.
 
 ### Production / Fixed Hardware
 Hardcode UART pins at compile time:
@@ -70,7 +110,7 @@ build_flags =
 
 | Flag | Default | Description |
 |---|---|---|
-| `WEBUI_ENABLE` | `1` | Enable WiFi + Web UI |
+| `WEBUI_ENABLE` | `0` | Enable WiFi + Web UI |
 | `NMEA_ENABLE` | `0` | Enable optional NMEA parser |
 | `TCP_ENABLE` | `0` | Enable TCP server |
 | `WIFI_ENABLE` | auto | Enabled if Web UI or TCP is enabled |
@@ -137,8 +177,8 @@ See below for detailed architecture, UART configuration system, BLE/TCP flow, pr
 
 ## Build and Configuration
 ### Build Flags
-- `WEBUI_ENABLE` (default `1`): enables WiFi/WebServer status UI. When `0`, web UI code is excluded and `scripts/gzip_web.py` does not run.
-- `NMEA_ENABLE` (default `0` unless set in an env): enables the optional NMEA parser. When `0`, bytes still stream over BLE but no parsing occurs.
+- `WEBUI_ENABLE` (default `0`): enables WiFi/WebServer status UI. When `0`, web UI code is excluded and `scripts/gzip_web.py` does not run.
+- `NMEA_ENABLE` (default `0` unless set in an env): enables the optional NMEA parser. When `0`, bytes still stream over BLE but no parsing occurs. To get the full WebUI, uour GNSS needs to send at minimum: GGA, GSV, GSA, GST and RMC.
 - `TCP_ENABLE` (default `0`): enables the TCP server that mirrors the BLE stream.
 - `WIFI_ENABLE` (default `WEBUI_ENABLE || TCP_ENABLE`): enables WiFi STA (required for web UI or TCP).
 - `TCP_PORT` (default `5000`): TCP port for the single-client server.
@@ -146,7 +186,7 @@ See below for detailed architecture, UART configuration system, BLE/TCP flow, pr
 - `BLE_MTU_CFG` (default `23`): requested BLE MTU; if negotiated MTU is valid (>=23) it is used at runtime, otherwise this value is the fallback; used to derive max notify payload.
 - `GNSS_HZ_CFG` (default `1`): GNSS output rate (Hz) used for low-rate throttling.
 - Full parameter list: see `include/README.md` and `include/app.h`.
-- WiFi credentials: copy `include/secrets.example.h` to `include/secrets.h` (gitignored).
+- WiFi credentials: configure via Web UI (saved to `/wifi.json`) or copy `include/secrets.example.h` to `include/secrets.h` (gitignored) and enable `FORCE_WIFI_SECRETS`.
 
 ### BLE MTU and Throttling
 - `BLE_MTU_CFG` in `include/app.h` is used to derive the max notify payload (`BLE_MAX_PAYLOAD = BLE_MTU - 3`).
@@ -343,12 +383,13 @@ When `FORCE_HARDCODED_UART=1` is defined in build flags:
 - **Partition Name**: `spiffs` (LittleFS uses SPIFFS partition type)
 - **Partition SubType**: `spiffs` (compatible with LittleFS driver)
 - **Size**: 64KB (`0x10000`)
-- **Location**: See `partitions.csv`
+- **Location**: See `partitions.csv` (it has been configured for a 4MB ESP32 - change at your own risk)
 - **Filesystem**: LittleFS (configured via `board_build.filesystem = littlefs`)
 
 **File Structure:**
 ```
 /gnss.json    # UART configuration (rx_pin, tx_pin, baud)
+/wifi.json    # WiFi configuration (ssid, pass, dhcp, ip, gw, subnet, dns)
 ```
 
 ### Validation Rules

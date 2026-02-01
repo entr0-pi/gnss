@@ -376,6 +376,27 @@ static void handleStatus() {
     gpsObj["fix_quality_code"] = gps.fixQuality;
     gpsObj["time_utc"]         = tbuf;
     gpsObj["date_utc"]         = dbuf;
+
+    // Satellite details for skyplot (from GSV sentences).
+    gpsObj["satellites_in_view"] = gps.satCount;
+
+    if (gps.satCount > 0) {
+      // Constellation index → string expected by the web UI's renderSkyplot().
+      static const char* const consNames[] = {
+        "GPS", "GLONASS", "Galileo", "BeiDou", "Other"
+      };
+
+      JsonArray satsArr = gpsObj["satellites"].to<JsonArray>();
+      for (uint8_t i = 0; i < gps.satCount; i++) {
+        JsonObject sat = satsArr.add<JsonObject>();
+        sat["constellation"] = consNames[
+            (gps.sats[i].constellation <= 4) ? gps.sats[i].constellation : 4];
+        sat["nr"]            = gps.sats[i].nr;
+        sat["elevation"]     = gps.sats[i].elevation;
+        sat["azimuth"]       = gps.sats[i].azimuth;
+        sat["signal_power"]  = gps.sats[i].snr;
+      }
+    }
   }
   #endif
 
