@@ -9,3 +9,4 @@ include/secrets.h
 __pycache__
 app_*.h
 secret.h
+mklittlefs
