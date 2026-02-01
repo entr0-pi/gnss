@@ -8,5 +8,5 @@ include/secrets.h
 .venv
 __pycache__
 app_*.h
-secret.h
+secrets.h
 mklittlefs

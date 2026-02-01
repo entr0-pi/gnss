@@ -1,0 +1,9 @@
+{
+  "ssid": "your-ssid",
+  "pass": "your-password",
+  "dhcp": true,
+  "ip": "192.168.1.50",
+  "gw": "192.168.1.1",
+  "subnet": "255.255.255.0",
+  "dns": "8.8.8.8"
+}
