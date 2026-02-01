@@ -1,5 +1,127 @@
 # GNSS Arduino Project
 
+ESP32-C3 firmware acting as a transparent GNSS bridge (UART ↔ BLE ↔ TCP) with optional Web UI configuration.
+
+---
+
+## 🚀 Installation
+
+This project is built with **PlatformIO** and targets **ESP32-C3 (LOLIN C3 Mini)** boards.
+
+You can either **build from source** (recommended) or **flash a prebuilt binary**.
+
+---
+
+### Build & Flash from Source (Recommended)
+
+#### Prerequisites
+- VS Code with **PlatformIO** extension  
+  **or**
+- PlatformIO Core (CLI)
+- USB cable
+- ESP32-C3 board
+
+#### Clone and Upload
+```bash
+git clone https://github.com/<your-org>/<your-repo>.git
+cd <your-repo>
+pio run -t upload
+```
+
+PlatformIO automatically installs dependencies, builds the firmware, and flashes the board.
+
+---
+
+#### WiFi Credentials (Optional)
+If WiFi is enabled (`WEBUI_ENABLE=1` or `TCP_ENABLE=1`):
+
+```bash
+cp include/secrets.example.h include/secrets.h
+```
+
+Edit `include/secrets.h`, then rebuild.
+
+---
+
+## Quick Configuration Paths
+
+### Runtime Configuration (Default)
+- Configure GNSS UART via Web UI
+- Settings stored in LittleFS (`/gnss.json`)
+- Persists across reboots and firmware updates
+
+### Production / Fixed Hardware
+Hardcode UART pins at compile time:
+```ini
+build_flags =
+  -DFORCE_HARDCODED_UART=1
+  -DHARD_RX_PIN=20
+  -DHARD_TX_PIN=21
+  -DHARD_BAUD=115200
+```
+
+- Configuration locked
+- Web UI becomes read-only
+- No filesystem dependency
+
+---
+
+## Build Flags (Quick Reference)
+
+| Flag | Default | Description |
+|---|---|---|
+| `WEBUI_ENABLE` | `1` | Enable WiFi + Web UI |
+| `NMEA_ENABLE` | `0` | Enable optional NMEA parser |
+| `TCP_ENABLE` | `0` | Enable TCP server |
+| `WIFI_ENABLE` | auto | Enabled if Web UI or TCP is enabled |
+| `TCP_PORT` | `5000` | TCP server port |
+| `BLE_DEVICE_NAME` | `GNSS-BLE` | BLE advertising name |
+| `BLE_MTU_CFG` | `23` | Requested BLE MTU |
+| `GNSS_HZ_CFG` | `1` | GNSS output rate (Hz) |
+
+Full list: see `include/README.md` and `include/app.h`.
+
+---
+
+## Folder Structure
+```
+.
+├─ include/        # Headers, config, generated web assets
+├─ lib/            # Reusable libraries
+├─ scripts/        # Build & tooling scripts
+├─ src/            # Firmware source
+├─ web/            # Web UI sources
+├─ platformio.ini  # PlatformIO configuration
+└─ README.md
+```
+
+---
+
+## Web UI Assets
+When `WEBUI_ENABLE=1`:
+- `scripts/gzip_web.py` compresses `web/*`
+- Generated headers are embedded in firmware
+
+After editing Web UI files:
+```bash
+pio run -t upload
+```
+
+---
+
+## Notes
+- BLE and WiFi require **WiFi modem sleep enabled** on ESP32-C3
+- Firmware is a **raw byte-stream bridge**
+- BLE uses Nordic UART Service (NUS)
+- TCP mirrors the BLE stream (single client)
+
+---
+
+See below for detailed architecture, UART configuration system, BLE/TCP flow, production deployment examples, and troubleshooting.
+
+
+# FULL DETAIL
+
 ## Overview
 - Provide a clean PlatformIO-based firmware workspace for the GNSS device.
 - Separate hardware-facing firmware from web assets and supporting scripts.
@@ -67,29 +189,6 @@ Typical steps:
 
 Note: offsets can change with custom partition tables. If you use a custom partition CSV, flash the app at the offset shown in that table.
 
-### Proposed Build Matrix Script
-Use `scripts/build_matrix.py` as a proposal for automating PlatformIO environment builds.
-It lists a small matrix of flag-driven configurations and can either print or execute the
-corresponding `pio run -e <env>` commands.
-
-Preview the matrix without building:
-```
-python3 scripts/build_matrix.py
-```
-
-Execute the builds:
-```
-python3 scripts/build_matrix.py --execute
-```
-
-Limit to specific environments:
-```
-python3 scripts/build_matrix.py --execute --env nmea --env tcp_off
-```
-
-The matrix entries in the script cover the same flags documented above and are intended
-as a starting point for CI or local automation.
-
 ## UART Configuration System
 
 The firmware supports flexible UART pin and baud rate configuration through a three-tier system: **Build Flags**, **LittleFS Persistent Storage**, and **Fallback Defaults**. This allows both development flexibility (runtime configuration via web UI) and production reliability (compile-time hardcoded values).
@@ -120,7 +219,7 @@ build_flags =
 - Web UI displays current config but cannot change it
 - Requires recompilation to modify
 
-#### Tier 2: LittleFS Config (Normal Priority)
+#### Tier 2: LittleFS Config (Normal Priority, the provided bin)
 Runtime configuration stored in `/gnss.json` on LittleFS partition:
 
 ```json
@@ -307,7 +406,7 @@ build_flags =
 - No runtime configuration needed
 - **Web UI**: Each variant shows its locked values
 
-#### Example 3: User-Configurable (Default)
+#### Example 3: User-Configurable (Default, this bin)
 ```ini
 # No FORCE_HARDCODED_UART flags
 build_flags =
@@ -382,20 +481,6 @@ pio run -t upload
 4. Web UI will now show editable fields
 
 **Note:** This is intentional for production builds to prevent accidental configuration changes.
-
-### ESP32-C3 Pin Compatibility Notes
-
-**Safe Pins (Generally Reliable):**
-- GPIO 0, 1, 2, 3
-- GPIO 4, 5, 6, 7
-- GPIO 20, 21 (recommended for UART)
-
-**Avoid:**
-- GPIO 18, 19 (USB pins)
-- GPIO 8, 9 (strapping pins)
-- Pins used by onboard peripherals (board-specific)
-
-**Note:** Pin compatibility varies by board variant. The default pins (16/17) are intentionally set to "unconfigured" (-1) to force user selection of working pins for their specific hardware.
 
 ### File References
 
@@ -502,7 +587,7 @@ The firmware uses FreeRTOS StreamBuffers (ring buffers) to handle bursty traffic
 - If you add a frontend, keep assets in `web/` and document any build steps here.
 - Example clients: BLE apps like SW Maps; TCP clients like QField.
 
-## Web UI
+## Web UI Screenshot
 
 <p align="center">
   <img src="assets/IMG_2696.PNG" alt="Dashboard" width="200">
