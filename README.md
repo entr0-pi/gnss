@@ -1,5 +1,169 @@
 # GNSS Arduino Project
 
+ESP32-C3 firmware acting as a transparent GNSS bridge (UART ↔ BLE ↔ TCP) with optional Web UI configuration.
+
+---
+
+## 🚀 Installation
+
+This project is built with **PlatformIO** and targets **ESP32-C3 (LOLIN C3 Mini)** boards.
+
+You can either **build from source** (recommended) or **flash a prebuilt binary**.
+
+---
+
+## Option 1 — Build & Flash from Source (Recommended)
+
+### Prerequisites
+- VS Code with **PlatformIO** extension  
+  **or**
+- PlatformIO Core (CLI)
+- USB cable
+- ESP32-C3 board
+
+### Clone and Upload
+```bash
+git clone https://github.com/<your-org>/<your-repo>.git
+cd <your-repo>
+pio run -t upload
+```
+
+PlatformIO automatically installs dependencies, builds the firmware, and flashes the board.
+
+---
+
+### WiFi Credentials (Optional)
+If WiFi is enabled (`WEBUI_ENABLE=1` or `TCP_ENABLE=1`):
+
+```bash
+cp include/secrets.example.h include/secrets.h
+```
+
+Edit `include/secrets.h`, then rebuild.
+
+---
+
+## Option 2 — Flash Prebuilt Binary (Windows, No Build)
+
+Flash precompiled `.bin` files using **Espressif Flash Download Tool**.
+
+### Required Files
+- `bootloader.bin`
+- `partitions.bin`
+- `firmware.bin`
+
+### Flash Offsets (ESP32-C3 / lolin_c3_mini)
+
+| File | Address |
+|---|---|
+| `bootloader.bin` | `0x1000` |
+| `partitions.bin` | `0x8000` |
+| `firmware.bin` | `0x10000` |
+
+### Steps
+1. Put the board into **download mode**
+2. Open **Espressif Flash Download Tool**
+3. Set:
+   - **ChipType**: ESP32-C3
+   - **WorkMode**: Develop
+   - **LoadMode**: UART
+4. Add each `.bin` with its address
+5. Select **COM** port and **BAUD**
+6. Click **START**
+
+> Flash offsets may change if you use a custom `partitions.csv`.
+
+---
+
+## First Boot Behavior
+- GNSS UART is **unconfigured by default**
+- Device always boots safely
+- Web UI is accessible
+- UART initialization is skipped until configured
+
+Configure GNSS RX/TX pins and baud rate from the Web UI, or hardcode them at build time for production.
+
+---
+
+## Quick Configuration Paths
+
+### Runtime Configuration (Default)
+- Configure GNSS UART via Web UI
+- Settings stored in LittleFS (`/gnss.json`)
+- Persists across reboots and firmware updates
+
+### Production / Fixed Hardware
+Hardcode UART pins at compile time:
+```ini
+build_flags =
+  -DFORCE_HARDCODED_UART=1
+  -DHARD_RX_PIN=20
+  -DHARD_TX_PIN=21
+  -DHARD_BAUD=115200
+```
+
+- Configuration locked
+- Web UI becomes read-only
+- No filesystem dependency
+
+---
+
+## Build Flags (Quick Reference)
+
+| Flag | Default | Description |
+|---|---|---|
+| `WEBUI_ENABLE` | `1` | Enable WiFi + Web UI |
+| `NMEA_ENABLE` | `0` | Enable optional NMEA parser |
+| `TCP_ENABLE` | `0` | Enable TCP server |
+| `WIFI_ENABLE` | auto | Enabled if Web UI or TCP is enabled |
+| `TCP_PORT` | `5000` | TCP server port |
+| `BLE_DEVICE_NAME` | `GNSS-BLE` | BLE advertising name |
+| `BLE_MTU_CFG` | `23` | Requested BLE MTU |
+| `GNSS_HZ_CFG` | `1` | GNSS output rate (Hz) |
+
+Full list: see `include/README.md` and `include/app.h`.
+
+---
+
+## Folder Structure
+```
+.
+├─ include/        # Headers, config, generated web assets
+├─ lib/            # Reusable libraries
+├─ scripts/        # Build & tooling scripts
+├─ src/            # Firmware source
+├─ web/            # Web UI sources
+├─ platformio.ini  # PlatformIO configuration
+└─ README.md
+```
+
+---
+
+## Web UI Assets
+When `WEBUI_ENABLE=1`:
+- `scripts/gzip_web.py` compresses `web/*`
+- Generated headers are embedded in firmware
+
+After editing Web UI files:
+```bash
+pio run -t upload
+```
+
+---
+
+## Notes
+- BLE and WiFi require **WiFi modem sleep enabled** on ESP32-C3
+- Firmware is a **raw byte-stream bridge**
+- BLE uses Nordic UART Service (NUS)
+- TCP mirrors the BLE stream (single client)
+
+---
+
+See below for detailed architecture, UART configuration system, BLE/TCP flow, production deployment examples, and troubleshooting.
+
+
+# FULL DETAIL
+
 ## Overview
 - Provide a clean PlatformIO-based firmware workspace for the GNSS device.
 - Separate hardware-facing firmware from web assets and supporting scripts.
