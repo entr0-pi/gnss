@@ -23,6 +23,10 @@
 #define WIFI_ENABLE (WEBUI_ENABLE || TCP_ENABLE)
 #endif
 
+#ifndef FORCE_WIFI_SECRETS
+#define FORCE_WIFI_SECRETS 0
+#endif
+
 // ---------------- Dependency rule ----------------
 // If Web UI is disabled, NMEA must be disabled too.
 #if WEBUI_ENABLE == 0 && NMEA_ENABLE != 0
