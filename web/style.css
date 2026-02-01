@@ -93,6 +93,112 @@ body{
   border-radius:14px;
   padding:10px 12px;
 }
+.skyplot-stats{
+  margin-top:4px;
+}
+.skyplot-stats .kv{
+  padding:10px 12px;
+}
+.skyplot{
+  position:relative;
+  width:100%;
+  max-width:360px;
+  aspect-ratio: 1 / 1;
+  margin:12px auto 0;
+  border-radius:50%;
+  border:1px solid var(--stroke);
+  background:
+    radial-gradient(circle at center, rgba(255,255,255,.08), rgba(0,0,0,.3) 70%);
+  overflow:hidden;
+}
+.skyplot-ring{
+  position:absolute;
+  border:1px dashed rgba(255,255,255,.12);
+  border-radius:50%;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+}
+.ring-outer{ width:100%; height:100%; }
+.ring-mid{ width:66%; height:66%; }
+.ring-inner{ width:33%; height:33%; }
+.skyplot-axis{
+  position:absolute;
+  background: rgba(255,255,255,.08);
+}
+.skyplot-axis.axis-h{
+  height:1px;
+  left:10%;
+  right:10%;
+  top:50%;
+}
+.skyplot-axis.axis-v{
+  width:1px;
+  top:10%;
+  bottom:10%;
+  left:50%;
+}
+.skyplot-center{
+  position:absolute;
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background: rgba(255,255,255,.6);
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+}
+.skyplot-markers{
+  position:absolute;
+  inset:0;
+}
+.skyplot-marker{
+  position:absolute;
+  width:12px;
+  height:12px;
+  transform:translate(-50%,-50%);
+  box-shadow:0 0 0 1px rgba(0,0,0,.4);
+}
+.constellation-gps{
+  background:#2d7dff;
+  border-radius:50%;
+}
+.constellation-glonass{
+  background:#f39c12;
+  border-radius:3px;
+}
+.constellation-galileo{
+  background:#9b59b6;
+  border-radius:2px;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+.constellation-beidou{
+  background:#2ecc71;
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+}
+.constellation-other{
+  background: rgba(255,255,255,.65);
+  border-radius:50%;
+}
+.skyplot-legend{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:10px 16px;
+  margin-top:12px;
+  color:var(--muted);
+  font-size:12px;
+}
+.legend-item{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.legend-marker{
+  width:10px;
+  height:10px;
+  display:inline-block;
+}
 .line{
   display:flex;
   align-items:center;
