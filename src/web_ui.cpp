@@ -29,6 +29,7 @@
 #include "app_style.h"
 #include "app_favicon.h"
 #include "gnss_config.h"
+#include "wifi_config.h"
 #include "web_ui.h"
 
 // Keep a pointer so helpers/handlers can use the same server instance.
@@ -503,6 +504,136 @@ static void handleConfigPost() {
   s_server->send(200, "application/json", output);
 }
 
+// ------------- API: /api/wifi_config -------------
+static void handleWifiConfigGet() {
+  markRequestAndGetPrevAgeMs();
+
+  WifiConfig cfg{};
+  String error;
+  const bool loaded = wifi_config_load(cfg, &error);
+
+  JsonDocument doc;
+  doc["loaded"] = loaded;
+  if (!loaded) {
+    doc["error"] = error;
+  }
+
+  // Check if config is locked via build flags
+  #if FORCE_WIFI_SECRETS
+    doc["locked"] = true;
+  #else
+    doc["locked"] = false;
+  #endif
+
+  // If file missing, fall back to compile-time values.
+  if (!loaded) {
+    cfg.ssid = STA_SSID;
+    cfg.pass = STA_PASS;
+    cfg.dhcp = false;
+    cfg.ip = STA_IP;
+    cfg.gw = STA_GW;
+    cfg.subnet = STA_SUBNET;
+    cfg.dns = STA_DNS;
+  }
+
+  doc["ssid"] = cfg.ssid;
+  doc["pass"] = cfg.pass;
+  doc["dhcp"] = cfg.dhcp;
+  doc["ip"] = cfg.ip.toString();
+  doc["gw"] = cfg.gw.toString();
+  doc["subnet"] = cfg.subnet.toString();
+  doc["dns"] = cfg.dns.toString();
+
+  String output;
+  doc.shrinkToFit();
+  serializeJson(doc, output);
+
+  s_server->sendHeader("Cache-Control", "no-store");
+  s_server->send(200, "application/json", output);
+}
+
+static void handleWifiConfigPost() {
+  markRequestAndGetPrevAgeMs();
+
+  #if FORCE_WIFI_SECRETS
+    s_server->send(403, "application/json", "{\"ok\":false,\"error\":\"WiFi config is locked via build flags\"}");
+    return;
+  #endif
+
+  if (!s_server->hasArg("plain")) {
+    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Missing body\"}");
+    return;
+  }
+
+  JsonDocument doc;
+  const DeserializationError err = deserializeJson(doc, s_server->arg("plain"));
+  if (err) {
+    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Invalid JSON\"}");
+    return;
+  }
+
+  if (!doc["ssid"].is<const char*>() || !doc["pass"].is<const char*>() || !doc["dhcp"].is<bool>()) {
+    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"ssid, pass, and dhcp are required\"}");
+    return;
+  }
+
+  WifiConfig cfg{};
+  cfg.ssid = doc["ssid"].as<String>();
+  cfg.pass = doc["pass"].as<String>();
+  cfg.dhcp = doc["dhcp"].as<bool>();
+
+  if (cfg.ssid.isEmpty()) {
+    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"ssid is empty\"}");
+    return;
+  }
+
+  if (!cfg.dhcp) {
+    if (!doc["ip"].is<const char*>() || !doc["gw"].is<const char*>() ||
+        !doc["subnet"].is<const char*>() || !doc["dns"].is<const char*>()) {
+      s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"ip, gw, subnet, and dns are required when dhcp is false\"}");
+      return;
+    }
+
+    if (!cfg.ip.fromString(doc["ip"].as<String>()) ||
+        !cfg.gw.fromString(doc["gw"].as<String>()) ||
+        !cfg.subnet.fromString(doc["subnet"].as<String>()) ||
+        !cfg.dns.fromString(doc["dns"].as<String>())) {
+      s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Invalid IP fields\"}");
+      return;
+    }
+  } else {
+    cfg.ip = IPAddress(0, 0, 0, 0);
+    cfg.gw = IPAddress(0, 0, 0, 0);
+    cfg.subnet = IPAddress(0, 0, 0, 0);
+    cfg.dns = IPAddress(0, 0, 0, 0);
+  }
+
+  String error;
+  if (!wifi_config_save(cfg, &error)) {
+    String response = String("{\"ok\":false,\"error\":\"") + error + "\"}";
+    s_server->send(400, "application/json", response);
+    return;
+  }
+
+  JsonDocument resp;
+  resp["ok"] = true;
+  resp["message"] = "WiFi config saved";
+  JsonObject cfgObj = resp["config"].to<JsonObject>();
+  cfgObj["ssid"] = cfg.ssid;
+  cfgObj["pass"] = cfg.pass;
+  cfgObj["dhcp"] = cfg.dhcp;
+  cfgObj["ip"] = cfg.ip.toString();
+  cfgObj["gw"] = cfg.gw.toString();
+  cfgObj["subnet"] = cfg.subnet.toString();
+  cfgObj["dns"] = cfg.dns.toString();
+
+  String output;
+  resp.shrinkToFit();
+  serializeJson(resp, output);
+  s_server->sendHeader("Cache-Control", "no-store");
+  s_server->send(200, "application/json", output);
+}
+
 // webui_begin():
 // Called once from main.cpp to register routes and provide dependencies.
 // Parameters:
@@ -547,6 +678,8 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
   // Config endpoints
   server.on("/api/config", HTTP_GET, handleConfigGet);
   server.on("/api/config", HTTP_POST, handleConfigPost);
+  server.on("/api/wifi_config", HTTP_GET, handleWifiConfigGet);
+  server.on("/api/wifi_config", HTTP_POST, handleWifiConfigPost);
 
   // Restart endpoint (POST)
   server.on("/api/restart", HTTP_POST, handleRestart);

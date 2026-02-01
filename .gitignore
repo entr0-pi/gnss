@@ -10,3 +10,10 @@ __pycache__
 app_*.h
 secrets.h
 mklittlefs
+wifi.json
+gnss.json
+*.bin
+littlefs_uploaderGUI.json
+utils/dist/
+utils/build/
+.claude

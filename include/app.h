@@ -35,25 +35,34 @@
   #define NMEA_ENABLE 0
 #endif
 
-#if WIFI_ENABLE
-// ---------------- STA config (Hotspot) ----------------
-// These are the credentials and the static network config for STA mode.
-// WiFi.config() sets a fixed IP, gateway, subnet, and DNS for the station interface.
-#if __has_include("secrets.h")
-#include "secrets.h"
-#endif
+#if WIFI_ENABLE && FORCE_WIFI_SECRETS
+  // ---------------- STA config (Hotspot) ----------------
+  // These are the credentials and the static network config for STA mode.
+  // WiFi.config() sets a fixed IP, gateway, subnet, and DNS for the station interface.
+  #if __has_include("secrets.h")
+  #include "secrets.h"
+  #endif
 
-#if !defined(STA_SSID_VALUE) || !defined(STA_PASS_VALUE) || !defined(STA_IP_VALUE) || \
-    !defined(STA_GW_VALUE) || !defined(STA_SUBNET_VALUE) || !defined(STA_DNS_VALUE)
-  #error "Define STA_*_VALUE in include/secrets.h (copy from include/secrets.example.h)."
-#endif
+  #if !defined(STA_SSID_VALUE) || !defined(STA_PASS_VALUE) || !defined(STA_IP_VALUE) || \
+      !defined(STA_GW_VALUE) || !defined(STA_SUBNET_VALUE) || !defined(STA_DNS_VALUE)
+    #error "Define STA_*_VALUE in include/secrets.h"
+  #endif
 
-static const char* STA_SSID = STA_SSID_VALUE;
-static const char* STA_PASS = STA_PASS_VALUE;
-static const IPAddress STA_IP     = STA_IP_VALUE;
-static const IPAddress STA_GW     = STA_GW_VALUE;
-static const IPAddress STA_SUBNET = STA_SUBNET_VALUE;
-static const IPAddress STA_DNS    = STA_DNS_VALUE;
+  static const char* STA_SSID = STA_SSID_VALUE;
+  static const char* STA_PASS = STA_PASS_VALUE;
+  static const IPAddress STA_IP     = STA_IP_VALUE;
+  static const IPAddress STA_GW     = STA_GW_VALUE;
+  static const IPAddress STA_SUBNET = STA_SUBNET_VALUE;
+  static const IPAddress STA_DNS    = STA_DNS_VALUE;
+#endif
+#if WIFI_ENABLE && !FORCE_WIFI_SECRETS
+  // Dummy defaults if not using secrets.h
+  static const char* STA_SSID = "CHANGE_ME";
+  static const char* STA_PASS = "CHANGE_ME";
+  static const IPAddress STA_IP     = IPAddress(192, 168, 1, 200);
+  static const IPAddress STA_GW     = IPAddress(192, 168, 1, 1);
+  static const IPAddress STA_SUBNET = IPAddress(255, 255, 255, 0);
+  static const IPAddress STA_DNS    = IPAddress(8, 8, 8, 8);
 #endif
 
 // ---------------- BT ----------------

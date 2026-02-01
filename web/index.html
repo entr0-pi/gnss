@@ -5,7 +5,7 @@
   <title>ESP32-C3 Status</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="/favicon.ico?v=1.0.2">
-  <link rel="stylesheet" href="/style.css?v=1.0.1">
+  <link rel="stylesheet" href="/style.css?v=1.0.2">
 </head>
 <body>
   <div class="wrap">
@@ -166,6 +166,44 @@
             <div class="line"><span class="lk">Subnet</span><span class="lv mono" id="subnet">—</span></div>
             <div class="line"><span class="lk">Broadcast</span><span class="lv mono" id="bcast">—</span></div>
             <div class="line"><span class="lk">MAC</span><span class="lv mono" id="mac">—</span></div>
+          </div>
+        </div>
+
+        <div class="cat">
+          <div class="catTitle">Wi-Fi Config</div>
+          <div class="catBody">
+            <div class="line">
+              <label class="lk" for="wifi_ssid">SSID</label>
+              <input class="input mono" id="wifi_ssid" type="text" autocomplete="off">
+            </div>
+            <div class="line">
+              <label class="lk" for="wifi_pass">Password</label>
+              <input class="input mono" id="wifi_pass" type="password" autocomplete="off">
+            </div>
+            <div class="line">
+              <label class="lk" for="wifi_dhcp">DHCP</label>
+              <input id="wifi_dhcp" type="checkbox">
+            </div>
+            <div class="line">
+              <label class="lk" for="wifi_ip">IP</label>
+              <input class="input mono" id="wifi_ip" type="text" placeholder="192.168.1.50">
+            </div>
+            <div class="line">
+              <label class="lk" for="wifi_gw">Gateway</label>
+              <input class="input mono" id="wifi_gw" type="text" placeholder="192.168.1.1">
+            </div>
+            <div class="line">
+              <label class="lk" for="wifi_subnet">Subnet</label>
+              <input class="input mono" id="wifi_subnet" type="text" placeholder="255.255.255.0">
+            </div>
+            <div class="line">
+              <label class="lk" for="wifi_dns">DNS</label>
+              <input class="input mono" id="wifi_dns" type="text" placeholder="8.8.8.8">
+            </div>
+            <div class="actions">
+              <button id="saveWifiConfigBtn" class="btn" type="button">Save WiFi Config</button>
+              <div class="note" id="wifi_cfg_note">—</div>
+            </div>
           </div>
         </div>
 

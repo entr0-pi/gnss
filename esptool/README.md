@@ -1,1 +1,0 @@
-pyinstaller --onefile --noconsole --add-binary "mklittlefs.exe;." --collect-all esptool main.py

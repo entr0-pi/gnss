@@ -74,6 +74,35 @@ function setConfigNote(message, ok = true) {
   note.style.color = ok ? "" : "#e74c3c";
 }
 
+function setWifiConfigNote(message, ok = true) {
+  const note = $("wifi_cfg_note");
+  if (!note) return;
+  note.textContent = message;
+  note.style.color = ok ? "" : "#e74c3c";
+}
+
+function setWifiInputsEnabled(enabled) {
+  const ids = ["wifi_ssid", "wifi_pass", "wifi_dhcp", "wifi_ip", "wifi_gw", "wifi_subnet", "wifi_dns"];
+  ids.forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    if (el.type === "checkbox") {
+      el.disabled = !enabled;
+    } else {
+      el.readOnly = !enabled;
+    }
+  });
+}
+
+function updateWifiStaticInputs(dhcp) {
+  const staticIds = ["wifi_ip", "wifi_gw", "wifi_subnet", "wifi_dns"];
+  staticIds.forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    el.readOnly = !!dhcp;
+  });
+}
+
 async function loadConfig(){
   try {
     const r = await fetch('/api/config', { cache:'no-store' });
@@ -112,6 +141,38 @@ async function loadConfig(){
     }
   } catch (e) {
     setConfigNote("Failed to load config", false);
+  }
+}
+
+async function loadWifiConfig(){
+  try {
+    const r = await fetch('/api/wifi_config', { cache:'no-store' });
+    if (!r.ok) throw new Error("http " + r.status);
+    const cfg = await r.json();
+
+    if ($("wifi_ssid")) $("wifi_ssid").value = cfg.ssid ?? "";
+    if ($("wifi_pass")) $("wifi_pass").value = cfg.pass ?? "";
+    if ($("wifi_dhcp")) $("wifi_dhcp").checked = !!cfg.dhcp;
+    if ($("wifi_ip")) $("wifi_ip").value = cfg.ip ?? "";
+    if ($("wifi_gw")) $("wifi_gw").value = cfg.gw ?? "";
+    if ($("wifi_subnet")) $("wifi_subnet").value = cfg.subnet ?? "";
+    if ($("wifi_dns")) $("wifi_dns").value = cfg.dns ?? "";
+
+    const isLocked = cfg.locked === true;
+    const saveBtn = $("saveWifiConfigBtn");
+
+    if (isLocked) {
+      setWifiInputsEnabled(false);
+      if (saveBtn) saveBtn.style.display = "none";
+      setWifiConfigNote("🔒 Configuration locked (compile-time flags)", true);
+    } else {
+      setWifiInputsEnabled(true);
+      if (saveBtn) saveBtn.style.display = "";
+      updateWifiStaticInputs(!!cfg.dhcp);
+      setWifiConfigNote("Loaded from device");
+    }
+  } catch (e) {
+    setWifiConfigNote("Failed to load WiFi config", false);
   }
 }
 
@@ -239,6 +300,55 @@ if (saveConfigBtn) {
   });
 }
 
+const wifiDhcp = $("wifi_dhcp");
+if (wifiDhcp) {
+  wifiDhcp.addEventListener("change", () => {
+    updateWifiStaticInputs(!!wifiDhcp.checked);
+  });
+}
+
+const saveWifiConfigBtn = $("saveWifiConfigBtn");
+if (saveWifiConfigBtn) {
+  saveWifiConfigBtn.addEventListener("click", async () => {
+    const ssid = $("wifi_ssid")?.value?.trim() ?? "";
+    const pass = $("wifi_pass")?.value ?? "";
+    const dhcp = !!$("wifi_dhcp")?.checked;
+    const ip = $("wifi_ip")?.value?.trim() ?? "";
+    const gw = $("wifi_gw")?.value?.trim() ?? "";
+    const subnet = $("wifi_subnet")?.value?.trim() ?? "";
+    const dns = $("wifi_dns")?.value?.trim() ?? "";
+
+    if (!ssid) {
+      setWifiConfigNote("SSID is required.", false);
+      return;
+    }
+
+    if (!dhcp && (!ip || !gw || !subnet || !dns)) {
+      setWifiConfigNote("Static IP requires IP, gateway, subnet, and DNS.", false);
+      return;
+    }
+
+    setWifiConfigNote("Saving…");
+    try {
+      const resp = await fetch('/api/wifi_config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ssid, pass, dhcp, ip, gw, subnet, dns })
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        setWifiConfigNote(payload.error || "Failed to save WiFi config", false);
+        return;
+      }
+      setWifiConfigNote("Saved. Restarting…");
+      // Apply changes by restarting the device.
+      try { await fetch('/api/restart', { method: 'POST' }); } catch (e) {}
+    } catch (e) {
+      setWifiConfigNote("Failed to reach device", false);
+    }
+  });
+}
+
 // Tabs logic (simple show/hide)
 (function initTabs(){
   const btns = Array.from(document.querySelectorAll(".tabBtn"));
@@ -255,4 +365,5 @@ if (saveConfigBtn) {
 
 refresh();
 loadConfig();
+loadWifiConfig();
 setInterval(refresh, 1000);

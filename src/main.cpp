@@ -763,8 +763,8 @@ static void task_uart_tx(void* arg) {
 static void task_tcp_io(void* arg) {
   (void)arg;
 
-  uint8_t out[256];
-  uint8_t in[256];
+  uint8_t out[UART_CHUNK];
+  uint8_t in[UART_CHUNK];
 
   for (;;) {
     if (!g_tcpClient || !g_tcpClient.connected()) {

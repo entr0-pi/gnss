@@ -96,3 +96,53 @@ bool wifi_config_load(WifiConfig& cfg, String* error) {
 
   return true;
 }
+
+bool wifi_config_save(const WifiConfig& cfg, String* error) {
+  if (!ensure_fs_ready(error)) return false;
+
+  if (cfg.ssid.isEmpty()) {
+    if (error) *error = "WiFi config ssid is empty";
+    return false;
+  }
+
+  if (!cfg.dhcp) {
+    if (cfg.ip == IPAddress(0, 0, 0, 0) || cfg.gw == IPAddress(0, 0, 0, 0) ||
+        cfg.subnet == IPAddress(0, 0, 0, 0) || cfg.dns == IPAddress(0, 0, 0, 0)) {
+      if (error) *error = "WiFi config requires ip, gw, subnet, and dns when dhcp is false";
+      return false;
+    }
+  }
+
+  File file = LittleFS.open(kWifiConfigPath, "w");
+  if (!file) {
+    if (error) *error = String("WiFi config open failed: ") + kWifiConfigPath;
+    return false;
+  }
+
+  JsonDocument doc;
+  doc["ssid"] = cfg.ssid;
+  doc["pass"] = cfg.pass;
+  doc["dhcp"] = cfg.dhcp;
+
+  if (cfg.dhcp) {
+    doc["ip"] = "0.0.0.0";
+    doc["gw"] = "0.0.0.0";
+    doc["subnet"] = "0.0.0.0";
+    doc["dns"] = "0.0.0.0";
+  } else {
+    doc["ip"] = cfg.ip.toString();
+    doc["gw"] = cfg.gw.toString();
+    doc["subnet"] = cfg.subnet.toString();
+    doc["dns"] = cfg.dns.toString();
+  }
+
+  const size_t written = serializeJson(doc, file);
+  file.close();
+
+  if (written == 0) {
+    if (error) *error = "WiFi config write failed";
+    return false;
+  }
+
+  return true;
+}
