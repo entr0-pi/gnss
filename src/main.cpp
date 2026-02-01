@@ -30,6 +30,7 @@
 // WiFi STA mode connects to an existing hotspot/router and hosts a small status web server.
 #include "app.h"
 #include "gnss_config.h"
+#include "wifi_config.h"
 
 #if WIFI_ENABLE
 #include <WiFi.h>
@@ -473,14 +474,35 @@ static void setupWiFi() {
   WiFi.persistent(false);
   WiFi.setSleep(true);
 
+  WifiConfig file_cfg{};
+  bool use_file_cfg = false;
+#if !FORCE_WIFI_SECRETS
+  String wifi_error;
+  if (wifi_config_load(file_cfg, &wifi_error)) {
+    use_file_cfg = true;
+    Serial.println("[WiFi] Loaded config from LittleFS");
+  } else {
+    Serial.println(String("[WiFi] Failed to load config from LittleFS: ") + wifi_error);
+  }
+#else
+  Serial.println("[WiFi] FORCE_WIFI_SECRETS enabled, skipping LittleFS config");
+#endif
+
+  const char* ssid = use_file_cfg ? file_cfg.ssid.c_str() : STA_SSID;
+  const char* pass = use_file_cfg ? file_cfg.pass.c_str() : STA_PASS;
+  const IPAddress ip = use_file_cfg ? file_cfg.ip : STA_IP;
+  const IPAddress gw = use_file_cfg ? file_cfg.gw : STA_GW;
+  const IPAddress subnet = use_file_cfg ? file_cfg.subnet : STA_SUBNET;
+  const IPAddress dns = use_file_cfg ? file_cfg.dns : STA_DNS;
+
   // Apply static IP configuration for the STA interface.
   // Order: local IP, gateway, subnet, DNS.
-  if (!WiFi.config(STA_IP, STA_GW, STA_SUBNET, STA_DNS)) {
+  if (!WiFi.config(ip, gw, subnet, dns)) {
     Serial.println("[WiFi] Config failed!");
   }
 
   // Start connection attempt using SSID/PASS.
-  WiFi.begin(STA_SSID, STA_PASS);
+  WiFi.begin(ssid, pass);
 
   // Wait up to 10 seconds for connection with yield to prevent watchdog.
   unsigned long t0 = millis();
