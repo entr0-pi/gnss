@@ -8,7 +8,6 @@ include/secrets.h
 .venv
 __pycache__
 app_*.h
-secrets.h
 mklittlefs
 wifi.json
 gnss.json
