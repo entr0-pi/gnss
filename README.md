@@ -1,6 +1,6 @@
 # GNSS Arduino Project
 
-ESP32-C3 firmware acting as a transparent GNSS bridge (UART ↔ BLE ↔ TCP) with optional Web UI configuration.
+ESP32 firmware acting as a transparent GNSS bridge (UART ↔ BLE ↔ TCP) with optional Web UI configuration.
 
 ## 🚀 Installation
 
@@ -13,20 +13,20 @@ You can either **build from source** or **flash a prebuilt binary** (recommended
 ### Flash the provided bin and use LittleFS Uploader
 
 1. **Get the firmware bin**  
-   - Download a prebuilt `.bin` (in the realease section), **or** rebuild with PlatformIO:
+   - Download a prebuilt `.bin` (in the release section), **or** rebuild with PlatformIO:
      ```bash
      pio run
      ```
 
 2. **Flash**
-   - Use your favorite tool (I use esptool)
+   - Use your favorite tool (I use platformio or esptool)
 
 3. **Prepare your JSON files**  
    - Create/modify (you will find example in /data):
      - `utils/data/gnss.json`
      - `utils/data/wifi.json`
 
-4. **Upload LittleFS**  
+4. **Upload**  
    - Run the GUI tool:
      - `utils/littlefs_uploaderGUI.py`
    - Select your COM port and upload the generated LittleFS image to the ESP32. Read the instruction for the dependencies
@@ -41,12 +41,12 @@ After upload, reboot the device and the Web UI will show the new values.
   **or**
 - PlatformIO Core (CLI)
 - USB cable
-- ESP32-C3 board
+- ESP32 board
 
 #### Clone and Upload
 ```bash
-git clone https://github.com/<your-org>/<your-repo>.git
-cd <your-repo>
+git clone https://github.com/entr0-pi/gnss.git
+cd gnss
 pio run -t upload
 ```
 
@@ -78,7 +78,7 @@ PlatformIO automatically installs dependencies, builds the firmware, and flashes
 
 ### Runtime Configuration (Default)
 - Configure GNSS UART via Web UI
-- Settings stored in LittleFS (`/gnss.json`)
+- Settings stored in LittleFS
 - Persists across reboots and firmware updates
 
 ### WiFi + UART via Web UI (LittleFS)
@@ -150,7 +150,7 @@ pio run -t upload
 ---
 
 ## Notes
-- BLE and WiFi require **WiFi modem sleep enabled** on ESP32-C3
+- BLE and WiFi require **WiFi modem sleep enabled** on ESP32
 - Firmware is a **raw byte-stream bridge**
 - BLE uses Nordic UART Service (NUS)
 - TCP mirrors the BLE stream (single client)
@@ -199,7 +199,7 @@ Full parameter list: see `include/README` and `include/app.h`.
 
 ### WiFi + BLE Coexistence Warning
 - When `WEBUI_ENABLE=1` and BLE is enabled, **WiFi modem sleep must be enabled**.
-- If `WiFi.setSleep(false)` is used, the ESP32-C3 can abort with:
+- If `WiFi.setSleep(false)` is used, the ESP32 can abort with:
   `Error! Should enable WiFi modem sleep when both WiFi and Bluetooth are enabled!!!!!!`
 
 ### Web UI Assets
@@ -217,7 +217,7 @@ Key parameters in the tool:
 - `COM` / `BAUD`: serial port and baud rate.
 - `START`: start flashing.
 
-For this project (PlatformIO `lolin_c3_mini` / ESP32-C3), I use these offsets in `Download Path Config`:
+For this project (PlatformIO `lolin_c3_mini` / ESP32), I use these offsets in `Download Path Config`:
 - `bootloader.bin` at `0x1000`
 - `partitions.bin` at `0x8000`
 - `firmware.bin` (factory app) at `0x10000`
@@ -354,8 +354,8 @@ When `FORCE_HARDCODED_UART` is **not** defined in build flags:
 - **Status Message**: "Loaded from device"
 - **Workflow**:
   1. Enter values:
-     - RX Pin (ESP32 RX, connects to GNSS TX): `0-21` (ESP32-C3)
-     - TX Pin (ESP32 TX, connects to GNSS RX): `0-21` (ESP32-C3)
+     - RX Pin (ESP32 RX, connects to GNSS TX): `0-21` (ESP32)
+     - TX Pin (ESP32 TX, connects to GNSS RX): `0-21` (ESP32)
      - Baud Rate: `1200-2000000`
   2. Click "Save UART Config"
   3. Config persists to `/gnss.json` in LittleFS
@@ -396,7 +396,7 @@ When `FORCE_HARDCODED_UART=1` is defined in build flags:
 
 | Parameter | Unconfigured | Valid Range | Notes |
 |-----------|-------------|-------------|-------|
-| `rx_pin` | `-1` | `0-21` | ESP32-C3 GPIO range |
+| `rx_pin` | `-1` | `0-21` | ESP32 GPIO range |
 | `tx_pin` | `-1` | `0-21` | Must differ from rx_pin |
 | `baud` | `0` | `1200-2000000` | Common: 9600, 115200 |
 
@@ -464,7 +464,7 @@ build_flags =
 ### Troubleshooting
 
 #### Problem: Device won't boot / resets continuously
-**Cause:** UART pins causing hardware hang (ESP32-C3 known issue with certain pins)
+**Cause:** UART pins causing hardware hang (ESP32 known issue with certain pins)
 
 **Solution 1 - Factory Reset:**
 1. Erase flash: `pio run -t erase`
@@ -535,7 +535,7 @@ pio run -t upload
 - Web UI styling (readonly inputs): `web/style.css` (lines 119-124)
 
 ## UART, BLE, and Buffer Flow
-The ESP32-C3 firmware acts as a transparent byte-stream bridge between the GNSS UART and a BLE client (phone/tablet). It uses the Nordic UART Service (NUS) for BLE and FreeRTOS StreamBuffers as ring buffers to decouple producer/consumer timing.
+The ESP32 firmware acts as a transparent byte-stream bridge between the GNSS UART and a BLE client (phone/tablet). It uses the Nordic UART Service (NUS) for BLE and FreeRTOS StreamBuffers as ring buffers to decouple producer/consumer timing.
 
 ### Data Transit Flow Graph
 ```mermaid
