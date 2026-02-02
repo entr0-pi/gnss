@@ -1,6 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext, filedialog
-import sv_ttk
+from tkinter import ttk, messagebox, filedialog
 import subprocess
 import csv
 import os
@@ -28,7 +27,7 @@ class CrossPlatformFlasher:
     def __init__(self, root):
         self.root = root
         self.root.title("ESP32 LittleFS Studio")
-        self.root.geometry("850x820")
+        self.root.geometry("850x560")
 
         # --- Cross-Platform Path Detection ---
         bundle_dir, app_dir = get_base_dirs()
@@ -42,7 +41,11 @@ class CrossPlatformFlasher:
         self.MKLITTLEFS_PATH = os.path.join(bundle_dir, "mklittlefs", binary_name)
 
         self.setup_ui()
+        import sv_ttk
         sv_ttk.set_theme("dark")
+        self._apply_dark_titlebar()
+        theme_bg = ttk.Style().lookup("TFrame", "background") or self.root.cget("bg")
+        self.status_dot.configure(bg=theme_bg)
 
         self.load_config()
         self.refresh_status()
@@ -50,13 +53,16 @@ class CrossPlatformFlasher:
     def setup_ui(self):
         self.tabs = ttk.Notebook(self.root)
         self.flash_tab = ttk.Frame(self.tabs)
+        self.terminal_tab = ttk.Frame(self.tabs)
         self.help_tab = ttk.Frame(self.tabs)
-        
+
         self.tabs.add(self.flash_tab, text="  Flash Operations  ")
+        self.tabs.add(self.terminal_tab, text="  Terminal Output  ")
         self.tabs.add(self.help_tab, text="  System Setup  ")
         self.tabs.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         self._build_flash_tab()
+        self._build_terminal_tab()
         self._build_help_tab()
 
     def _build_flash_tab(self):
@@ -97,6 +103,17 @@ class CrossPlatformFlasher:
         status_frame = ttk.LabelFrame(container, text="Environment Status", padding=10)
         status_frame.pack(fill=tk.X, pady=(20, 0))
 
+        # Overall status dot
+        overall_frame = ttk.Frame(status_frame)
+        overall_frame.pack(anchor=tk.W, pady=(0, 8))
+
+        self.status_dot = tk.Canvas(overall_frame, width=14, height=14, highlightthickness=0, borderwidth=0)
+        self.status_dot.pack(side=tk.LEFT, padx=(0, 6))
+        self.status_dot_id = self.status_dot.create_oval(2, 2, 12, 12, fill="#e05555", outline="")
+
+        self.overall_status_label = ttk.Label(overall_frame, text="Not Ready", font=("Segoe UI", 10, "bold"))
+        self.overall_status_label.pack(side=tk.LEFT)
+
         self.mklittlefs_status = ttk.Label(status_frame, font=("Segoe UI", 10))
         self.mklittlefs_status.pack(anchor=tk.W)
 
@@ -109,23 +126,29 @@ class CrossPlatformFlasher:
         self.csv_status = ttk.Label(status_frame, font=("Segoe UI", 10))
         self.csv_status.pack(anchor=tk.W, pady=(4, 0))
 
-        ttk.Button(status_frame, text="Refresh", command=self.refresh_status).pack(anchor=tk.E, pady=(4, 0))
+        ttk.Button(status_frame, text="Refresh", command=self.refresh_status).place(relx=1.0, y=0, anchor=tk.NE)
 
-        # Console
-        ttk.Label(container, text="Terminal Output", font=("Segoe UI", 10, "bold")).pack(anchor=tk.W, pady=(30, 5))
-        self.log_area = scrolledtext.ScrolledText(container, height=12, background="#1e1e1e", foreground="#ffffff", borderwidth=0, font=("Consolas", 10), padx=10, pady=10)
-        self.log_area.pack(fill=tk.BOTH, expand=True)
+        # Action Buttons
+        btn_frame = ttk.Frame(container)
+        btn_frame.pack(fill=tk.X, pady=(20, 0))
 
-        # Action Button
-        footer = ttk.Frame(container, padding=(0, 20, 0, 0))
-        footer.pack(fill=tk.X)
-        self.run_btn = tk.Button(footer, text="  Build & Flash  ", command=self.start_process_thread,
+        ttk.Button(btn_frame, text="Show Terminal", command=self._switch_to_terminal).pack(side=tk.LEFT)
+
+        self.run_btn = tk.Button(btn_frame, text="  Build & Flash  ", command=self.start_process_thread,
                                   bg="#e05555", fg="#ffffff", activebackground="#c04040", activeforeground="#ffffff",
                                   font=("Segoe UI", 11, "bold"), relief=tk.FLAT, cursor="hand2",
                                   disabledforeground="#888888")
         self.run_btn.pack(side=tk.RIGHT)
 
         self.refresh_status()
+
+    def _build_terminal_tab(self):
+        container = ttk.Frame(self.terminal_tab, padding=20)
+        container.pack(fill=tk.BOTH, expand=True)
+
+        self.log_area = tk.Text(container, background="#1e1e1e", foreground="#ffffff",
+                                borderwidth=0, font=("Consolas", 10), padx=10, pady=10, wrap=tk.WORD)
+        self.log_area.pack(fill=tk.BOTH, expand=True)
 
     def _build_help_tab(self):
         container = ttk.Frame(self.help_tab)
@@ -207,6 +230,64 @@ class CrossPlatformFlasher:
             ttk.Label(step_frame, text=body, font=("Consolas", 10), justify=tk.LEFT).pack(anchor=tk.W)
 
     # --- Logic ---
+    def _show_dialog(self, title, message, color):
+        dlg = tk.Toplevel(self.root)
+        dlg.title(title)
+        dlg.resizable(False, False)
+        dlg.grab_set()
+
+        frame = ttk.Frame(dlg, padding=30)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(frame, text=title, font=("Segoe UI", 13, "bold"),
+                  foreground=color).pack(anchor=tk.W)
+        ttk.Label(frame, text=message, font=("Segoe UI", 10),
+                  wraplength=380, justify=tk.LEFT).pack(anchor=tk.W, pady=(12, 20))
+        ttk.Button(frame, text="OK", style="Accent.TButton",
+                   command=dlg.destroy).pack(anchor=tk.E)
+
+        dlg.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() - dlg.winfo_width()) // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - dlg.winfo_height()) // 2
+        dlg.geometry(f"+{x}+{y}")
+
+        if platform.system() == "Windows":
+            try:
+                import ctypes
+                hwnd = ctypes.windll.user32.GetParent(dlg.winfo_id())
+                value = ctypes.c_int(1)
+                for attr in (20, 19):
+                    if ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                        hwnd, attr, ctypes.byref(value), ctypes.sizeof(value)
+                    ) == 0:
+                        break
+            except Exception:
+                pass
+
+        dlg.wait_window()
+
+    def _apply_dark_titlebar(self):
+        if platform.system() != "Windows":
+            return
+        try:
+            import ctypes
+            self.root.update()
+            hwnd = ctypes.windll.user32.GetParent(self.root.winfo_id())
+            value = ctypes.c_int(1)
+            # Attribute 20 for Windows 11+, fall back to 19 for Windows 10
+            for attr in (20, 19):
+                if ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    hwnd, attr, ctypes.byref(value), ctypes.sizeof(value)
+                ) == 0:
+                    break
+            self.root.withdraw()
+            self.root.deiconify()
+        except Exception:
+            pass
+
+    def _switch_to_terminal(self):
+        self.tabs.select(self.terminal_tab)
+
     def refresh_status(self):
         ready = True
 
@@ -241,7 +322,17 @@ class CrossPlatformFlasher:
             self.csv_status.config(text="Partitions CSV: Not selected" if not csv_path else "Partitions CSV: File not found", foreground="#e05555")
             ready = False
 
-        self.run_btn.config(state=tk.NORMAL if ready else tk.DISABLED)
+        # Update overall status dot
+        color = "#4ec969" if ready else "#e05555"
+        self.status_dot.itemconfig(self.status_dot_id, fill=color)
+        self.overall_status_label.config(text="Ready" if ready else "Not Ready", foreground=color)
+
+        if ready:
+            self.run_btn.pack(side=tk.RIGHT)
+        else:
+            self.run_btn.pack_forget()
+
+        return ready
 
     def log(self, message):
         self.log_area.configure(state='normal')
@@ -276,12 +367,11 @@ class CrossPlatformFlasher:
         raise ValueError("Could not find 'spiffs' partition in CSV.")
 
     def run_process(self):
-        self.run_btn.config(state=tk.DISABLED)
-        self.refresh_status()
-        if str(self.run_btn.cget("state")) == "disabled":
+        self.root.after(0, self._switch_to_terminal)
+        self.run_btn.pack_forget()
+        if not self.refresh_status():
             self.log("[ERROR] Environment check failed. See status above.")
             return
-        self.run_btn.config(state=tk.DISABLED)
         self.save_config()
         try:
             csv_path = self.csv_path_var.get()
@@ -303,18 +393,40 @@ class CrossPlatformFlasher:
             result = subprocess.run(flash_cmd, check=True, capture_output=True, text=True)
             self.log(result.stdout)
             self.log(">>> SUCCESS!")
-            messagebox.showinfo("Success", "Filesystem flashed successfully!")
+            self.root.after(0, lambda: self._show_dialog("Success", "Filesystem flashed successfully!", "#4ec969"))
         except Exception as e:
             self.log(f"\n[ERROR] {str(e)}")
-            messagebox.showerror("Error", str(e))
+            self.root.after(0, lambda msg=str(e): self._show_dialog("Error", msg, "#e05555"))
         finally:
             if os.path.exists(self.IMAGE_NAME): os.remove(self.IMAGE_NAME)
-            self.run_btn.config(state=tk.NORMAL)
+            self.refresh_status()
 
     def start_process_thread(self):
         threading.Thread(target=self.run_process, daemon=True).start()
 
+def check_dependencies():
+    missing = []
+    for module, pip_name in [("sv_ttk", "sv-ttk"), ("esptool", "esptool")]:
+        try:
+            __import__(module)
+        except ImportError:
+            missing.append(pip_name)
+    if missing:
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showerror(
+            "Missing Dependencies",
+            f"The following Python packages are not installed:\n\n"
+            f"    {', '.join(missing)}\n\n"
+            f"Install them with:\n\n"
+            f"    pip install {' '.join(missing)}"
+        )
+        root.destroy()
+        sys.exit(1)
+
+
 if __name__ == "__main__":
+    check_dependencies()
     root = tk.Tk()
     app = CrossPlatformFlasher(root)
     root.mainloop()
