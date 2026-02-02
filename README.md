@@ -632,8 +632,8 @@ The firmware uses FreeRTOS StreamBuffers (ring buffers) to handle bursty traffic
 
 <p align="center">
   <img src="assets/IMG_2696.PNG" alt="Dashboard" width="200">
-  <img src="assets/IMG_2709.PNG" alt="Dashboard" width="100">
   <img src="assets/IMG_2697.PNG" alt="Dashboard" width="100">
+  <img src="assets/IMG_2709.PNG" alt="Dashboard" width="100">\
   <img src="assets/IMG_2702.PNG" alt="Dashboard" width="100">
   <img src="assets/IMG_2699.PNG" alt="Dashboard" width="100">
   <img src="assets/IMG_2700.PNG" alt="Dashboard" width="100">
