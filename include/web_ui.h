@@ -14,6 +14,13 @@ class WebServer;
 
 void webui_begin(WebServer& server, const IPAddress& sta_dns);
 
+// Last known internet reachability from /api/status probes.
+#if WEBUI_ENABLE
+bool webui_get_internet_reachable();
+#else
+inline bool webui_get_internet_reachable() { return false; }
+#endif
+
 // ---- BLE snapshot interface (implemented in main.cpp) ----
 struct WebuiBleSnapshot {
   bool     connected;
@@ -88,4 +95,3 @@ bool webui_get_tcp_snapshot(WebuiTcpSnapshot& out);
 #if NMEA_ENABLE
 bool webui_get_gps_snapshot(WebuiGpsSnapshot& out);
 #endif
-

@@ -15,6 +15,10 @@
 #define TCP_ENABLE 0
 #endif
 
+#ifndef NTRIP_CLIENT_ENABLE
+#define NTRIP_CLIENT_ENABLE 0
+#endif
+
 #ifndef BLE_ENABLE
 #define BLE_ENABLE 0
 #endif
@@ -24,7 +28,7 @@
 #endif
 
 #ifndef WIFI_ENABLE
-#define WIFI_ENABLE (WEBUI_ENABLE || TCP_ENABLE)
+#define WIFI_ENABLE (WEBUI_ENABLE || TCP_ENABLE || NTRIP_CLIENT_ENABLE)
 #endif
 
 #ifndef FORCE_WIFI_SECRETS
@@ -37,6 +41,11 @@
   #warning "NMEA_ENABLE forced to 0 because WEBUI_ENABLE=0"
   #undef  NMEA_ENABLE
   #define NMEA_ENABLE 0
+#endif
+
+// NTRIP depends on WiFi + Web UI (for internet reachability checks).
+#if NTRIP_CLIENT_ENABLE != 0 && WEBUI_ENABLE == 0
+  #error "NTRIP_CLIENT_ENABLE requires WEBUI_ENABLE=1"
 #endif
 
 #if WIFI_ENABLE && FORCE_WIFI_SECRETS
@@ -158,6 +167,12 @@ static const size_t SB_UART_TO_TCP_SIZE = 2048;
 // SB_TCP_TO_UART_SIZE:
 //   Buffer for TCP -> GNSS stream (RTCM bursts can be large and spiky).
 static const size_t SB_TCP_TO_UART_SIZE = 4096;
+#endif
+
+#if NTRIP_CLIENT_ENABLE
+// SB_NTRIP_TO_UART_SIZE:
+//   Buffer for NTRIP corrections -> GNSS UART stream.
+static const size_t SB_NTRIP_TO_UART_SIZE = 4096;
 #endif
 
 // StreamBuffer trigger level:
