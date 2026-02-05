@@ -15,6 +15,10 @@
 #define TCP_ENABLE 0
 #endif
 
+#ifndef BLE_ENABLE
+#define BLE_ENABLE 0
+#endif
+
 #ifndef TCP_PORT
 #define TCP_PORT 5000
 #endif

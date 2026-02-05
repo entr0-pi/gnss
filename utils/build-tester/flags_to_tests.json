@@ -1,6 +1,6 @@
 {
   "test_flags": [
-    {"id": 0, "name": "Current Full Config", "flags": ["-DBLE_DEVICE_NAME=\\\"MyGNSS\\\"", "-DWEBUI_ENABLE=1", "-DNMEA_ENABLE=1", "-DTCP_ENABLE=1", "-DTCP_PORT=52148"]},
+    {"id": 0, "name": "Current Full Config", "flags": ["-DBLE_ENABLE=1", "-DBLE_DEVICE_NAME=\\\"MyGNSS\\\"", "-DWEBUI_ENABLE=1", "-DNMEA_ENABLE=1", "-DTCP_ENABLE=1", "-DTCP_PORT=52148"]},
     {"id": 1, "name": "Web UI Only", "flags": ["-DWEBUI_ENABLE=1"]},
     {"id": 2, "name": "TCP Only", "flags": ["-DTCP_ENABLE=1"]},
     {"id": 3, "name": "Web UI + TCP + NMEA", "flags": ["-DWEBUI_ENABLE=1", "-DTCP_ENABLE=1", "-DNMEA_ENABLE=1"]},
@@ -15,7 +15,12 @@
     {"id": 12, "name": "Web UI + TCP + Custom Port", "flags": ["-DWEBUI_ENABLE=1", "-DTCP_ENABLE=1", "-DTCP_PORT=52148"]},
     {"id": 13, "name": "Web UI + TCP + Larger MTU", "flags": ["-DWEBUI_ENABLE=1", "-DTCP_ENABLE=1", "-DBLE_MTU_CFG=185"]},
     {"id": 14, "name": "Web UI + TCP + High GNSS Rate", "flags": ["-DWEBUI_ENABLE=1", "-DTCP_ENABLE=1", "-DGNSS_HZ_CFG=10"]},
-    {"id": 15, "name": "Web UI + TCP + Hardcoded UART", "flags": ["-DWEBUI_ENABLE=1", "-DTCP_ENABLE=1", "-DFORCE_HARDCODED_UART=1", "-DHARD_RX_PIN=20", "-DHARD_TX_PIN=21", "-DHARD_BAUD=115200"]}
+    {"id": 15, "name": "Web UI + TCP + Hardcoded UART", "flags": ["-DWEBUI_ENABLE=1", "-DTCP_ENABLE=1", "-DFORCE_HARDCODED_UART=1", "-DHARD_RX_PIN=20", "-DHARD_TX_PIN=21", "-DHARD_BAUD=115200"]},
+    {"id": 16, "name": "BLE Disabled (Explicit)", "flags": ["-DBLE_ENABLE=0"]},
+    {"id": 17, "name": "BLE Enabled (Default)", "flags": ["-DBLE_ENABLE=1"]},
+    {"id": 18, "name": "BLE + Web UI", "flags": ["-DBLE_ENABLE=1", "-DWEBUI_ENABLE=1"]},
+    {"id": 19, "name": "BLE + TCP", "flags": ["-DBLE_ENABLE=1", "-DTCP_ENABLE=1"]},
+    {"id": 20, "name": "BLE + Web UI + TCP", "flags": ["-DBLE_ENABLE=1", "-DWEBUI_ENABLE=1", "-DTCP_ENABLE=1"]}
   ],
   "env": "lolin_c3_mini"
 }

@@ -118,6 +118,7 @@ build_flags =
 | `BLE_DEVICE_NAME` | `GNSS-BLE` | BLE advertising name |
 | `BLE_MTU_CFG` | `23` | Requested BLE MTU |
 | `GNSS_HZ_CFG` | `1` | GNSS output rate (Hz) |
+| `BLE_ENABLE` | `0` | Enable BLE (NimBLE/NUS) support |
 | `FORCE_WIFI_SECRETS` | `0` | Force WiFi credentials from `include/secrets.h` (skip `/wifi.json`) |
 | `FORCE_HARDCODED_UART` | `0` | Lock UART config to compile-time pins/baud (skip `/gnss.json`) |
 | `HARD_RX_PIN` | none | Required when `FORCE_HARDCODED_UART=1` |
@@ -190,6 +191,7 @@ See below for detailed architecture, UART configuration system, BLE/TCP flow, pr
 - `BLE_DEVICE_NAME` (default `"GNSS-BLE"`): BLE advertising name override.
 - `BLE_MTU_CFG` (default `23`): requested BLE MTU; if negotiated MTU is valid (>=23) it is used at runtime, otherwise this value is the fallback; used to derive max notify payload.
 - `GNSS_HZ_CFG` (default `1`): GNSS output rate (Hz) used for low-rate throttling.
+- `BLE_ENABLE` (default `0`): enable BLE (NimBLE/NUS) support.
 - `FORCE_WIFI_SECRETS` (default `0`): force WiFi credentials from `include/secrets.h` and skip `/wifi.json`.
 - `FORCE_HARDCODED_UART` (default `0`): lock UART config to compile-time pins/baud (requires `HARD_RX_PIN`, `HARD_TX_PIN`, `HARD_BAUD`).
 - Full parameter list: see `include/README.md` and `include/app.h`.

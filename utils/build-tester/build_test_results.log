@@ -20,3 +20,29 @@
 2026-02-04 20:27:03 - INFO - Running tests sequentially...
 2026-02-04 20:29:04 - INFO - [1/1] PASS: #0 Current Full Config
 2026-02-04 20:29:04 - INFO - Summary: 1/1 tests passed.
+2026-02-04 21:28:49 - INFO - Running 1 build tests for lolin_c3_mini.
+2026-02-04 21:28:51 - INFO - Running tests sequentially...
+2026-02-04 21:29:19 - ERROR - [1/1] FAIL: #19 BLE + TCP
+Error:
+src/main.cpp:551:2: error: #endif without #if
+ #endif
+  ^~~~~
+src/main.cpp:938:2: error: #endif without #if
+ #endif
+  ^~~~~
+*** [.pio\build\lolin_c3_mini\src\main.cpp.o] Error 1
+========================= [FAILED] Took 27.73 seconds =========================
+
+2026-02-04 21:29:19 - WARNING - Some tests failed. Check for:
+- Memory overflow (reduce binary size with -Os or -flto)
+- Cache issues (add -mfix-esp32-c3-icache-issue)
+- Missing dependencies or undefined macros
+2026-02-04 21:29:19 - INFO - Summary: 0/1 tests passed.
+2026-02-04 21:30:45 - INFO - Running 1 build tests for lolin_c3_mini.
+2026-02-04 21:30:46 - INFO - Running tests sequentially...
+2026-02-04 21:32:45 - INFO - [1/1] PASS: #19 BLE + TCP
+2026-02-04 21:32:45 - INFO - Summary: 1/1 tests passed.
+2026-02-04 21:33:06 - INFO - Running 1 build tests for lolin_c3_mini.
+2026-02-04 21:33:08 - INFO - Running tests sequentially...
+2026-02-04 21:35:09 - INFO - [1/1] PASS: #0 Current Full Config
+2026-02-04 21:35:09 - INFO - Summary: 1/1 tests passed.

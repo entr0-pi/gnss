@@ -189,7 +189,7 @@ class CrossPlatformFlasher:
                 "Step 3 — Populate the data/ Folder",
                 "Place all the files you want on the ESP32 filesystem\n"
                 "into the data/ folder next to this app.\n\n"
-                "Common files: wifi.json, gnss.json, web assets, etc.\n\n"
+                "Common files: wifi.json, gnss.json, ntrip_config.json, web assets, etc.\n\n"
                 "The Environment Status panel on the Flash tab shows\n"
                 "which files are currently detected."
             ),

@@ -24,7 +24,9 @@
 
 // ---- BLE ----
 // NimBLE-Arduino implements BLE peripheral/server, characteristics, notifications, callbacks, etc.
+#if BLE_ENABLE
 #include <NimBLEDevice.h>
+#endif
 
 // ---- (WiFi + WebServer) ----
 // WiFi STA mode connects to an existing hotspot/router and hosts a small status web server.
@@ -65,6 +67,7 @@
 WebServer server(80);
 #endif
 
+#if BLE_ENABLE
 // ---------------- BLE (NUS UUIDs) ----------------
 // Nordic UART Service (NUS) UUIDs:
 // - Service UUID
@@ -84,7 +87,9 @@ static NimBLECharacteristic* g_txChar    = nullptr;
 // g_notifyEn:  true when the central enabled notifications on the TX characteristic.
 static bool                  g_connected = false;
 static bool                  g_notifyEn  = false;
+#endif
 
+#if BLE_ENABLE
 // StreamBuffers (static allocation)
 // Using xStreamBufferCreateStatic() avoids dynamic allocations and fragmentation.
 // - g_sb_uart2ble: bytes from GNSS UART RX -> BLE notify task
@@ -95,6 +100,7 @@ static uint8_t               g_sb_uart2ble_storage[SB_UART_TO_BLE_SIZE];
 static uint8_t               g_sb_ble2uart_storage[SB_BLE_TO_UART_SIZE];
 static StreamBufferHandle_t  g_sb_uart2ble = nullptr;
 static StreamBufferHandle_t  g_sb_ble2uart = nullptr;
+#endif
 
 #if TCP_ENABLE
 // StreamBuffers for TCP (static allocation).
@@ -111,6 +117,7 @@ static StreamBufferHandle_t  g_sb_tcp2uart = nullptr;
 static WiFiServer g_tcpServer(TCP_PORT);
 static WiFiClient g_tcpClient;
 #endif
+#if BLE_ENABLE
 // ========================= BLE STATUS (BLOCK) =========================
 // Small status accumulator used by the web UI snapshots.
 //
@@ -136,6 +143,7 @@ struct BleStatus {
 static BleStatus g_bleStatus;
 static uint16_t g_ble_mtu = BLE_MTU;
 // ======================= END BLE STATUS (BLOCK) =======================
+#endif
 
 #if TCP_ENABLE
 // ========================= TCP STATUS (BLOCK) =========================
@@ -163,6 +171,7 @@ static TcpStatus g_tcpStatus;
 //
 // Important: This function reads the current global state and copies it into `out`.
 bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
+#if BLE_ENABLE
   out.connected     = g_bleStatus.connected;
   out.mtu           = g_bleStatus.mtu;
 
@@ -174,6 +183,10 @@ bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
   out.ble2uartDrops = g_bleStatus.ble2uartDrops;
 
   return true;
+#else
+  (void)out;
+  return false;
+#endif
 }
 #endif
 
@@ -234,6 +247,7 @@ bool webui_get_gps_snapshot(WebuiGpsSnapshot& out) {
 }
 #endif
 
+#if BLE_ENABLE
 // ---------------- BLE Callbacks ----------------
 // NimBLE calls these on BLE events (connect/disconnect/subscribe/write).
 //
@@ -328,6 +342,7 @@ class RxCallbacks : public NimBLECharacteristicCallbacks {
     }
   }
 };
+#endif
 
 // ----------- FUNCTIONS DECLARATIONS -----------
 // Declared here so setup() can call them before their definitions below.
@@ -336,7 +351,9 @@ class RxCallbacks : public NimBLECharacteristicCallbacks {
 static void initSerialAndConfig();
 static void createStreamBuffers();
 static void setupUartIfConfigured();
+#if BLE_ENABLE
 static void startBleServer();
+#endif
 #if WEBUI_ENABLE
 static void initWebUiRoutes();
 #endif
@@ -362,7 +379,9 @@ static void handleWebUi();
 static void yieldToTasks();
 
 // Core setup functions
+#if BLE_ENABLE
 static void setupBLE();
+#endif
 static void setupUART();
 #if WIFI_ENABLE
 static void setupWiFi();
@@ -370,7 +389,9 @@ static void setupWiFi();
 
 // FreeRTOS task functions
 static void task_uart_rx(void* arg);
+#if BLE_ENABLE
 static void task_ble_tx(void* arg);
+#endif
 static void task_uart_tx(void* arg);
 #if TCP_ENABLE
 static void task_tcp_io(void* arg);
@@ -390,8 +411,10 @@ void setup() {
   // Configure UART for GNSS communication if pins/baud are set; skips if not configured.
   setupUartIfConfigured();
 
+  #if BLE_ENABLE
   // Initialize NimBLE stack, create NUS service, and start advertising.
   startBleServer();
+  #endif
 
   #if WEBUI_ENABLE
   // Register HTTP routes for the status web UI (before server starts).
@@ -465,6 +488,7 @@ static void initSerialAndConfig() {
 static void createStreamBuffers() {
   Serial.println("[SETUP] Creating stream buffers...");
 
+#if BLE_ENABLE
   g_sb_uart2ble = xStreamBufferCreateStatic(
       SB_UART_TO_BLE_SIZE, SB_TRIGGER_LEVEL,
       g_sb_uart2ble_storage, &g_sb_uart2ble_struct);
@@ -472,6 +496,7 @@ static void createStreamBuffers() {
   g_sb_ble2uart = xStreamBufferCreateStatic(
       SB_BLE_TO_UART_SIZE, SB_TRIGGER_LEVEL,
       g_sb_ble2uart_storage, &g_sb_ble2uart_struct);
+#endif
 
 #if TCP_ENABLE
   g_sb_uart2tcp = xStreamBufferCreateStatic(
@@ -483,11 +508,15 @@ static void createStreamBuffers() {
       g_sb_tcp2uart_storage, &g_sb_tcp2uart_struct);
 #endif
 
-  if (!g_sb_uart2ble || !g_sb_ble2uart
-#if TCP_ENABLE
-      || !g_sb_uart2tcp || !g_sb_tcp2uart
+  bool ok = true;
+#if BLE_ENABLE
+  ok = ok && g_sb_uart2ble && g_sb_ble2uart;
 #endif
-      ) {
+#if TCP_ENABLE
+  ok = ok && g_sb_uart2tcp && g_sb_tcp2uart;
+#endif
+
+  if (!ok) {
     Serial.println("[SETUP] ERROR: Stream buffer creation failed!");
     for (;;) vTaskDelay(pdMS_TO_TICKS(1000));
   }
@@ -515,10 +544,12 @@ static void setupUartIfConfigured() {
  * and starts BLE advertising. After this call, BLE centrals can discover
  * and connect to the device.
  */
+#if BLE_ENABLE
 static void startBleServer() {
   Serial.println("[SETUP] Starting BLE...");
   setupBLE();
 }
+#endif
 
 #if WEBUI_ENABLE
 /**
@@ -586,7 +617,9 @@ static void startWorkerTasks() {
   Serial.println("[SETUP] Creating tasks...");
   xTaskCreate(task_uart_rx, "uart_rx", 4096, nullptr, 3, nullptr);
   xTaskCreate(task_uart_tx, "uart_tx", 4096, nullptr, 3, nullptr);
+#if BLE_ENABLE
   xTaskCreate(task_ble_tx,  "ble_tx",  4096, nullptr, 2, nullptr);
+#endif
 #if TCP_ENABLE
   g_tcpServer.begin();
   g_tcpServer.setNoDelay(true);
@@ -715,6 +748,7 @@ static void setupWiFi() {
 #endif
 
 // ---------------- Setup BLE ----------------
+#if BLE_ENABLE
 static void setupBLE() {
   // Initialize NimBLE and set the device name used in advertising.
   NimBLEDevice::init(BLE_DEVICE_NAME);
@@ -756,6 +790,7 @@ static void setupBLE() {
   // Start advertising now.
   adv->start();
 }
+#endif
 
 // ---------------- Setup UART ----------------
 static void setupUART() {
@@ -813,6 +848,7 @@ static void task_uart_rx(void* arg) {
       nmea_feed_bytes(tmp, (size_t)n, millis());
       #endif
 
+#if BLE_ENABLE
       // Push bytes into UART->BLE buffer only when BLE is actively consuming.
       // This avoids counting "drops" when BLE is idle but TCP is receiving the stream.
       if (g_connected && g_notifyEn && g_sb_uart2ble) {
@@ -821,6 +857,7 @@ static void task_uart_rx(void* arg) {
           g_bleStatus.uart2bleDrops += (uint32_t)((size_t)n - sent);
         }
       }
+#endif
 
       #if TCP_ENABLE
       // Mirror the same stream to TCP.
@@ -835,6 +872,7 @@ static void task_uart_rx(void* arg) {
   }
 }
 
+#if BLE_ENABLE
 // BLE TX task:
 // Pulls bytes from UART->BLE buffer and sends them as BLE notifications when:
 // - a central is connected AND
@@ -899,6 +937,7 @@ static void task_ble_tx(void* arg) {
     }
   }
 }
+#endif
 
 // UART TX task:
 // Pulls bytes from BLE->UART buffer (typically RTCM corrections) and writes to GNSS (Serial1).
@@ -911,6 +950,7 @@ static void task_uart_tx(void* arg) {
   for (;;) {
     bool did_work = false;
 
+    #if BLE_ENABLE
     // Non-blocking read from BLE->UART buffer.
     size_t got = 0;
     if (g_sb_ble2uart) {
@@ -922,6 +962,7 @@ static void task_uart_tx(void* arg) {
       Serial1.write(tmp, got);
       did_work = true;
     }
+    #endif
 
     #if TCP_ENABLE
     // Non-blocking read from TCP->UART buffer.
