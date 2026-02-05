@@ -6,10 +6,15 @@ git); copy `include/secrets.example.h` to get started.
 ## Parameters in app.h
 
 Build flags (override in `platformio.ini`):
-- `WEBUI_ENABLE` (default `1`): enable WiFi/Web UI.
+- `WEBUI_ENABLE` (default `0`): enable WiFi/Web UI.
 - `NMEA_ENABLE` (default `0`): enable NMEA parsing.
-- `TCP_ENABLE` (default `1`): enable TCP mirror.
+- `TCP_ENABLE` (default `0`): enable TCP mirror.
 - `WIFI_ENABLE` (default `WEBUI_ENABLE || TCP_ENABLE`): enable WiFi STA (required for web UI or TCP).
+- `FORCE_WIFI_SECRETS` (default `0`): force WiFi credentials from `include/secrets.h` and skip `/wifi.json`.
+- `FORCE_HARDCODED_UART` (default `0`): lock UART config to compile-time pins/baud.
+- `HARD_RX_PIN` (required when `FORCE_HARDCODED_UART=1`).
+- `HARD_TX_PIN` (required when `FORCE_HARDCODED_UART=1`).
+- `HARD_BAUD` (required when `FORCE_HARDCODED_UART=1`).
 - `BLE_DEVICE_NAME` (default `"GNSS-BLE"`): BLE advertising name.
 - `BLE_MTU_CFG` (default `23`): requested BLE MTU.
 - `GNSS_HZ_CFG` (default `1`): GNSS output rate in Hz.

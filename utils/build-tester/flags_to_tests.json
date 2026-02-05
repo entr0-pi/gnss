@@ -1,0 +1,21 @@
+{
+  "test_flags": [
+    {"id": 0, "name": "Current Full Config", "flags": ["-DBLE_DEVICE_NAME=\\\"MyGNSS\\\"", "-DWEBUI_ENABLE=1", "-DNMEA_ENABLE=1", "-DTCP_ENABLE=1", "-DTCP_PORT=52148"]},
+    {"id": 1, "name": "Web UI Only", "flags": ["-DWEBUI_ENABLE=1"]},
+    {"id": 2, "name": "TCP Only", "flags": ["-DTCP_ENABLE=1"]},
+    {"id": 3, "name": "Web UI + TCP + NMEA", "flags": ["-DWEBUI_ENABLE=1", "-DTCP_ENABLE=1", "-DNMEA_ENABLE=1"]},
+    {"id": 4, "name": "Custom TCP Port", "flags": ["-DTCP_ENABLE=1", "-DTCP_PORT=52148"]},
+    {"id": 5, "name": "Custom BLE Name", "flags": ["-DBLE_DEVICE_NAME=\\\"MyGNSS\\\""]},
+    {"id": 6, "name": "Larger BLE MTU", "flags": ["-DBLE_MTU_CFG=185"]},
+    {"id": 7, "name": "Higher GNSS Rate", "flags": ["-DGNSS_HZ_CFG=10"]},
+    {"id": 8, "name": "Force WiFi Secrets (requires include/secrets.h)", "flags": ["-DFORCE_WIFI_SECRETS=1"]},
+    {"id": 9, "name": "Hardcoded UART (pins+baud)", "flags": ["-DFORCE_HARDCODED_UART=1", "-DHARD_RX_PIN=20", "-DHARD_TX_PIN=21", "-DHARD_BAUD=115200"]},
+    {"id": 10, "name": "Web UI + TCP (common)", "flags": ["-DWEBUI_ENABLE=1", "-DTCP_ENABLE=1"]},
+    {"id": 11, "name": "Web UI + NMEA (parser)", "flags": ["-DWEBUI_ENABLE=1", "-DNMEA_ENABLE=1"]},
+    {"id": 12, "name": "Web UI + TCP + Custom Port", "flags": ["-DWEBUI_ENABLE=1", "-DTCP_ENABLE=1", "-DTCP_PORT=52148"]},
+    {"id": 13, "name": "Web UI + TCP + Larger MTU", "flags": ["-DWEBUI_ENABLE=1", "-DTCP_ENABLE=1", "-DBLE_MTU_CFG=185"]},
+    {"id": 14, "name": "Web UI + TCP + High GNSS Rate", "flags": ["-DWEBUI_ENABLE=1", "-DTCP_ENABLE=1", "-DGNSS_HZ_CFG=10"]},
+    {"id": 15, "name": "Web UI + TCP + Hardcoded UART", "flags": ["-DWEBUI_ENABLE=1", "-DTCP_ENABLE=1", "-DFORCE_HARDCODED_UART=1", "-DHARD_RX_PIN=20", "-DHARD_TX_PIN=21", "-DHARD_BAUD=115200"]}
+  ],
+  "env": "lolin_c3_mini"
+}

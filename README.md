@@ -118,6 +118,11 @@ build_flags =
 | `BLE_DEVICE_NAME` | `GNSS-BLE` | BLE advertising name |
 | `BLE_MTU_CFG` | `23` | Requested BLE MTU |
 | `GNSS_HZ_CFG` | `1` | GNSS output rate (Hz) |
+| `FORCE_WIFI_SECRETS` | `0` | Force WiFi credentials from `include/secrets.h` (skip `/wifi.json`) |
+| `FORCE_HARDCODED_UART` | `0` | Lock UART config to compile-time pins/baud (skip `/gnss.json`) |
+| `HARD_RX_PIN` | none | Required when `FORCE_HARDCODED_UART=1` |
+| `HARD_TX_PIN` | none | Required when `FORCE_HARDCODED_UART=1` |
+| `HARD_BAUD` | none | Required when `FORCE_HARDCODED_UART=1` |
 
 Full list: see `include/README.md` and `include/app.h`.
 
@@ -178,13 +183,15 @@ See below for detailed architecture, UART configuration system, BLE/TCP flow, pr
 ## Build and Configuration
 ### Build Flags
 - `WEBUI_ENABLE` (default `0`): enables WiFi/WebServer status UI. When `0`, web UI code is excluded and `scripts/gzip_web.py` does not run.
-- `NMEA_ENABLE` (default `0` unless set in an env): enables the optional NMEA parser. When `0`, bytes still stream over BLE but no parsing occurs. To get the full WebUI, uour GNSS needs to send at minimum: GGA, GSV, GSA, GST and RMC.
+- `NMEA_ENABLE` (default `0`): enables the optional NMEA parser. When `WEBUI_ENABLE=0`, NMEA is forced off at build time. To get the full WebUI, your GNSS needs to send at minimum: GGA, GSV, GSA, GST and RMC.
 - `TCP_ENABLE` (default `0`): enables the TCP server that mirrors the BLE stream.
 - `WIFI_ENABLE` (default `WEBUI_ENABLE || TCP_ENABLE`): enables WiFi STA (required for web UI or TCP).
 - `TCP_PORT` (default `5000`): TCP port for the single-client server.
 - `BLE_DEVICE_NAME` (default `"GNSS-BLE"`): BLE advertising name override.
 - `BLE_MTU_CFG` (default `23`): requested BLE MTU; if negotiated MTU is valid (>=23) it is used at runtime, otherwise this value is the fallback; used to derive max notify payload.
 - `GNSS_HZ_CFG` (default `1`): GNSS output rate (Hz) used for low-rate throttling.
+- `FORCE_WIFI_SECRETS` (default `0`): force WiFi credentials from `include/secrets.h` and skip `/wifi.json`.
+- `FORCE_HARDCODED_UART` (default `0`): lock UART config to compile-time pins/baud (requires `HARD_RX_PIN`, `HARD_TX_PIN`, `HARD_BAUD`).
 - Full parameter list: see `include/README.md` and `include/app.h`.
 - WiFi credentials: configure via Web UI (saved to `/wifi.json`) or copy `include/secrets.example.h` to `include/secrets.h` (gitignored) and enable `FORCE_WIFI_SECRETS`.
 

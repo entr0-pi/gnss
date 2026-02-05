@@ -331,11 +331,44 @@ class RxCallbacks : public NimBLECharacteristicCallbacks {
 
 // ----------- FUNCTIONS DECLARATIONS -----------
 // Declared here so setup() can call them before their definitions below.
+
+// Setup helper functions (extracted for cleaner setup())
+static void initSerialAndConfig();
+static void createStreamBuffers();
+static void setupUartIfConfigured();
+static void startBleServer();
+#if WEBUI_ENABLE
+static void initWebUiRoutes();
+#endif
+#if WIFI_ENABLE
+static void connectWiFi();
+#endif
+#if WEBUI_ENABLE
+static void startWebServer();
+#endif
+#if NMEA_ENABLE
+static void initNmea();
+#endif
+static void startWorkerTasks();
+
+// Loop helper functions (extracted for cleaner loop())
+static void logLoopEntryOnce();
+#if WIFI_ENABLE
+static void maybeReconnectWiFi();
+#endif
+#if WEBUI_ENABLE
+static void handleWebUi();
+#endif
+static void yieldToTasks();
+
+// Core setup functions
 static void setupBLE();
 static void setupUART();
 #if WIFI_ENABLE
 static void setupWiFi();
 #endif
+
+// FreeRTOS task functions
 static void task_uart_rx(void* arg);
 static void task_ble_tx(void* arg);
 static void task_uart_tx(void* arg);
@@ -348,20 +381,90 @@ static void task_tcp_io(void* arg);
 // -------------------------------------------
 
 void setup() {
-  // Debug serial over USB.
+  // Initialize debug serial and load persisted GNSS configuration from LittleFS.
+  initSerialAndConfig();
+
+  // Allocate FreeRTOS StreamBuffers for inter-task byte streaming (UART<->BLE, UART<->TCP).
+  createStreamBuffers();
+
+  // Configure UART for GNSS communication if pins/baud are set; skips if not configured.
+  setupUartIfConfigured();
+
+  // Initialize NimBLE stack, create NUS service, and start advertising.
+  startBleServer();
+
+  #if WEBUI_ENABLE
+  // Register HTTP routes for the status web UI (before server starts).
+  initWebUiRoutes();
+  #endif
+
+  #if WIFI_ENABLE
+  // Connect to WiFi in STA mode using stored or default credentials.
+  connectWiFi();
+  #endif
+
+  #if WEBUI_ENABLE
+  // Start the HTTP server to serve the web UI.
+  startWebServer();
+  #endif
+
+  #if NMEA_ENABLE
+  // Initialize the optional NMEA sentence parser.
+  initNmea();
+  #endif
+
+  // Create FreeRTOS tasks for UART RX/TX, BLE TX, and optionally TCP I/O.
+  startWorkerTasks();
+}
+
+void loop() {
+  // Log a one-time banner on first iteration to indicate loop has started.
+  logLoopEntryOnce();
+
+  #if WIFI_ENABLE
+  // Attempt WiFi reconnection if disconnected (throttled to every 5 seconds).
+  maybeReconnectWiFi();
+  #endif
+
+  #if WEBUI_ENABLE
+  // Poll the HTTP server to process incoming web requests.
+  handleWebUi();
+  #endif
+
+  // Yield CPU time to other FreeRTOS tasks.
+  yieldToTasks();
+}
+
+// -------------------------------------------
+// ----------- SETUP HELPER FUNCTIONS --------
+// -------------------------------------------
+
+/**
+ * initSerialAndConfig()
+ * Initializes the debug serial port (USB CDC) and loads the persisted GNSS
+ * configuration from LittleFS. A short delay allows the USB CDC and RTOS
+ * scheduler to stabilize after boot.
+ */
+static void initSerialAndConfig() {
   Serial.begin(SERIAL_BAUD);
-
-  // Give USB CDC + RTOS some time to settle (especially right after boot).
   vTaskDelay(pdMS_TO_TICKS(200));
-
   Serial.println("[SETUP] Loading config...");
-  // Load persisted UART configuration (LittleFS) if available.
   gnss_config_begin();
+}
 
+/**
+ * createStreamBuffers()
+ * Allocates FreeRTOS StreamBuffers using static memory for inter-task
+ * communication. These lock-free byte FIFOs connect:
+ *   - UART RX -> BLE TX (g_sb_uart2ble)
+ *   - BLE RX -> UART TX (g_sb_ble2uart)
+ *   - UART RX -> TCP TX (g_sb_uart2tcp) [if TCP_ENABLE]
+ *   - TCP RX -> UART TX (g_sb_tcp2uart) [if TCP_ENABLE]
+ * Halts with an infinite loop if allocation fails.
+ */
+static void createStreamBuffers() {
   Serial.println("[SETUP] Creating stream buffers...");
-  // Create StreamBuffers using static storage (no heap allocation for the buffers).
-  // - UART->BLE buffer holds bytes read from Serial1 (GNSS output).
-  // - BLE->UART buffer holds bytes written by phone to BLE RX characteristic.
+
   g_sb_uart2ble = xStreamBufferCreateStatic(
       SB_UART_TO_BLE_SIZE, SB_TRIGGER_LEVEL,
       g_sb_uart2ble_storage, &g_sb_uart2ble_struct);
@@ -380,7 +483,6 @@ void setup() {
       g_sb_tcp2uart_storage, &g_sb_tcp2uart_struct);
 #endif
 
-  // If allocation fails, we cannot safely run. Halt here (infinite delay loop).
   if (!g_sb_uart2ble || !g_sb_ble2uart
 #if TCP_ENABLE
       || !g_sb_uart2tcp || !g_sb_tcp2uart
@@ -389,9 +491,15 @@ void setup() {
     Serial.println("[SETUP] ERROR: Stream buffer creation failed!");
     for (;;) vTaskDelay(pdMS_TO_TICKS(1000));
   }
+}
 
-  // CRITICAL: Initialize UART BEFORE WiFi/BLE to avoid ESP32-C3 hang issue
-  // Skip UART if not configured (-1/0)
+/**
+ * setupUartIfConfigured()
+ * Checks the persisted GNSS configuration for valid UART pins and baud rate.
+ * If configured, initializes Serial1 for GNSS communication.
+ * CRITICAL: Must be called BEFORE WiFi/BLE init to avoid ESP32-C3 hang issues.
+ */
+static void setupUartIfConfigured() {
   const GnssConfig& cfg = gnss_config_get();
   if (cfg.rx_pin == -1 || cfg.tx_pin == -1 || cfg.baud == 0) {
     Serial.println("[SETUP] UART not configured - configure via web UI");
@@ -399,42 +507,83 @@ void setup() {
     Serial.println("[SETUP] Setting up UART...");
     setupUART();
   }
+}
 
+/**
+ * startBleServer()
+ * Initializes the NimBLE stack, creates the Nordic UART Service (NUS),
+ * and starts BLE advertising. After this call, BLE centrals can discover
+ * and connect to the device.
+ */
+static void startBleServer() {
   Serial.println("[SETUP] Starting BLE...");
-  // Configure BLE server + characteristics + advertising.
   setupBLE();
+}
 
-  #if WEBUI_ENABLE
+#if WEBUI_ENABLE
+/**
+ * initWebUiRoutes()
+ * Registers HTTP routes and static assets for the status web UI.
+ * Must be called before startWebServer(). Routes are registered but
+ * the server does not accept connections until server.begin() is called.
+ */
+static void initWebUiRoutes() {
   Serial.println("[SETUP] Initializing WebUI...");
-  // Configure HTTP routes / static assets for the status UI.
-  // (Doing this before server.begin() is fine; it just registers handlers.)
   webui_begin(server, STA_DNS);
-  #endif
+}
+#endif
 
-  #if WIFI_ENABLE
+#if WIFI_ENABLE
+/**
+ * connectWiFi()
+ * Connects to WiFi in STA mode using credentials from LittleFS or
+ * compile-time defaults. Blocks for up to 10 seconds waiting for
+ * connection; if it fails, loop() will retry periodically.
+ */
+static void connectWiFi() {
   Serial.println("[SETUP] Connecting to WiFi...");
-  // Connect to WiFi (STA).
   setupWiFi();
   Serial.println("[SETUP] WiFi setup complete");
-  #endif
+}
+#endif
 
-  #if WEBUI_ENABLE
+#if WEBUI_ENABLE
+/**
+ * startWebServer()
+ * Starts the HTTP server listening on port 80. After this call,
+ * the web UI becomes accessible at the device's IP address.
+ */
+static void startWebServer() {
   Serial.println("[SETUP] Starting web server...");
-  // Start listening for HTTP requests.
   server.begin();
   Serial.println("[SETUP] Web server started");
-  #endif
+}
+#endif
 
-  // Initialize NMEA parser module (optional).
-  #if NMEA_ENABLE
+#if NMEA_ENABLE
+/**
+ * initNmea()
+ * Initializes the optional NMEA sentence parser module. When enabled,
+ * incoming GNSS bytes are parsed to extract position, time, and
+ * satellite information for the web UI.
+ */
+static void initNmea() {
   Serial.println("[SETUP] Initializing NMEA...");
   nmea_begin();
-  #endif
+}
+#endif
 
+/**
+ * startWorkerTasks()
+ * Creates FreeRTOS tasks for the main data processing loops:
+ *   - task_uart_rx: Reads GNSS bytes from Serial1, feeds NMEA parser, buffers for BLE/TCP
+ *   - task_uart_tx: Writes correction data (from BLE/TCP) to GNSS via Serial1
+ *   - task_ble_tx:  Sends buffered GNSS data to connected BLE central via notifications
+ *   - task_tcp_io:  Handles TCP client connections and bidirectional data (if TCP_ENABLE)
+ * UART tasks run at priority 3, BLE/TCP tasks at priority 2.
+ */
+static void startWorkerTasks() {
   Serial.println("[SETUP] Creating tasks...");
-  // Create worker tasks.
-  // We prioritize UART tasks slightly higher so RTCM bytes (from phone) can reach GNSS
-  // quickly even if BLE notify or HTTP are busy.
   xTaskCreate(task_uart_rx, "uart_rx", 4096, nullptr, 3, nullptr);
   xTaskCreate(task_uart_tx, "uart_tx", 4096, nullptr, 3, nullptr);
   xTaskCreate(task_ble_tx,  "ble_tx",  4096, nullptr, 2, nullptr);
@@ -446,14 +595,30 @@ void setup() {
   Serial.println("[SETUP] Setup complete!");
 }
 
-void loop() {
+// -------------------------------------------
+// ----------- LOOP HELPER FUNCTIONS ---------
+// -------------------------------------------
+
+/**
+ * logLoopEntryOnce()
+ * Prints a one-time banner to serial when the main loop first executes.
+ * Useful for confirming that setup() completed and loop() is running.
+ */
+static void logLoopEntryOnce() {
   static bool first_loop = true;
   if (first_loop) {
     Serial.println("[LOOP] Entered main loop");
     first_loop = false;
   }
+}
 
-  #if WIFI_ENABLE
+#if WIFI_ENABLE
+/**
+ * maybeReconnectWiFi()
+ * Checks WiFi connection status and attempts reconnection if disconnected.
+ * Throttled to one attempt every 5 seconds to avoid spamming the WiFi stack.
+ */
+static void maybeReconnectWiFi() {
   static unsigned long last_wifi_attempt = 0;
   if (WiFi.status() != WL_CONNECTED) {
     const unsigned long now = millis();
@@ -462,19 +627,31 @@ void loop() {
       last_wifi_attempt = now;
     }
   }
-  #endif
+}
+#endif
 
-  #if WEBUI_ENABLE
-  // WebServer is polled; it processes one client request per call.
+#if WEBUI_ENABLE
+/**
+ * handleWebUi()
+ * Polls the HTTP server to process one pending client request per call.
+ * Must be called frequently in loop() for responsive web UI.
+ */
+static void handleWebUi() {
   server.handleClient();
-  #endif
+}
+#endif
 
-  // Small delay yields CPU to other FreeRTOS tasks on ESP32 Arduino.
+/**
+ * yieldToTasks()
+ * Yields CPU time to other FreeRTOS tasks with a small delay.
+ * Prevents loop() from monopolizing the CPU on ESP32 Arduino.
+ */
+static void yieldToTasks() {
   delay(2);
 }
 
 // -------------------------------------------
-// ---------------- FUNCTIONS ----------------
+// ----------- CORE SETUP FUNCTIONS ----------
 // -------------------------------------------
 
 #if WIFI_ENABLE

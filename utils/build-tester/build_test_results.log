@@ -1,0 +1,22 @@
+2026-02-04 19:48:01 - INFO - Running 15 build tests for lolin_c3_mini.
+2026-02-04 19:48:03 - INFO - Running tests sequentially...
+2026-02-04 19:50:04 - INFO - [1/15] PASS: Web UI Only
+2026-02-04 19:52:09 - INFO - [2/15] PASS: TCP Only
+2026-02-04 19:54:14 - INFO - [3/15] PASS: Web UI + TCP + NMEA
+2026-02-04 19:56:38 - INFO - [4/15] PASS: Custom TCP Port
+2026-02-04 19:58:45 - INFO - [5/15] PASS: Custom BLE Name
+2026-02-04 20:01:00 - INFO - [6/15] PASS: Larger BLE MTU
+2026-02-04 20:03:13 - INFO - [7/15] PASS: Higher GNSS Rate
+2026-02-04 20:05:21 - INFO - [8/15] PASS: Force WiFi Secrets (requires include/secrets.h)
+2026-02-04 20:07:26 - INFO - [9/15] PASS: Hardcoded UART (pins+baud)
+2026-02-04 20:09:24 - INFO - [10/15] PASS: Web UI + TCP (common)
+2026-02-04 20:11:28 - INFO - [11/15] PASS: Web UI + NMEA (parser)
+2026-02-04 20:13:31 - INFO - [12/15] PASS: Web UI + TCP + Custom Port
+2026-02-04 20:15:42 - INFO - [13/15] PASS: Web UI + TCP + Larger MTU
+2026-02-04 20:17:50 - INFO - [14/15] PASS: Web UI + TCP + High GNSS Rate
+2026-02-04 20:19:54 - INFO - [15/15] PASS: Web UI + TCP + Hardcoded UART
+2026-02-04 20:19:54 - INFO - Summary: 15/15 tests passed.
+2026-02-04 20:27:02 - INFO - Running 1 build tests for lolin_c3_mini.
+2026-02-04 20:27:03 - INFO - Running tests sequentially...
+2026-02-04 20:29:04 - INFO - [1/1] PASS: #0 Current Full Config
+2026-02-04 20:29:04 - INFO - Summary: 1/1 tests passed.
