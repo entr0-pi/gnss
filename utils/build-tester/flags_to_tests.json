@@ -20,7 +20,8 @@
     {"id": 17, "name": "BLE Enabled (Default)", "flags": ["-DBLE_ENABLE=1"]},
     {"id": 18, "name": "BLE + Web UI", "flags": ["-DBLE_ENABLE=1", "-DWEBUI_ENABLE=1"]},
     {"id": 19, "name": "BLE + TCP", "flags": ["-DBLE_ENABLE=1", "-DTCP_ENABLE=1"]},
-    {"id": 20, "name": "BLE + Web UI + TCP", "flags": ["-DBLE_ENABLE=1", "-DWEBUI_ENABLE=1", "-DTCP_ENABLE=1"]}
+    {"id": 20, "name": "BLE + Web UI + TCP", "flags": ["-DBLE_ENABLE=1", "-DWEBUI_ENABLE=1", "-DTCP_ENABLE=1"]},
+    {"id": 21, "name": "Web UI + NTRIP", "flags": ["-DWEBUI_ENABLE=1", "-DNTRIP_CLIENT_ENABLE=1"]}
   ],
   "env": "lolin_c3_mini"
 }

@@ -151,6 +151,8 @@ public:
   void reconnect();
 
 private:
+  // Ensure mutexes are created before use.
+  bool ensureMutexes() const;
   // FreeRTOS task entry point.
   static void taskEntry(void* arg);
   // Main loop handling connect, stream validation, and health checks.
