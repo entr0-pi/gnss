@@ -28,5 +28,6 @@
     "failed_attempts": 0,
     "abandoned": false,
     "last_config_hash": ""
-    }
+    },
+    "locked": false
 }
