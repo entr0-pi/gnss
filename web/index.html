@@ -116,6 +116,68 @@
             </div>
           </div>
         </div>
+
+        <div class="cat">
+          <div class="catTitle">NTRIP</div>
+          <div class="catBody">
+            <div class="line">
+              <label class="lk" for="ntrip_enabled">Enabled</label>
+              <input id="ntrip_enabled" type="checkbox">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_host">Host</label>
+              <input class="input mono" id="ntrip_host" type="text" autocomplete="off" placeholder="rtk2go.com">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_port">Port</label>
+              <input class="input mono" id="ntrip_port" type="number" min="1" max="65535" step="1">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_mount">Mount</label>
+              <input class="input mono" id="ntrip_mount" type="text" autocomplete="off" placeholder="MOUNT">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_user">User</label>
+              <input class="input mono" id="ntrip_user" type="text" autocomplete="off">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_pass">Password</label>
+              <input class="input mono" id="ntrip_pass" type="password" autocomplete="off">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_max_tries">Max tries</label>
+              <input class="input mono" id="ntrip_max_tries" type="number" min="0" max="100" step="1">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_retry_delay_ms">Retry delay (ms)</label>
+              <input class="input mono" id="ntrip_retry_delay_ms" type="number" min="0" step="100">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_health_timeout_ms">Health timeout (ms)</label>
+              <input class="input mono" id="ntrip_health_timeout_ms" type="number" min="0" step="100">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_passive_sample_ms">Passive sample (ms)</label>
+              <input class="input mono" id="ntrip_passive_sample_ms" type="number" min="0" step="100">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_required_valid_frames">Valid frames</label>
+              <input class="input mono" id="ntrip_required_valid_frames" type="number" min="0" step="1">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_buffer_size">Buffer size</label>
+              <input class="input mono" id="ntrip_buffer_size" type="number" min="0" step="1">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_connect_timeout_ms">Connect timeout (ms)</label>
+              <input class="input mono" id="ntrip_connect_timeout_ms" type="number" min="0" step="100">
+            </div>
+            <div class="actions">
+              <button id="saveNtripConfigBtn" class="btn" type="button">Save NTRIP Config</button>
+              <div class="note" id="ntrip_cfg_note">—</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ===================== TAB 3: DEVICE ===================== -->

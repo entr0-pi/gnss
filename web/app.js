@@ -125,6 +125,13 @@ function setWifiConfigNote(message, ok = true) {
   note.style.color = ok ? "" : "#e74c3c";
 }
 
+function setNtripConfigNote(message, ok = true) {
+  const note = $("ntrip_cfg_note");
+  if (!note) return;
+  note.textContent = message;
+  note.style.color = ok ? "" : "#e74c3c";
+}
+
 function setWifiInputsEnabled(enabled) {
   const ids = ["wifi_ssid", "wifi_pass", "wifi_dhcp", "wifi_ip", "wifi_gw", "wifi_subnet", "wifi_dns"];
   ids.forEach((id) => {
@@ -217,6 +224,37 @@ async function loadWifiConfig(){
     }
   } catch (e) {
     setWifiConfigNote("Failed to load WiFi config", false);
+  }
+}
+
+async function loadNtripConfig(){
+  try {
+    const r = await fetch('/api/ntrip_config', { cache:'no-store' });
+    if (!r.ok) throw new Error("http " + r.status);
+    const cfg = await r.json();
+    const ntrip = cfg.ntrip ?? cfg;
+
+    if ($("ntrip_enabled")) $("ntrip_enabled").checked = !!ntrip.enabled;
+    if ($("ntrip_host")) $("ntrip_host").value = ntrip.host ?? "";
+    if ($("ntrip_port")) $("ntrip_port").value = ntrip.port ?? "";
+    if ($("ntrip_mount")) $("ntrip_mount").value = ntrip.mount ?? "";
+    if ($("ntrip_user")) $("ntrip_user").value = ntrip.user ?? "";
+    if ($("ntrip_pass")) $("ntrip_pass").value = ntrip.pass ?? "";
+    if ($("ntrip_max_tries")) $("ntrip_max_tries").value = ntrip.max_tries ?? "";
+    if ($("ntrip_retry_delay_ms")) $("ntrip_retry_delay_ms").value = ntrip.retry_delay_ms ?? "";
+    if ($("ntrip_health_timeout_ms")) $("ntrip_health_timeout_ms").value = ntrip.health_timeout_ms ?? "";
+    if ($("ntrip_passive_sample_ms")) $("ntrip_passive_sample_ms").value = ntrip.passive_sample_ms ?? "";
+    if ($("ntrip_required_valid_frames")) $("ntrip_required_valid_frames").value = ntrip.required_valid_frames ?? "";
+    if ($("ntrip_buffer_size")) $("ntrip_buffer_size").value = ntrip.buffer_size ?? "";
+    if ($("ntrip_connect_timeout_ms")) $("ntrip_connect_timeout_ms").value = ntrip.connect_timeout_ms ?? "";
+
+    if (cfg.error) {
+      setNtripConfigNote(cfg.error, false);
+    } else {
+      setNtripConfigNote("Loaded from device");
+    }
+  } catch (e) {
+    setNtripConfigNote("Failed to load NTRIP config", false);
   }
 }
 
@@ -400,6 +438,72 @@ if (saveWifiConfigBtn) {
   });
 }
 
+const saveNtripConfigBtn = $("saveNtripConfigBtn");
+if (saveNtripConfigBtn) {
+  saveNtripConfigBtn.addEventListener("click", async () => {
+    const enabled = !!$("ntrip_enabled")?.checked;
+    const host = $("ntrip_host")?.value?.trim() ?? "";
+    const port = Number.parseInt($("ntrip_port")?.value ?? "", 10);
+    const mount = $("ntrip_mount")?.value?.trim() ?? "";
+    const user = $("ntrip_user")?.value?.trim() ?? "";
+    const pass = $("ntrip_pass")?.value ?? "";
+    const maxTries = Number.parseInt($("ntrip_max_tries")?.value ?? "", 10);
+    const retryDelayMs = Number.parseInt($("ntrip_retry_delay_ms")?.value ?? "", 10);
+    const healthTimeoutMs = Number.parseInt($("ntrip_health_timeout_ms")?.value ?? "", 10);
+    const passiveSampleMs = Number.parseInt($("ntrip_passive_sample_ms")?.value ?? "", 10);
+    const requiredValidFrames = Number.parseInt($("ntrip_required_valid_frames")?.value ?? "", 10);
+    const bufferSize = Number.parseInt($("ntrip_buffer_size")?.value ?? "", 10);
+    const connectTimeoutMs = Number.parseInt($("ntrip_connect_timeout_ms")?.value ?? "", 10);
+
+    if (!host || !mount || !user) {
+      setNtripConfigNote("Host, mount, and user are required.", false);
+      return;
+    }
+    if (!Number.isFinite(port)) {
+      setNtripConfigNote("Enter a valid port.", false);
+      return;
+    }
+    if (!Number.isFinite(maxTries) || !Number.isFinite(retryDelayMs) ||
+        !Number.isFinite(healthTimeoutMs) || !Number.isFinite(passiveSampleMs) ||
+        !Number.isFinite(requiredValidFrames) || !Number.isFinite(bufferSize) ||
+        !Number.isFinite(connectTimeoutMs)) {
+      setNtripConfigNote("Enter valid numeric values for all timing fields.", false);
+      return;
+    }
+
+    setNtripConfigNote("Saving…");
+    try {
+      const resp = await fetch('/api/ntrip_config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled,
+          host,
+          port,
+          mount,
+          user,
+          pass,
+          max_tries: maxTries,
+          retry_delay_ms: retryDelayMs,
+          health_timeout_ms: healthTimeoutMs,
+          passive_sample_ms: passiveSampleMs,
+          required_valid_frames: requiredValidFrames,
+          buffer_size: bufferSize,
+          connect_timeout_ms: connectTimeoutMs
+        })
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        setNtripConfigNote(payload.error || "Failed to save NTRIP config", false);
+        return;
+      }
+      setNtripConfigNote("Saved. NTRIP will refresh shortly.");
+    } catch (e) {
+      setNtripConfigNote("Failed to reach device", false);
+    }
+  });
+}
+
 // Tabs logic (simple show/hide)
 (function initTabs(){
   const btns = Array.from(document.querySelectorAll(".tabBtn"));
@@ -417,4 +521,5 @@ if (saveWifiConfigBtn) {
 refresh();
 loadConfig();
 loadWifiConfig();
+loadNtripConfig();
 setInterval(refresh, 1000);

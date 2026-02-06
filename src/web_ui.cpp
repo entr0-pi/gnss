@@ -23,6 +23,7 @@
 #include <HTTPClient.h>
 #include <cstring>
 #include <ArduinoJson.h>
+#include <LittleFS.h>
 
 #include "app_js.h"
 #include "app_index.h"
@@ -55,6 +56,10 @@ static bool g_internet_reachable = false;
 bool webui_get_internet_reachable() {
   return g_internet_reachable;
 }
+
+#if NTRIP_CLIENT_ENABLE
+static const char* kNtripConfigPath = "/ntrip_config.json";
+#endif
 
 // markRequestAndGetPrevAgeMs():
 // - Updates request counters
@@ -663,6 +668,157 @@ static void handleWifiConfigPost() {
   s_server->send(200, "application/json", output);
 }
 
+#if NTRIP_CLIENT_ENABLE
+// ------------- API: /api/ntrip_config -------------
+static void handleNtripConfigGet() {
+  markRequestAndGetPrevAgeMs();
+
+  JsonDocument doc;
+  JsonDocument src;
+  bool loaded = false;
+  String error;
+
+  if (!LittleFS.exists(kNtripConfigPath)) {
+    error = "NTRIP config not found";
+  } else {
+    File file = LittleFS.open(kNtripConfigPath, "r");
+    if (!file) {
+      error = "Failed to open NTRIP config";
+    } else {
+      const DeserializationError err = deserializeJson(src, file);
+      file.close();
+      if (err) {
+        error = "Invalid NTRIP config JSON";
+      } else {
+        loaded = true;
+      }
+    }
+  }
+
+  doc["loaded"] = loaded;
+  if (!loaded) {
+    doc["error"] = error;
+  }
+
+  JsonObject ntrip = doc["ntrip"].to<JsonObject>();
+  JsonObject srcNtrip = src["ntrip"];
+  ntrip["enabled"] = srcNtrip["enabled"] | false;
+  ntrip["host"] = srcNtrip["host"] | "rtk2go.com";
+  ntrip["port"] = srcNtrip["port"] | 2101;
+  ntrip["mount"] = srcNtrip["mount"] | "MOUNT";
+  ntrip["user"] = srcNtrip["user"] | "user";
+  ntrip["pass"] = srcNtrip["pass"] | "pass";
+  ntrip["max_tries"] = srcNtrip["max_tries"] | 5;
+  ntrip["retry_delay_ms"] = srcNtrip["retry_delay_ms"] | 30000;
+  ntrip["health_timeout_ms"] = srcNtrip["health_timeout_ms"] | 60000;
+  ntrip["passive_sample_ms"] = srcNtrip["passive_sample_ms"] | 5000;
+  ntrip["required_valid_frames"] = srcNtrip["required_valid_frames"] | 3;
+  ntrip["buffer_size"] = srcNtrip["buffer_size"] | 1024;
+  ntrip["connect_timeout_ms"] = srcNtrip["connect_timeout_ms"] | 5000;
+
+  JsonObject lockout = doc["lockout"].to<JsonObject>();
+  JsonObject srcLockout = src["lockout"];
+  lockout["failed_attempts"] = srcLockout["failed_attempts"] | 0;
+  lockout["abandoned"] = srcLockout["abandoned"] | false;
+  lockout["last_config_hash"] = srcLockout["last_config_hash"] | "";
+
+  String output;
+  doc.shrinkToFit();
+  serializeJson(doc, output);
+
+  s_server->sendHeader("Cache-Control", "no-store");
+  s_server->send(200, "application/json", output);
+}
+
+static void handleNtripConfigPost() {
+  markRequestAndGetPrevAgeMs();
+
+  if (!s_server->hasArg("plain")) {
+    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Missing body\"}");
+    return;
+  }
+
+  JsonDocument doc;
+  const DeserializationError err = deserializeJson(doc, s_server->arg("plain"));
+  if (err) {
+    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Invalid JSON\"}");
+    return;
+  }
+
+  if (!doc["enabled"].is<bool>() ||
+      !doc["host"].is<const char*>() ||
+      !doc["port"].is<int>() ||
+      !doc["mount"].is<const char*>() ||
+      !doc["user"].is<const char*>() ||
+      !doc["pass"].is<const char*>() ||
+      !doc["max_tries"].is<int>() ||
+      !doc["retry_delay_ms"].is<int>() ||
+      !doc["health_timeout_ms"].is<int>() ||
+      !doc["passive_sample_ms"].is<int>() ||
+      !doc["required_valid_frames"].is<int>() ||
+      !doc["buffer_size"].is<int>() ||
+      !doc["connect_timeout_ms"].is<int>()) {
+    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Missing required NTRIP fields\"}");
+    return;
+  }
+
+  JsonDocument out;
+  JsonObject ntrip = out["ntrip"].to<JsonObject>();
+  ntrip["enabled"] = doc["enabled"].as<bool>();
+  ntrip["host"] = doc["host"].as<const char*>();
+  ntrip["port"] = doc["port"].as<int>();
+  ntrip["mount"] = doc["mount"].as<const char*>();
+  ntrip["user"] = doc["user"].as<const char*>();
+  ntrip["pass"] = doc["pass"].as<const char*>();
+  ntrip["max_tries"] = doc["max_tries"].as<int>();
+  ntrip["retry_delay_ms"] = doc["retry_delay_ms"].as<int>();
+  ntrip["health_timeout_ms"] = doc["health_timeout_ms"].as<int>();
+  ntrip["passive_sample_ms"] = doc["passive_sample_ms"].as<int>();
+  ntrip["required_valid_frames"] = doc["required_valid_frames"].as<int>();
+  ntrip["buffer_size"] = doc["buffer_size"].as<int>();
+  ntrip["connect_timeout_ms"] = doc["connect_timeout_ms"].as<int>();
+
+  JsonDocument existing;
+  JsonObject lockout = out["lockout"].to<JsonObject>();
+  if (LittleFS.exists(kNtripConfigPath)) {
+    File file = LittleFS.open(kNtripConfigPath, "r");
+    if (file) {
+      if (!deserializeJson(existing, file)) {
+        JsonObject existingLockout = existing["lockout"];
+        lockout["failed_attempts"] = existingLockout["failed_attempts"] | 0;
+        lockout["abandoned"] = existingLockout["abandoned"] | false;
+        lockout["last_config_hash"] = existingLockout["last_config_hash"] | "";
+      }
+      file.close();
+    }
+  }
+  if (!lockout.containsKey("failed_attempts")) {
+    lockout["failed_attempts"] = 0;
+    lockout["abandoned"] = false;
+    lockout["last_config_hash"] = "";
+  }
+
+  File outFile = LittleFS.open(kNtripConfigPath, "w");
+  if (!outFile) {
+    s_server->send(500, "application/json", "{\"ok\":false,\"error\":\"Failed to open NTRIP config for writing\"}");
+    return;
+  }
+  serializeJson(out, outFile);
+  outFile.close();
+
+  JsonDocument resp;
+  resp["ok"] = true;
+  resp["message"] = "NTRIP config saved";
+  resp["ntrip"] = ntrip;
+
+  String output;
+  resp.shrinkToFit();
+  serializeJson(resp, output);
+  s_server->sendHeader("Cache-Control", "no-store");
+  s_server->send(200, "application/json", output);
+}
+#endif
+
 // webui_begin():
 // Called once from main.cpp to register routes and provide dependencies.
 // Parameters:
@@ -709,6 +865,10 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
   server.on("/api/config", HTTP_POST, handleConfigPost);
   server.on("/api/wifi_config", HTTP_GET, handleWifiConfigGet);
   server.on("/api/wifi_config", HTTP_POST, handleWifiConfigPost);
+#if NTRIP_CLIENT_ENABLE
+  server.on("/api/ntrip_config", HTTP_GET, handleNtripConfigGet);
+  server.on("/api/ntrip_config", HTTP_POST, handleNtripConfigPost);
+#endif
 
   // Restart endpoint (POST)
   server.on("/api/restart", HTTP_POST, handleRestart);
