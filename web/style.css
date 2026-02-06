@@ -119,9 +119,15 @@ body{
   left:50%;
   transform:translate(-50%,-50%);
 }
+.skyplot-ring.skyplot-ring-thin{
+  border:1px solid rgba(255,255,255,.08);
+}
 .ring-outer{ width:100%; height:100%; }
-.ring-mid{ width:66%; height:66%; }
-.ring-inner{ width:33%; height:33%; }
+.ring-mid{ width:58%; height:58%; }
+.ring-inner{ width:27%; height:27%; }
+.ring-75{ width:13%; height:13%; }
+.ring-45{ width:41%; height:41%; }
+.ring-10{ width:84%; height:84%; }
 .skyplot-axis{
   position:absolute;
   background: rgba(255,255,255,.08);
@@ -166,8 +172,8 @@ body{
   color:rgba(255,255,255,.55);
   pointer-events:none;
 }
-.skyplot-ring-label.ring-mid{ right:15%; top:50%; transform:translateY(-50%); width:auto; height:auto; }
-.skyplot-ring-label.ring-inner{ right:31.5%; top:50%; transform:translateY(-50%); width:auto; height:auto; }
+.skyplot-ring-label.ring-mid{ right:21%; top:50%; transform:translateY(-50%); width:auto; height:auto; }
+.skyplot-ring-label.ring-inner{ right:36.5%; top:50%; transform:translateY(-50%); width:auto; height:auto; }
 .skyplot-markers{
   position:absolute;
   inset:0;

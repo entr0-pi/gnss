@@ -92,7 +92,9 @@ function renderSkyplot(satellites){
     if (!Number.isFinite(azimuth) || !Number.isFinite(elevation)) return;
 
     const theta = (azimuth - 90) * (Math.PI / 180);
-    const radial = clamp((90 - elevation) / 90, 0, 1) * 45;
+    const zenithAngle = (90 - elevation) * (Math.PI / 180);
+    const normalized = clamp(Math.tan(zenithAngle / 2), 0, 1);
+    const radial = normalized * 45;
     const x = clamp(50 + radial * Math.cos(theta), 4, 96);
     const y = clamp(50 + radial * Math.sin(theta), 4, 96);
     const size = clamp(8 + ((Number.isFinite(power) ? power : 30) - 20) / 40 * 6, 8, 14);
