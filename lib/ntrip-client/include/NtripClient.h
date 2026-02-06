@@ -80,6 +80,14 @@ public:
   /**
    * Initialize the NTRIP client with configuration
    * @param cfg Configuration structure
+   * @param gnss Output stream connected to GNSS receiver
+   * @return true if initialization successful
+   */
+  bool begin(const NtripConfig& cfg, Print& gnss);
+
+  /**
+   * Initialize the NTRIP client with configuration (HardwareSerial helper)
+   * @param cfg Configuration structure
    * @param gnss Serial port connected to GNSS receiver
    * @return true if initialization successful
    */
@@ -155,7 +163,7 @@ private:
   void setError(NtripError err, const String& msg);
   
   WiFiClient client;
-  HardwareSerial* gnssSerial = nullptr;
+  Print* gnssOutput = nullptr;
   NtripConfig config;
   
   NtripState _state = NtripState::DISCONNECTED;

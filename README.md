@@ -110,10 +110,11 @@ build_flags =
 
 | Flag | Default | Description |
 |---|---|---|
-| `WEBUI_ENABLE` | `0` | Enable WiFi + Web UI |
+| `WEBUI_ENABLE` | `0` | Enable WiFi + Web UI (required for NTRIP) |
 | `NMEA_ENABLE` | `0` | Enable optional NMEA parser |
 | `TCP_ENABLE` | `0` | Enable TCP server |
-| `WIFI_ENABLE` | auto | Enabled if Web UI or TCP is enabled |
+| `NTRIP_CLIENT_ENABLE` | `0` | Enable NTRIP client (requires Web UI + WiFi) |
+| `WIFI_ENABLE` | auto | Enabled if Web UI, TCP, or NTRIP is enabled |
 | `TCP_PORT` | `5000` | TCP server port |
 | `BLE_DEVICE_NAME` | `GNSS-BLE` | BLE advertising name |
 | `BLE_MTU_CFG` | `23` | Requested BLE MTU |
@@ -186,7 +187,8 @@ See below for detailed architecture, UART configuration system, BLE/TCP flow, pr
 - `WEBUI_ENABLE` (default `0`): enables WiFi/WebServer status UI. When `0`, web UI code is excluded and `scripts/gzip_web.py` does not run.
 - `NMEA_ENABLE` (default `0`): enables the optional NMEA parser. When `WEBUI_ENABLE=0`, NMEA is forced off at build time. To get the full WebUI, your GNSS needs to send at minimum: GGA, GSV, GSA, GST and RMC.
 - `TCP_ENABLE` (default `0`): enables the TCP server that mirrors the BLE stream.
-- `WIFI_ENABLE` (default `WEBUI_ENABLE || TCP_ENABLE`): enables WiFi STA (required for web UI or TCP).
+- `NTRIP_CLIENT_ENABLE` (default `0`): enables the NTRIP client and JSON configuration in LittleFS (`/ntrip_config.json`). Requires `WEBUI_ENABLE=1` so the internet-reachability probe is available.
+- `WIFI_ENABLE` (default `WEBUI_ENABLE || TCP_ENABLE || NTRIP_CLIENT_ENABLE`): enables WiFi STA (required for web UI, TCP, or NTRIP).
 - `TCP_PORT` (default `5000`): TCP port for the single-client server.
 - `BLE_DEVICE_NAME` (default `"GNSS-BLE"`): BLE advertising name override.
 - `BLE_MTU_CFG` (default `23`): requested BLE MTU; if negotiated MTU is valid (>=23) it is used at runtime, otherwise this value is the fallback; used to derive max notify payload.

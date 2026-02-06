@@ -49,6 +49,13 @@ static IPAddress s_sta_dns;
 static uint32_t g_http_req_total = 0;
 static uint32_t g_http_last_req_ms = 0;
 
+// Last known internet reachability from /api/status probes.
+static bool g_internet_reachable = false;
+
+bool webui_get_internet_reachable() {
+  return g_internet_reachable;
+}
+
 // markRequestAndGetPrevAgeMs():
 // - Updates request counters
 // - Computes "age since previous request" in ms
@@ -211,6 +218,7 @@ static void handleStatus() {
   else {
     internet  = false;  // "❌" in html now
   }
+  g_internet_reachable = internet;
 
   // --- HTTP ---
   // Static HTTP port used by this WebServer instance.

@@ -11,10 +11,10 @@
 
 enum class StreamPhase { VALIDATION, STREAMING };
 
-bool NtripClient::begin(const NtripConfig& cfg, HardwareSerial& gnss) {
+bool NtripClient::begin(const NtripConfig& cfg, Print& gnss) {
   // Store configuration and GNSS serial reference, reset state, init mutexes.
   config = cfg;
-  gnssSerial = &gnss;
+  gnssOutput = &gnss;
   failures = 0;
   _healthy = false;
   _state = NtripState::DISCONNECTED;
@@ -32,6 +32,10 @@ bool NtripClient::begin(const NtripConfig& cfg, HardwareSerial& gnss) {
   
   Serial.println(F("[NtripClient] Initialized"));
   return true;
+}
+
+bool NtripClient::begin(const NtripConfig& cfg, HardwareSerial& gnss) {
+  return begin(cfg, static_cast<Print&>(gnss));
 }
 
 void NtripClient::startTask(uint8_t core) {
@@ -140,7 +144,9 @@ void NtripClient::taskLoop() {
         }
         
         // FAST PATH: Write to GNSS immediately
-        gnssSerial->write(buffer, n);
+        if (gnssOutput) {
+          gnssOutput->write(buffer, n);
+        }
         
         if (phase == StreamPhase::VALIDATION) {
           // Strict validation of RTCM frames until required count is reached.

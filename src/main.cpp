@@ -32,6 +32,7 @@
 // WiFi STA mode connects to an existing hotspot/router and hosts a small status web server.
 #include "app.h"
 #include "gnss_config.h"
+#include "ntrip_client.h"
 #include "wifi_config.h"
 
 #if WIFI_ENABLE
@@ -116,6 +117,14 @@ static StreamBufferHandle_t  g_sb_tcp2uart = nullptr;
 // TCP server (single-client).
 static WiFiServer g_tcpServer(TCP_PORT);
 static WiFiClient g_tcpClient;
+#endif
+
+#if NTRIP_CLIENT_ENABLE
+// StreamBuffer for NTRIP (static allocation).
+// - g_sb_ntrip2uart: bytes from NTRIP client -> GNSS UART TX
+static StaticStreamBuffer_t  g_sb_ntrip2uart_struct;
+static uint8_t               g_sb_ntrip2uart_storage[SB_NTRIP_TO_UART_SIZE];
+static StreamBufferHandle_t  g_sb_ntrip2uart = nullptr;
 #endif
 #if BLE_ENABLE
 // ========================= BLE STATUS (BLOCK) =========================
@@ -436,6 +445,11 @@ void setup() {
   initNmea();
   #endif
 
+  #if NTRIP_CLIENT_ENABLE
+  // Start the NTRIP client and configuration monitor.
+  ntrip_client_setup(g_sb_ntrip2uart);
+  #endif
+
   // Create FreeRTOS tasks for UART RX/TX, BLE TX, and optionally TCP I/O.
   startWorkerTasks();
 }
@@ -452,6 +466,11 @@ void loop() {
   #if WEBUI_ENABLE
   // Poll the HTTP server to process incoming web requests.
   handleWebUi();
+  #endif
+
+  #if NTRIP_CLIENT_ENABLE
+  // Periodic NTRIP status logging and lockout handling.
+  ntrip_client_loop();
   #endif
 
   // Yield CPU time to other FreeRTOS tasks.
@@ -508,12 +527,21 @@ static void createStreamBuffers() {
       g_sb_tcp2uart_storage, &g_sb_tcp2uart_struct);
 #endif
 
+#if NTRIP_CLIENT_ENABLE
+  g_sb_ntrip2uart = xStreamBufferCreateStatic(
+      SB_NTRIP_TO_UART_SIZE, SB_TRIGGER_LEVEL,
+      g_sb_ntrip2uart_storage, &g_sb_ntrip2uart_struct);
+#endif
+
   bool ok = true;
 #if BLE_ENABLE
   ok = ok && g_sb_uart2ble && g_sb_ble2uart;
 #endif
 #if TCP_ENABLE
   ok = ok && g_sb_uart2tcp && g_sb_tcp2uart;
+#endif
+#if NTRIP_CLIENT_ENABLE
+  ok = ok && g_sb_ntrip2uart;
 #endif
 
   if (!ok) {
@@ -972,6 +1000,18 @@ static void task_uart_tx(void* arg) {
     }
     if (got_tcp > 0) {
       Serial1.write(tmp, got_tcp);
+      did_work = true;
+    }
+    #endif
+
+    #if NTRIP_CLIENT_ENABLE
+    // Non-blocking read from NTRIP->UART buffer.
+    size_t got_ntrip = 0;
+    if (g_sb_ntrip2uart) {
+      got_ntrip = xStreamBufferReceive(g_sb_ntrip2uart, tmp, sizeof(tmp), 0);
+    }
+    if (got_ntrip > 0) {
+      Serial1.write(tmp, got_ntrip);
       did_work = true;
     }
     #endif
