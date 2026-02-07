@@ -181,6 +181,9 @@ See below for detailed architecture, UART configuration system, BLE/TCP flow, pr
 - **Web assets** stored in `web/` for any UI or hosted files.
 - **Utility scripts** in `scripts/` for automation or tooling.
 - **TCP server** (single-client) that mirrors the BLE byte stream.
+- **NTRIP client integration** with JSON configuration (`/ntrip_config.json`), task-based lifecycle, and internet-reachability gating.
+- **GNSS skyplot rendering using stereographic projection** for a readable satellite view that preserves angular relationships near the horizon.
+- **Build-flag validation environment** via `platformio.ini` (`[env:full]`) to quickly test feature combinations (Web UI + NMEA + TCP + NTRIP) in one command.
 
 ## Build and Configuration
 ### Build Flags
@@ -198,6 +201,15 @@ See below for detailed architecture, UART configuration system, BLE/TCP flow, pr
 - `FORCE_HARDCODED_UART` (default `0`): lock UART config to compile-time pins/baud (requires `HARD_RX_PIN`, `HARD_TX_PIN`, `HARD_BAUD`).
 - Full parameter list: see `include/README.md` and `include/app.h`.
 - WiFi credentials: configure via Web UI (saved to `/wifi.json`) or copy `include/secrets.example.h` to `include/secrets.h` (gitignored) and enable `FORCE_WIFI_SECRETS`.
+
+### Build Flag Tester (Feature Matrix Smoke Test)
+Use the provided full-feature environment as a quick build sanity check:
+
+```bash
+pio run -e full
+```
+
+This environment enables `WEBUI_ENABLE`, `NMEA_ENABLE`, `TCP_ENABLE`, and `NTRIP_CLIENT_ENABLE` together to validate that the main optional modules still build cleanly when combined.
 
 ### BLE MTU and Throttling
 - `BLE_MTU_CFG` in `include/app.h` is used to derive the max notify payload (`BLE_MAX_PAYLOAD = BLE_MTU - 3`).

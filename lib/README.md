@@ -52,3 +52,7 @@ It provides simple APIs to decode common NMEA messages into C structs for easy a
 
 ## Reference
 - Project: https://github.com/kosma/minnmea
+
+## Integration highlights in this project
+- Parsed satellite azimuth/elevation values are consumed by the Web UI skyplot, which now uses a stereographic projection for clearer horizon distribution.
+- Parsed fix/satellite quality data is also used alongside NTRIP status in the dashboard to monitor correction-assisted operation.
