@@ -7,7 +7,7 @@
 // This module owns the HTTP UI endpoints and the JSON status API.
 //
 // Responsibilities:
-// - Serve static assets stored in PROGMEM (HTML/CSS/favicon)
+// - Serve static assets stored in LittleFS (/web/index.html, /web/style.css, /web/app.js, /web/favicon.ico)
 // - Expose JSON status at /api/status
 // - Provide a restart endpoint at /api/restart
 // - Optionally probe “internet reachable” (HTTP 204 connectivity check)
@@ -21,13 +21,10 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <HTTPClient.h>
+#include <LittleFS.h>
 #include <cstring>
 #include <ArduinoJson.h>
 
-#include "app_js.h"
-#include "app_index.h"
-#include "app_style.h"
-#include "app_favicon.h"
 #include "gnss_config.h"
 #include "wifi_config.h"
 #include "web_ui.h"
@@ -74,35 +71,40 @@ static uint32_t markRequestAndGetPrevAgeMs() {
   return age;
 }
 
-// sendProgmem():
-// Serve a PROGMEM buffer (text or binary) using WebServer::send_P().
-// Parameters:
-// - code:         HTTP status code (200, 404, etc.)
-// - contentType:  MIME type (e.g., text/html, text/css, image/x-icon)
-// - data/len:     PROGMEM buffer and length
-// - cacheControl: Cache-Control header (e.g., "no-store" for HTML/JSON, long max-age for static assets)
-static void sendProgmem(int code,
-                        const char* contentType,
-                        const uint8_t* data,
-                        size_t len,
-                        const char* cacheControl) {
-  // Defensive: s_server should have been set by webui_begin().
-  // (Your code assumes it's valid; we keep behavior identical.)
+// sendFileFromLittleFs():
+// Stream a static asset from LittleFS.
+// If `allowGzip` is true, prefer serving `<path>.gz` and set Content-Encoding: gzip.
+static void sendFileFromLittleFs(const char* path,
+                                 const char* contentType,
+                                 const char* cacheControl,
+                                 bool allowGzip = false) {
+  String selectedPath(path);
+  bool usingGzip = false;
+
+  if (allowGzip) {
+    const String acceptEncoding = s_server->header("Accept-Encoding");
+    const bool clientAcceptsGzip = acceptEncoding.indexOf("gzip") >= 0;
+    if (clientAcceptsGzip) {
+      const String gzPath = selectedPath + ".gz";
+      if (LittleFS.exists(gzPath)) {
+        selectedPath = gzPath;
+        usingGzip = true;
+      }
+    }
+  }
+
+  File file = LittleFS.open(selectedPath, "r");
+  if (!file) {
+    s_server->send(404, "text/plain", "404 Not Found");
+    return;
+  }
+
   s_server->sendHeader("Cache-Control", cacheControl);
-
-  // send_P reads from PROGMEM; cast to char* is required by API signature.
-  s_server->send_P(code, contentType, (const char*)data, len);
-}
-
-// sendProgmemGzip():
-// Serve a gzipped PROGMEM buffer and set Content-Encoding: gzip.
-static void sendProgmemGzip(int code,
-                            const char* contentType,
-                            const uint8_t* data,
-                            size_t len,
-                            const char* cacheControl) {
-  s_server->sendHeader("Content-Encoding", "gzip");
-  sendProgmem(code, contentType, data, len, cacheControl);
+  if (usingGzip) {
+    s_server->sendHeader("Vary", "Accept-Encoding");
+  }
+  s_server->streamFile(file, contentType);
+  file.close();
 }
 
 // ------------- API: internet reachable -------------
@@ -673,32 +675,40 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
   s_server = &server;
   s_sta_dns = sta_dns;
 
+  // Allow reading the request header used for gzip capability detection.
+  const char* headerKeys[] = {"Accept-Encoding"};
+  server.collectHeaders(headerKeys, 1);
+
+  if (!LittleFS.begin()) {
+    Serial.println("[WEBUI] LittleFS mount failed; static assets unavailable");
+  }
+
   // -------- HTTP UI routes ----------
   // Serve HTML at "/"
   server.on("/", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendProgmemGzip(200, "text/html; charset=utf-8", APP_INDEX, APP_INDEX_LEN, "no-store");
+    sendFileFromLittleFs("/web/index.html", "text/html; charset=utf-8", "no-store", true);
   });
 
   // Serve CSS at "/style.css"
   // Cache it for 1 day to reduce repeated transfers.
   server.on("/style.css", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendProgmemGzip(200, "text/css; charset=utf-8", APP_STYLE, APP_STYLE_LEN, "public, max-age=86400");
+    sendFileFromLittleFs("/web/style.css", "text/css; charset=utf-8", "public, max-age=86400", true);
   });
 
   // Serve JS at "/app.js"
   // No-store to avoid stale UI behavior after firmware updates.
   server.on("/app.js", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendProgmemGzip(200, "application/javascript; charset=utf-8", APP_JS, APP_JS_LEN, "no-store");
+    sendFileFromLittleFs("/web/app.js", "application/javascript; charset=utf-8", "no-store", true);
   });
 
   // Serve favicon at "/favicon.ico"
   // Cache it for 7 days.
   server.on("/favicon.ico", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendProgmemGzip(200, "image/x-icon", APP_FAVICON, APP_FAVICON_LEN, "public, max-age=604800");
+    sendFileFromLittleFs("/web/favicon.ico", "image/x-icon", "public, max-age=604800", true);
   });
 
   // JSON status endpoint

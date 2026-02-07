@@ -9,8 +9,9 @@ Build flags (override in `platformio.ini`):
 - `WEBUI_ENABLE` (default `0`): enable WiFi/Web UI.
 - `NMEA_ENABLE` (default `0`): enable NMEA parsing.
 - `TCP_ENABLE` (default `0`): enable TCP mirror.
-- `WIFI_ENABLE` (default `WEBUI_ENABLE || TCP_ENABLE`): enable WiFi STA (required for web UI or TCP).
-- `FORCE_WIFI_SECRETS` (default `0`): force WiFi credentials from `include/secrets.h` and skip NVS-stored WiFi config.
+- `NTRIP_CLIENT_ENABLE` (default `0`): enable NTRIP client support (requires `WEBUI_ENABLE=1`).
+- `WIFI_ENABLE` (default `WEBUI_ENABLE || TCP_ENABLE || NTRIP_CLIENT_ENABLE`): enable WiFi STA (required for web UI, TCP, or NTRIP).
+- `FORCE_WIFI_SECRETS` (default `0`): force WiFi credentials from `include/secrets.h` and skip `/wifi.json`.
 - `FORCE_HARDCODED_UART` (default `0`): lock UART config to compile-time pins/baud.
 - `HARD_RX_PIN` (required when `FORCE_HARDCODED_UART=1`).
 - `HARD_TX_PIN` (required when `FORCE_HARDCODED_UART=1`).
@@ -55,3 +56,6 @@ Tunables:
 - `BLE_TX_WAIT_TICKS`
 - `BLE_OK_DELAY`
 - `BLE_FAIL_DELAY`
+
+Build tester:
+- Use `pio run -e full` to validate a full feature flag set (`WEBUI_ENABLE`, `NMEA_ENABLE`, `TCP_ENABLE`, `NTRIP_CLIENT_ENABLE`) in one build.
