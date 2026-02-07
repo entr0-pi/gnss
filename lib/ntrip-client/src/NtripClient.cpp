@@ -256,10 +256,31 @@ void NtripClient::taskLoop() {
 }
 
 bool NtripClient::connectCaster(const NtripConfig& cfg) {
+  NtripError err = NtripError::NONE;
+  String errMsg;
+
+  if (connectCasterWithVersion(cfg, true, err, errMsg)) {
+    return true;
+  }
+
+  Serial.println(F("[NtripClient] NTRIP Rev2 failed, falling back to Rev1"));
+
+  if (connectCasterWithVersion(cfg, false, err, errMsg)) {
+    return true;
+  }
+
+  setError(err, errMsg);
+  return false;
+}
+
+bool NtripClient::connectCasterWithVersion(const NtripConfig& cfg,
+                                           bool useRev2,
+                                           NtripError& err,
+                                           String& errMsg) {
   // Open TCP connection and send NTRIP HTTP request with Basic auth.
   if (!client.connect(cfg.host.c_str(), cfg.port, cfg.connectTimeoutMs)) {
-    setError(NtripError::TCP_CONNECT_FAILED,
-             "Cannot reach " + cfg.host + ":" + cfg.port);
+    err = NtripError::TCP_CONNECT_FAILED;
+    errMsg = "Cannot reach " + cfg.host + ":" + cfg.port;
     return false;
   }
 
@@ -267,10 +288,22 @@ bool NtripClient::connectCaster(const NtripConfig& cfg) {
 
   client.print("GET /");
   client.print(cfg.mount);
-  client.print(" HTTP/1.0\r\n");
+  if (useRev2) {
+    client.print(" HTTP/1.1\r\n");
+  } else {
+    client.print(" HTTP/1.0\r\n");
+  }
+
   client.print("User-Agent: NTRIP ESP32 v");
   client.print(NTRIP_CLIENT_VERSION);
   client.print("\r\n");
+  if (useRev2) {
+    client.print("Host: ");
+    client.print(cfg.host);
+    client.print("\r\n");
+    client.print("Ntrip-Version: Ntrip/2.0\r\n");
+    client.print("Connection: close\r\n");
+  }
   client.print("Authorization: Basic ");
   client.print(auth);
   client.print("\r\n\r\n");
@@ -282,7 +315,8 @@ bool NtripClient::connectCaster(const NtripConfig& cfg) {
 
   if (!client.available()) {
     client.stop();
-    setError(NtripError::HTTP_TIMEOUT, "No response from caster");
+    err = NtripError::HTTP_TIMEOUT;
+    errMsg = "No response from caster";
     return false;
   }
 
@@ -320,11 +354,14 @@ bool NtripClient::connectCaster(const NtripConfig& cfg) {
   client.stop();
 
   if (line.indexOf("401") >= 0) {
-    setError(NtripError::HTTP_AUTH_FAILED, "Invalid username/password");
+    err = NtripError::HTTP_AUTH_FAILED;
+    errMsg = "Invalid username/password";
   } else if (line.indexOf("404") >= 0) {
-    setError(NtripError::HTTP_MOUNT_NOT_FOUND, "Mount point not found: " + cfg.mount);
+    err = NtripError::HTTP_MOUNT_NOT_FOUND;
+    errMsg = "Mount point not found: " + cfg.mount;
   } else {
-    setError(NtripError::HTTP_UNKNOWN_ERROR, "HTTP error: " + line);
+    err = NtripError::HTTP_UNKNOWN_ERROR;
+    errMsg = "HTTP error: " + line;
   }
 
   return false;
