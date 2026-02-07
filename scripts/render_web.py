@@ -12,6 +12,14 @@ CONFIG_FILE = WEB_DIR / "config.json"
 
 app = FastAPI(title="GNSS-BLE-STATUS (dev server)")
 
+def load_config():
+    if not CONFIG_FILE.exists():
+        raise FileNotFoundError("config.json not found")
+    return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+
+def save_config(config):
+    CONFIG_FILE.write_text(json.dumps(config, indent=2), encoding="utf-8")
+
 # API endpoints (define before static mount so routes take precedence)
 @app.get("/api/status")
 async def api_status():
@@ -30,10 +38,7 @@ async def api_restart():
 @app.get("/api/config")
 async def api_config_get():
     try:
-        if CONFIG_FILE.exists():
-            data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-        else:
-            data = {"rx_pin": 10, "tx_pin": 11, "baud": 21000}
+        data = load_config()
         return JSONResponse(content=data)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": "failed to read config.json", "detail": str(e)})
@@ -52,13 +57,72 @@ async def api_config_post(req: Request):
     except Exception:
         return JSONResponse(status_code=400, content={"ok": False, "error": "rx_pin, tx_pin, and baud are required"})
 
-    config = {"rx_pin": rx, "tx_pin": tx, "baud": baud}
+    config = load_config()
+    config["rx_pin"] = rx
+    config["tx_pin"] = tx
+    config["baud"] = baud
     try:
-        CONFIG_FILE.write_text(json.dumps(config), encoding="utf-8")
+        save_config(config)
     except Exception as e:
         return JSONResponse(status_code=500, content={"ok": False, "error": "failed to write config.json", "detail": str(e)})
 
     return JSONResponse(content={"ok": True, "message": "Config saved", "config": config})
+
+# Dummy WiFi config endpoints for the UI save button (dev only).
+@app.get("/api/wifi_config")
+async def api_wifi_config_get():
+    try:
+        data = load_config()
+        payload = {
+            "ssid": data["ssid"],
+            "pass": data["pass"],
+            "dhcp": data["dhcp"],
+            "ip": data["ip"],
+            "gw": data["gw"],
+            "subnet": data["subnet"],
+            "dns": data["dns"],
+            "locked": data["locked"],
+        }
+        return JSONResponse(content=payload)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": "failed to read config.json", "detail": str(e)})
+
+@app.post("/api/wifi_config")
+async def api_wifi_config_post(req: Request):
+    try:
+        data = await req.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "Invalid JSON"})
+
+    ssid = str(data.get("ssid", "")).strip()
+    if not ssid:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "ssid is required"})
+
+    try:
+        dhcp = bool(data["dhcp"])
+        wifi_pass = data["pass"]
+        ip = data["ip"]
+        gw = data["gw"]
+        subnet = data["subnet"]
+        dns = data["dns"]
+    except KeyError:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "pass, dhcp, ip, gw, subnet, and dns are required"})
+
+    config = load_config()
+    config["ssid"] = ssid
+    config["pass"] = wifi_pass
+    config["dhcp"] = dhcp
+    config["ip"] = ip
+    config["gw"] = gw
+    config["subnet"] = subnet
+    config["dns"] = dns
+
+    try:
+        save_config(config)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": "failed to write config.json", "detail": str(e)})
+
+    return JSONResponse(content={"ok": True, "message": "WiFi config saved", "config": config})
 
 # Serve static files (index.html, app.js, style.css, etc.)
 app.mount("/", StaticFiles(directory=str(WEB_DIR), html=True), name="static")
