@@ -7,7 +7,7 @@
 // This module owns the HTTP UI endpoints and the JSON status API.
 //
 // Responsibilities:
-// - Serve static assets stored in LittleFS (/index.html, /style.css, /app.js, /favicon.ico)
+// - Serve static assets stored in LittleFS (/web/index.html, /web/style.css, /web/app.js, /web/favicon.ico)
 // - Expose JSON status at /api/status
 // - Provide a restart endpoint at /api/restart
 // - Optionally probe “internet reachable” (HTTP 204 connectivity check)
@@ -82,10 +82,14 @@ static void sendFileFromLittleFs(const char* path,
   bool usingGzip = false;
 
   if (allowGzip) {
-    const String gzPath = selectedPath + ".gz";
-    if (LittleFS.exists(gzPath)) {
-      selectedPath = gzPath;
-      usingGzip = true;
+    const String acceptEncoding = s_server->header("Accept-Encoding");
+    const bool clientAcceptsGzip = acceptEncoding.indexOf("gzip") >= 0;
+    if (clientAcceptsGzip) {
+      const String gzPath = selectedPath + ".gz";
+      if (LittleFS.exists(gzPath)) {
+        selectedPath = gzPath;
+        usingGzip = true;
+      }
     }
   }
 
@@ -97,7 +101,6 @@ static void sendFileFromLittleFs(const char* path,
 
   s_server->sendHeader("Cache-Control", cacheControl);
   if (usingGzip) {
-    s_server->sendHeader("Content-Encoding", "gzip");
     s_server->sendHeader("Vary", "Accept-Encoding");
   }
   s_server->streamFile(file, contentType);
@@ -672,6 +675,10 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
   s_server = &server;
   s_sta_dns = sta_dns;
 
+  // Allow reading the request header used for gzip capability detection.
+  const char* headerKeys[] = {"Accept-Encoding"};
+  server.collectHeaders(headerKeys, 1);
+
   if (!LittleFS.begin()) {
     Serial.println("[WEBUI] LittleFS mount failed; static assets unavailable");
   }
@@ -680,28 +687,28 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
   // Serve HTML at "/"
   server.on("/", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendFileFromLittleFs("/index.html", "text/html; charset=utf-8", "no-store", true);
+    sendFileFromLittleFs("/web/index.html", "text/html; charset=utf-8", "no-store", true);
   });
 
   // Serve CSS at "/style.css"
   // Cache it for 1 day to reduce repeated transfers.
   server.on("/style.css", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendFileFromLittleFs("/style.css", "text/css; charset=utf-8", "public, max-age=86400", true);
+    sendFileFromLittleFs("/web/style.css", "text/css; charset=utf-8", "public, max-age=86400", true);
   });
 
   // Serve JS at "/app.js"
   // No-store to avoid stale UI behavior after firmware updates.
   server.on("/app.js", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendFileFromLittleFs("/app.js", "application/javascript; charset=utf-8", "no-store", true);
+    sendFileFromLittleFs("/web/app.js", "application/javascript; charset=utf-8", "no-store", true);
   });
 
   // Serve favicon at "/favicon.ico"
   // Cache it for 7 days.
   server.on("/favicon.ico", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendFileFromLittleFs("/favicon.ico", "image/x-icon", "public, max-age=604800");
+    sendFileFromLittleFs("/web/favicon.ico", "image/x-icon", "public, max-age=604800", true);
   });
 
   // JSON status endpoint

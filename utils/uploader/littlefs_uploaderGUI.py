@@ -7,6 +7,9 @@ import sys
 import json
 import threading
 import platform
+import shutil
+import tempfile
+import gzip
 
 
 def get_base_dirs():
@@ -27,7 +30,7 @@ class CrossPlatformFlasher:
     def __init__(self, root):
         self.root = root
         self.root.title("ESP32 LittleFS Studio")
-        self.root.geometry("850x560")
+        self.root.geometry("850x650")
 
         # --- Cross-Platform Path Detection ---
         bundle_dir, app_dir = get_base_dirs()
@@ -35,6 +38,14 @@ class CrossPlatformFlasher:
         self.CONFIG_FILE = os.path.join(app_dir, "littlefs_uploaderGUI.json")
         self.DATA_DIR = os.path.join(app_dir, "data")
         self.IMAGE_NAME = os.path.join(app_dir, "littlefs.bin")
+
+        # Web assets to include in the LittleFS image under /web/
+        self.WEB_FILES = ["app.js", "favicon.ico", "index.html", "style.css"]
+        self.WEB_DIR = os.path.join(app_dir, "web")
+        if not os.path.isdir(self.WEB_DIR):
+            project_web = os.path.normpath(os.path.join(app_dir, "..", "..", "web"))
+            if os.path.isdir(project_web):
+                self.WEB_DIR = project_web
 
         # Determine mklittlefs binary name based on OS
         binary_name = "mklittlefs.exe" if platform.system() == "Windows" else "mklittlefs"
@@ -91,11 +102,21 @@ class CrossPlatformFlasher:
         self.chip_combo = ttk.Combobox(grid_frame, textvariable=self.chip_var, values=chips, width=15)
         self.chip_combo.grid(row=2, column=1, sticky=tk.W)
 
+        # Gzip web assets
+        self.gzip_web_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(grid_frame, text="Gzip web assets (html, css, js)",
+                        variable=self.gzip_web_var).grid(row=3, column=0, columnspan=2, sticky=tk.W, pady=(15, 0))
+
+        # Optional pre-erase of the FS partition
+        self.erase_fs_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(grid_frame, text="Erase FS partition before flash",
+                        variable=self.erase_fs_var).grid(row=4, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
+
         # Partition CSV
-        ttk.Label(grid_frame, text="Partitions Definition (.csv)").grid(row=3, column=0, sticky=tk.W, pady=(20, 5))
+        ttk.Label(grid_frame, text="Partitions Definition (.csv)").grid(row=5, column=0, sticky=tk.W, pady=(20, 5))
         self.csv_path_var = tk.StringVar()
-        ttk.Entry(grid_frame, textvariable=self.csv_path_var).grid(row=4, column=0, columnspan=2, sticky=tk.EW)
-        ttk.Button(grid_frame, text="Browse", style="Accent.TButton", command=self.browse_csv).grid(row=4, column=2, padx=10)
+        ttk.Entry(grid_frame, textvariable=self.csv_path_var).grid(row=6, column=0, columnspan=2, sticky=tk.EW)
+        ttk.Button(grid_frame, text="Browse", style="Accent.TButton", command=self.browse_csv).grid(row=6, column=2, padx=10)
 
         grid_frame.columnconfigure(0, weight=1)
 
@@ -122,6 +143,12 @@ class CrossPlatformFlasher:
 
         self.data_files_label = ttk.Label(status_frame, font=("Consolas", 9), foreground="#888888")
         self.data_files_label.pack(anchor=tk.W, padx=(16, 0))
+
+        self.web_status = ttk.Label(status_frame, font=("Segoe UI", 10))
+        self.web_status.pack(anchor=tk.W, pady=(4, 0))
+
+        self.web_files_label = ttk.Label(status_frame, font=("Consolas", 9), foreground="#888888")
+        self.web_files_label.pack(anchor=tk.W, padx=(16, 0))
 
         self.csv_status = ttk.Label(status_frame, font=("Segoe UI", 10))
         self.csv_status.pack(anchor=tk.W, pady=(4, 0))
@@ -314,6 +341,22 @@ class CrossPlatformFlasher:
             self.data_files_label.config(text="")
             ready = False
 
+        # web files check
+        if os.path.isdir(self.WEB_DIR):
+            found = [f for f in self.WEB_FILES if os.path.isfile(os.path.join(self.WEB_DIR, f))]
+            missing = [f for f in self.WEB_FILES if f not in found]
+            if not missing:
+                self.web_status.config(text=f"web/: {len(found)} file(s)", foreground="#4ec969")
+                self.web_files_label.config(text=", ".join(sorted(found)))
+            else:
+                self.web_status.config(text=f"web/: Missing {', '.join(missing)}", foreground="#e0a820")
+                self.web_files_label.config(text=f"Found: {', '.join(sorted(found))}" if found else "")
+                ready = False
+        else:
+            self.web_status.config(text="web/: Directory not found", foreground="#e05555")
+            self.web_files_label.config(text="")
+            ready = False
+
         # CSV file check
         csv_path = self.csv_path_var.get()
         if csv_path and os.path.isfile(csv_path):
@@ -340,8 +383,62 @@ class CrossPlatformFlasher:
         self.log_area.see(tk.END)
         self.log_area.configure(state='disabled')
 
+    def log_staged_files_table(self, staging_dir):
+        def _fmt_ko_mo(size_bytes):
+            ko = size_bytes / 1024.0
+            mo = size_bytes / (1024.0 * 1024.0)
+            return f"{ko:.2f} Ko / {mo:.2f} Mo"
+
+        rows = []
+        total = 0
+        for root, _, files in os.walk(staging_dir):
+            for name in sorted(files):
+                full_path = os.path.join(root, name)
+                rel_path = os.path.relpath(full_path, staging_dir).replace("\\", "/")
+                size = os.path.getsize(full_path)
+                rows.append((rel_path, size))
+                total += size
+
+        self.log(">>> Final staged files (to be uploaded)")
+        if not rows:
+            self.log("    (none)")
+            return
+
+        name_w = max(len("Path"), max(len(r[0]) for r in rows))
+        size_b_w = max(len("Size (bytes)"), max(len(str(r[1])) for r in rows))
+        size_hr_w = max(len("Size (Ko / Mo)"), max(len(_fmt_ko_mo(r[1])) for r in rows))
+        sep = f"    +{'-' * (name_w + 2)}+{'-' * (size_b_w + 2)}+{'-' * (size_hr_w + 2)}+"
+
+        self.log(sep)
+        self.log(
+            f"    | {'Path'.ljust(name_w)} | "
+            f"{'Size (bytes)'.rjust(size_b_w)} | "
+            f"{'Size (Ko / Mo)'.ljust(size_hr_w)} |"
+        )
+        self.log(sep)
+        for rel_path, size in rows:
+            self.log(
+                f"    | {rel_path.ljust(name_w)} | "
+                f"{str(size).rjust(size_b_w)} | "
+                f"{_fmt_ko_mo(size).ljust(size_hr_w)} |"
+            )
+        self.log(sep)
+        self.log(
+            f"    | {'TOTAL'.ljust(name_w)} | "
+            f"{str(total).rjust(size_b_w)} | "
+            f"{_fmt_ko_mo(total).ljust(size_hr_w)} |"
+        )
+        self.log(sep)
+        self.log(f">>> Staged total size: {total} bytes ({_fmt_ko_mo(total)})")
+
     def save_config(self):
-        config = {"port": self.port_var.get(), "chip": self.chip_var.get(), "csv_path": self.csv_path_var.get()}
+        config = {
+            "port": self.port_var.get(),
+            "chip": self.chip_var.get(),
+            "csv_path": self.csv_path_var.get(),
+            "gzip_web": self.gzip_web_var.get(),
+            "erase_fs": self.erase_fs_var.get(),
+        }
         with open(self.CONFIG_FILE, "w") as f: json.dump(config, f)
 
     def load_config(self):
@@ -352,19 +449,89 @@ class CrossPlatformFlasher:
                     self.port_var.set(c.get("port", "/dev/ttyUSB0" if platform.system() == "Linux" else "COM8"))
                     self.chip_var.set(c.get("chip", "esp32c3"))
                     self.csv_path_var.set(c.get("csv_path", ""))
+                    self.gzip_web_var.set(c.get("gzip_web", True))
+                    self.erase_fs_var.set(c.get("erase_fs", False))
             except: pass
 
     def browse_csv(self):
         p = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
         if p: self.csv_path_var.set(p)
 
-    def get_partition_info(self, csv_file):
+    def parse_partition_table(self, csv_file):
+        entries = []
         with open(csv_file, mode='r') as f:
-            reader = csv.reader(row for row in f if not row.startswith('#'))
+            reader = csv.reader(row for row in f if not row.lstrip().startswith('#'))
             for row in reader:
-                if len(row) >= 5 and 'spiffs' in row[2].strip().lower():
-                    return int(row[3].strip(), 16), int(row[4].strip(), 16)
+                if len(row) < 5:
+                    continue
+                name = row[0].strip()
+                ptype = row[1].strip().lower()
+                subtype = row[2].strip().lower()
+                offset_raw = row[3].strip()
+                size_raw = row[4].strip()
+                if not name or not offset_raw or not size_raw:
+                    continue
+                try:
+                    offset = int(offset_raw, 0)
+                    size = int(size_raw, 0)
+                except ValueError:
+                    continue
+                entries.append({
+                    "name": name,
+                    "type": ptype,
+                    "subtype": subtype,
+                    "offset": offset,
+                    "size": size,
+                })
+        return entries
+
+    def get_partition_info(self, csv_file):
+        entries = self.parse_partition_table(csv_file)
+        for entry in entries:
+            if entry["subtype"] == "spiffs":
+                return entry["offset"], entry["size"], entries
         raise ValueError("Could not find 'spiffs' partition in CSV.")
+
+    def log_partition_table(self, entries):
+        def _fmt_ko_mo(size_bytes):
+            ko = size_bytes / 1024.0
+            mo = size_bytes / (1024.0 * 1024.0)
+            return f"{ko:.2f} Ko / {mo:.2f} Mo"
+
+        if not entries:
+            self.log(">>> Partitions: none found")
+            return
+
+        self.log(">>> Partition table")
+        name_w = max(len("Name"), max(len(e["name"]) for e in entries))
+        type_w = max(len("Type"), max(len(e["type"]) for e in entries))
+        subtype_w = max(len("Subtype"), max(len(e["subtype"]) for e in entries))
+        offset_w = max(len("Offset"), max(len(hex(e["offset"])) for e in entries))
+        size_b_w = max(len("Size (bytes)"), max(len(str(e["size"])) for e in entries))
+        size_hr_w = max(len("Size (Ko / Mo)"), max(len(_fmt_ko_mo(e["size"])) for e in entries))
+
+        sep = (
+            f"    +{'-' * (name_w + 2)}+{'-' * (type_w + 2)}+{'-' * (subtype_w + 2)}+"
+            f"{'-' * (offset_w + 2)}+{'-' * (size_b_w + 2)}+{'-' * (size_hr_w + 2)}+"
+        )
+        self.log(sep)
+        self.log(
+            f"    | {'Name'.ljust(name_w)} | {'Type'.ljust(type_w)} | {'Subtype'.ljust(subtype_w)} | "
+            f"{'Offset'.rjust(offset_w)} | {'Size (bytes)'.rjust(size_b_w)} | {'Size (Ko / Mo)'.ljust(size_hr_w)} |"
+        )
+        self.log(sep)
+        for e in entries:
+            self.log(
+                f"    | {e['name'].ljust(name_w)} | {e['type'].ljust(type_w)} | {e['subtype'].ljust(subtype_w)} | "
+                f"{hex(e['offset']).rjust(offset_w)} | {str(e['size']).rjust(size_b_w)} | {_fmt_ko_mo(e['size']).ljust(size_hr_w)} |"
+            )
+        self.log(sep)
+        total_size = sum(e["size"] for e in entries)
+        self.log(
+            f"    | {'TOTAL'.ljust(name_w)} | {'-'.ljust(type_w)} | {'-'.ljust(subtype_w)} | "
+            f"{'-'.rjust(offset_w)} | {str(total_size).rjust(size_b_w)} | {_fmt_ko_mo(total_size).ljust(size_hr_w)} |"
+        )
+        self.log(sep)
 
     def run_process(self):
         self.root.after(0, self._switch_to_terminal)
@@ -376,19 +543,62 @@ class CrossPlatformFlasher:
         try:
             csv_path = self.csv_path_var.get()
             
-            offset, fs_size = self.get_partition_info(csv_path)
+            offset, fs_size, partitions = self.get_partition_info(csv_path)
+            self.log_partition_table(partitions)
             self.log(f">>> Found Partition: Offset {hex(offset)}, Size {fs_size}")
 
-            # 1. Build Image
-            self.log(">>> Building LittleFS Image...")
-            build_cmd = [self.MKLITTLEFS_PATH, "-c", self.DATA_DIR, "-b", "4096", "-p", "256", "-s", str(fs_size), self.IMAGE_NAME]
-            subprocess.run(build_cmd, check=True, capture_output=True)
+            # 1. Build staging directory (data/ at root + web/ subfolder)
+            staging_dir = tempfile.mkdtemp(prefix="littlefs_staging_")
+            try:
+                for f in os.listdir(self.DATA_DIR):
+                    src = os.path.join(self.DATA_DIR, f)
+                    if os.path.isfile(src):
+                        shutil.copy2(src, staging_dir)
+
+                web_staging = os.path.join(staging_dir, "web")
+                os.makedirs(web_staging)
+                gzip_enabled = self.gzip_web_var.get()
+                gzip_exts = {".html", ".css", ".js", ".ico"}
+                for f in self.WEB_FILES:
+                    src = os.path.join(self.WEB_DIR, f)
+                    if not os.path.isfile(src):
+                        continue
+                    _, ext = os.path.splitext(f)
+                    if gzip_enabled and ext in gzip_exts:
+                        dst = os.path.join(web_staging, f + ".gz")
+                        with open(src, "rb") as fin, gzip.open(dst, "wb") as fout:
+                            shutil.copyfileobj(fin, fout)
+                        orig = os.path.getsize(src)
+                        comp = os.path.getsize(dst)
+                        self.log(f"    gzip {f}: {orig} -> {comp} bytes ({100 - comp * 100 // orig}% saved)")
+                    else:
+                        shutil.copy2(src, web_staging)
+
+                self.log_staged_files_table(staging_dir)
+                self.log(">>> Building LittleFS Image...")
+                build_cmd = [self.MKLITTLEFS_PATH, "-c", staging_dir, "-b", "4096", "-p", "256", "-s", str(fs_size), self.IMAGE_NAME]
+                subprocess.run(build_cmd, check=True, capture_output=True)
+            finally:
+                shutil.rmtree(staging_dir, ignore_errors=True)
 
             # 2. Flash Image
             self.log(f">>> Flashing to {self.port_var.get()}...")
             # Use 'python3' on Linux, 'python' on Windows
             py_cmd = "python3" if platform.system() == "Linux" else "python"
-            flash_cmd = [py_cmd, "-m", "esptool", "--chip", self.chip_var.get(), "--port", self.port_var.get(), "--baud", "921600", "write_flash", hex(offset), self.IMAGE_NAME]
+            if self.erase_fs_var.get():
+                self.log(f">>> Erasing FS partition: offset={hex(offset)}, size={hex(fs_size)}")
+                erase_cmd = [
+                    py_cmd, "-m", "esptool",
+                    "--chip", self.chip_var.get(),
+                    "--port", self.port_var.get(),
+                    "--baud", "921600",
+                    "erase-region", hex(offset), hex(fs_size)
+                ]
+                erase_result = subprocess.run(erase_cmd, check=True, capture_output=True, text=True)
+                if erase_result.stdout:
+                    self.log(erase_result.stdout)
+
+            flash_cmd = [py_cmd, "-m", "esptool", "--chip", self.chip_var.get(), "--port", self.port_var.get(), "--baud", "921600", "write-flash", hex(offset), self.IMAGE_NAME]
             
             result = subprocess.run(flash_cmd, check=True, capture_output=True, text=True)
             self.log(result.stdout)
@@ -406,7 +616,7 @@ class CrossPlatformFlasher:
 
 def check_dependencies():
     missing = []
-    for module, pip_name in [("sv_ttk", "sv-ttk"), ("esptool", "esptool")]:
+    for module, pip_name in [("sv_ttk", "sv-ttk"), ("esptool", "esp-tool")]:
         try:
             __import__(module)
         except ImportError:
