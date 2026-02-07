@@ -1,32 +1,31 @@
 #include "gnss_config.h"
 
-#include <ArduinoJson.h>
-#include <LittleFS.h>
+#include <Preferences.h>
 
 #include "app.h"
 
 namespace {
-constexpr const char* kConfigPath = "/gnss.json";
+constexpr const char* kGnssNvsNs = "gnss";
 
-bool g_fs_ready = false;
+bool g_nvs_ready = false;
 GnssConfig g_config{};
 
-bool load_config_file(GnssConfig& cfg) {
-  if (!g_fs_ready) return false;
-  if (!LittleFS.exists(kConfigPath)) return false;
+bool load_config_nvs(GnssConfig& cfg) {
+  if (!g_nvs_ready) return false;
 
-  File file = LittleFS.open(kConfigPath, "r");
-  if (!file) return false;
+  Preferences prefs;
+  if (!prefs.begin(kGnssNvsNs, true)) return false;
 
-  JsonDocument doc;
-  const DeserializationError err = deserializeJson(doc, file);
-  file.close();
-  if (err) return false;
+  if (!prefs.isKey("rx_pin") || !prefs.isKey("tx_pin") || !prefs.isKey("baud")) {
+    prefs.end();
+    return false;
+  }
 
-  if (doc["rx_pin"].is<int>()) cfg.rx_pin = doc["rx_pin"].as<int>();
-  if (doc["tx_pin"].is<int>()) cfg.tx_pin = doc["tx_pin"].as<int>();
-  if (doc["baud"].is<uint32_t>()) cfg.baud = doc["baud"].as<uint32_t>();
+  cfg.rx_pin = prefs.getInt("rx_pin", cfg.rx_pin);
+  cfg.tx_pin = prefs.getInt("tx_pin", cfg.tx_pin);
+  cfg.baud = prefs.getULong("baud", cfg.baud);
 
+  prefs.end();
   return true;
 }
 } // namespace
@@ -59,41 +58,25 @@ bool gnss_config_validate(const GnssConfig& cfg, String* error) {
 bool gnss_config_begin() {
   g_config = gnss_config_defaults();
 
-  // Try to mount LittleFS with auto-format enabled
-  if (!LittleFS.begin(true)) {
-    Serial.println("[GNSS] LittleFS mount failed, attempting format...");
-
-    // Explicitly format and try again
-    if (!LittleFS.format()) {
-      Serial.println("[GNSS] LittleFS format failed!");
-      Serial.println("[GNSS] Using fallback hardcoded config");
-      g_fs_ready = false;
-      // Use fallback values for critical failure
-      g_config = GnssConfig{FALLBACK_GNSS_RX, FALLBACK_GNSS_TX, FALLBACK_GNSS_BAUD};
-      return true; // Continue with fallback config
-    }
-
-    // Retry mounting after format
-    if (!LittleFS.begin(true)) {
-      Serial.println("[GNSS] LittleFS mount failed after format!");
-      Serial.println("[GNSS] Using fallback hardcoded config");
-      g_fs_ready = false;
-      // Use fallback values for critical failure
-      g_config = GnssConfig{FALLBACK_GNSS_RX, FALLBACK_GNSS_TX, FALLBACK_GNSS_BAUD};
-      return true; // Continue with fallback config
-    }
+  Preferences prefs;
+  if (!prefs.begin(kGnssNvsNs, false)) {
+    Serial.println("[GNSS] NVS open failed");
+    Serial.println("[GNSS] Using fallback hardcoded config");
+    g_nvs_ready = false;
+    g_config = GnssConfig{FALLBACK_GNSS_RX, FALLBACK_GNSS_TX, FALLBACK_GNSS_BAUD};
+    return true;
   }
+  prefs.end();
 
-  g_fs_ready = true;
-  Serial.println("[GNSS] LittleFS mounted successfully");
+  g_nvs_ready = true;
+  Serial.println("[GNSS] NVS ready");
 
   GnssConfig loaded = g_config;
-  if (load_config_file(loaded) && gnss_config_validate(loaded, nullptr)) {
+  if (load_config_nvs(loaded) && gnss_config_validate(loaded, nullptr)) {
     g_config = loaded;
-    Serial.println("[GNSS] Config loaded from file");
+    Serial.println("[GNSS] Config loaded from NVS");
   } else {
-    Serial.println("[GNSS] Config file not found, creating with defaults");
-    // Save default config to file
+    Serial.println("[GNSS] Config not found in NVS, creating with defaults");
     if (gnss_config_save(g_config)) {
       Serial.println("[GNSS] Default config saved successfully");
     } else {
@@ -109,20 +92,19 @@ const GnssConfig& gnss_config_get() {
 }
 
 bool gnss_config_save(const GnssConfig& cfg) {
-  if (!g_fs_ready) return false;
+  if (!g_nvs_ready) return false;
 
-  File file = LittleFS.open(kConfigPath, "w");
-  if (!file) return false;
+  Preferences prefs;
+  if (!prefs.begin(kGnssNvsNs, false)) return false;
 
-  JsonDocument doc;
-  doc["rx_pin"] = cfg.rx_pin;
-  doc["tx_pin"] = cfg.tx_pin;
-  doc["baud"] = cfg.baud;
+  bool ok = true;
+  ok = ok && prefs.putInt("rx_pin", cfg.rx_pin) > 0;
+  ok = ok && prefs.putInt("tx_pin", cfg.tx_pin) > 0;
+  ok = ok && prefs.putULong("baud", cfg.baud) > 0;
 
-  const size_t written = serializeJson(doc, file);
-  file.close();
+  prefs.end();
 
-  if (written == 0) return false;
+  if (!ok) return false;
 
   g_config = cfg;
   return true;

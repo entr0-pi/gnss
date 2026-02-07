@@ -10,7 +10,7 @@ Build flags (override in `platformio.ini`):
 - `NMEA_ENABLE` (default `0`): enable NMEA parsing.
 - `TCP_ENABLE` (default `0`): enable TCP mirror.
 - `WIFI_ENABLE` (default `WEBUI_ENABLE || TCP_ENABLE`): enable WiFi STA (required for web UI or TCP).
-- `FORCE_WIFI_SECRETS` (default `0`): force WiFi credentials from `include/secrets.h` and skip `/wifi.json`.
+- `FORCE_WIFI_SECRETS` (default `0`): force WiFi credentials from `include/secrets.h` and skip NVS-stored WiFi config.
 - `FORCE_HARDCODED_UART` (default `0`): lock UART config to compile-time pins/baud.
 - `HARD_RX_PIN` (required when `FORCE_HARDCODED_UART=1`).
 - `HARD_TX_PIN` (required when `FORCE_HARDCODED_UART=1`).

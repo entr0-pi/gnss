@@ -1,33 +1,21 @@
 #include "wifi_config.h"
 
-#include <ArduinoJson.h>
-#include <LittleFS.h>
+#include <Preferences.h>
 
 namespace {
-constexpr const char* kWifiConfigPath = "/wifi.json";
+constexpr const char* kWifiNvsNs = "wifi";
 
-bool ensure_fs_ready(String* error) {
-  if (LittleFS.begin(true)) {
-    return true;
-  }
-  if (error) {
-    *error = "LittleFS mount failed";
-  }
-  return false;
-}
-
-bool parse_ip_field(const JsonVariant& value, const char* field, IPAddress& out, String* error) {
-  if (!value.is<const char*>()) {
+bool parse_ip_field(const String& value, const char* field, IPAddress& out, String* error) {
+  if (value.isEmpty()) {
     if (error) {
       *error = String("WiFi config missing or invalid ") + field;
     }
     return false;
   }
 
-  const String ip_str = value.as<String>();
-  if (!out.fromString(ip_str)) {
+  if (!out.fromString(value)) {
     if (error) {
-      *error = String("WiFi config ") + field + " is not a valid IP: " + ip_str;
+      *error = String("WiFi config ") + field + " is not a valid IP: " + value;
     }
     return false;
   }
@@ -37,44 +25,48 @@ bool parse_ip_field(const JsonVariant& value, const char* field, IPAddress& out,
 } // namespace
 
 bool wifi_config_load(WifiConfig& cfg, String* error) {
-  if (!ensure_fs_ready(error)) return false;
-
-  if (!LittleFS.exists(kWifiConfigPath)) {
+  Preferences prefs;
+  if (!prefs.begin(kWifiNvsNs, true)) {
     if (error) {
-      *error = String("WiFi config file not found: ") + kWifiConfigPath;
+      *error = "NVS open failed";
     }
     return false;
   }
 
-  File file = LittleFS.open(kWifiConfigPath, "r");
-  if (!file) {
+  const bool has_ssid = prefs.isKey("ssid");
+  const bool has_pass = prefs.isKey("pass");
+  const bool has_dhcp = prefs.isKey("dhcp");
+  if (!has_ssid || !has_pass || !has_dhcp) {
+    prefs.end();
     if (error) {
-      *error = String("WiFi config open failed: ") + kWifiConfigPath;
+      *error = "WiFi config not found in NVS";
     }
     return false;
   }
 
-  JsonDocument doc;
-  const DeserializationError err = deserializeJson(doc, file);
-  file.close();
-  if (err) {
-    if (error) {
-      *error = String("WiFi config JSON parse failed: ") + err.c_str();
-    }
-    return false;
+  cfg.ssid = prefs.getString("ssid", "");
+  cfg.pass = prefs.getString("pass", "");
+  cfg.dhcp = prefs.getBool("dhcp", false);
+
+  if (!cfg.dhcp) {
+    const String ip_str = prefs.getString("ip", "");
+    const String gw_str = prefs.getString("gw", "");
+    const String subnet_str = prefs.getString("subnet", "");
+    const String dns_str = prefs.getString("dns", "");
+    prefs.end();
+
+    if (!parse_ip_field(ip_str, "ip", cfg.ip, error)) return false;
+    if (!parse_ip_field(gw_str, "gw", cfg.gw, error)) return false;
+    if (!parse_ip_field(subnet_str, "subnet", cfg.subnet, error)) return false;
+    if (!parse_ip_field(dns_str, "dns", cfg.dns, error)) return false;
+  } else {
+    prefs.end();
+    cfg.ip = IPAddress(0, 0, 0, 0);
+    cfg.gw = IPAddress(0, 0, 0, 0);
+    cfg.subnet = IPAddress(0, 0, 0, 0);
+    cfg.dns = IPAddress(0, 0, 0, 0);
   }
 
-  if (!doc["ssid"].is<const char*>() || !doc["pass"].is<const char*>() ||
-      !doc["dhcp"].is<bool>()) {
-    if (error) {
-      *error = "WiFi config requires ssid, pass, and dhcp";
-    }
-    return false;
-  }
-
-  cfg.ssid = doc["ssid"].as<String>();
-  cfg.pass = doc["pass"].as<String>();
-  cfg.dhcp = doc["dhcp"].as<bool>();
   if (cfg.ssid.isEmpty()) {
     if (error) {
       *error = "WiFi config ssid is empty";
@@ -82,24 +74,10 @@ bool wifi_config_load(WifiConfig& cfg, String* error) {
     return false;
   }
 
-  if (!cfg.dhcp) {
-    if (!parse_ip_field(doc["ip"], "ip", cfg.ip, error)) return false;
-    if (!parse_ip_field(doc["gw"], "gw", cfg.gw, error)) return false;
-    if (!parse_ip_field(doc["subnet"], "subnet", cfg.subnet, error)) return false;
-    if (!parse_ip_field(doc["dns"], "dns", cfg.dns, error)) return false;
-  } else {
-    cfg.ip = IPAddress(0, 0, 0, 0);
-    cfg.gw = IPAddress(0, 0, 0, 0);
-    cfg.subnet = IPAddress(0, 0, 0, 0);
-    cfg.dns = IPAddress(0, 0, 0, 0);
-  }
-
   return true;
 }
 
 bool wifi_config_save(const WifiConfig& cfg, String* error) {
-  if (!ensure_fs_ready(error)) return false;
-
   if (cfg.ssid.isEmpty()) {
     if (error) *error = "WiFi config ssid is empty";
     return false;
@@ -113,33 +91,34 @@ bool wifi_config_save(const WifiConfig& cfg, String* error) {
     }
   }
 
-  File file = LittleFS.open(kWifiConfigPath, "w");
-  if (!file) {
-    if (error) *error = String("WiFi config open failed: ") + kWifiConfigPath;
+  Preferences prefs;
+  if (!prefs.begin(kWifiNvsNs, false)) {
+    if (error) {
+      *error = "NVS open failed";
+    }
     return false;
   }
 
-  JsonDocument doc;
-  doc["ssid"] = cfg.ssid;
-  doc["pass"] = cfg.pass;
-  doc["dhcp"] = cfg.dhcp;
+  bool ok = true;
+  ok = ok && prefs.putString("ssid", cfg.ssid) > 0;
+  ok = ok && prefs.putString("pass", cfg.pass) > 0;
+  ok = ok && prefs.putBool("dhcp", cfg.dhcp);
 
   if (cfg.dhcp) {
-    doc["ip"] = "0.0.0.0";
-    doc["gw"] = "0.0.0.0";
-    doc["subnet"] = "0.0.0.0";
-    doc["dns"] = "0.0.0.0";
+    ok = ok && prefs.putString("ip", "0.0.0.0") > 0;
+    ok = ok && prefs.putString("gw", "0.0.0.0") > 0;
+    ok = ok && prefs.putString("subnet", "0.0.0.0") > 0;
+    ok = ok && prefs.putString("dns", "0.0.0.0") > 0;
   } else {
-    doc["ip"] = cfg.ip.toString();
-    doc["gw"] = cfg.gw.toString();
-    doc["subnet"] = cfg.subnet.toString();
-    doc["dns"] = cfg.dns.toString();
+    ok = ok && prefs.putString("ip", cfg.ip.toString()) > 0;
+    ok = ok && prefs.putString("gw", cfg.gw.toString()) > 0;
+    ok = ok && prefs.putString("subnet", cfg.subnet.toString()) > 0;
+    ok = ok && prefs.putString("dns", cfg.dns.toString()) > 0;
   }
 
-  const size_t written = serializeJson(doc, file);
-  file.close();
+  prefs.end();
 
-  if (written == 0) {
+  if (!ok) {
     if (error) *error = "WiFi config write failed";
     return false;
   }

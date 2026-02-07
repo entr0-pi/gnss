@@ -411,7 +411,7 @@ static void task_tcp_io(void* arg);
 // -------------------------------------------
 
 void setup() {
-  // Initialize debug serial and load persisted GNSS configuration from LittleFS.
+  // Initialize debug serial and load persisted GNSS configuration from NVS.
   initSerialAndConfig();
 
   // Allocate FreeRTOS StreamBuffers for inter-task byte streaming (UART<->BLE, UART<->TCP).
@@ -484,7 +484,7 @@ void loop() {
 /**
  * initSerialAndConfig()
  * Initializes the debug serial port (USB CDC) and loads the persisted GNSS
- * configuration from LittleFS. A short delay allows the USB CDC and RTOS
+ * configuration from NVS. A short delay allows the USB CDC and RTOS
  * scheduler to stabilize after boot.
  */
 static void initSerialAndConfig() {
@@ -595,7 +595,7 @@ static void initWebUiRoutes() {
 #if WIFI_ENABLE
 /**
  * connectWiFi()
- * Connects to WiFi in STA mode using credentials from LittleFS or
+ * Connects to WiFi in STA mode using credentials from NVS or
  * compile-time defaults. Blocks for up to 10 seconds waiting for
  * connection; if it fails, loop() will retry periodically.
  */
@@ -729,12 +729,12 @@ static void setupWiFi() {
   String wifi_error;
   if (wifi_config_load(file_cfg, &wifi_error)) {
     use_file_cfg = true;
-    Serial.println("[WiFi] Loaded config from LittleFS");
+    Serial.println("[WiFi] Loaded config from NVS");
   } else {
-    Serial.println(String("[WiFi] Failed to load config from LittleFS: ") + wifi_error);
+    Serial.println(String("[WiFi] Failed to load config from NVS: ") + wifi_error);
   }
 #else
-  Serial.println("[WiFi] FORCE_WIFI_SECRETS enabled, skipping LittleFS config");
+  Serial.println("[WiFi] FORCE_WIFI_SECRETS enabled, skipping NVS config");
 #endif
 
   const char* ssid = use_file_cfg ? file_cfg.ssid.c_str() : STA_SSID;
@@ -840,7 +840,7 @@ bool gnss_apply_runtime_config(const GnssConfig& cfg, String* error) {
   Serial1.begin(cfg.baud, SERIAL_8N1, cfg.rx_pin, cfg.tx_pin);
 
   if (!gnss_config_save(cfg)) {
-    if (error) *error = "Failed to persist config to LittleFS.";
+    if (error) *error = "Failed to persist config to NVS.";
     return false;
   }
 
