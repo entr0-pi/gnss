@@ -159,6 +159,11 @@ private:
   void taskLoop();
   // Establish TCP connection and validate HTTP response.
   bool connectCaster(const NtripConfig& cfg);
+  // Connect using a specific NTRIP protocol revision.
+  bool connectCasterWithVersion(const NtripConfig& cfg,
+                                bool useRev2,
+                                NtripError& err,
+                                String& errMsg);
   // Close socket and move to DISCONNECTED state.
   void disconnect();
   // Store error code/message in stats (thread-safe).
