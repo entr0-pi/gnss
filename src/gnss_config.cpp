@@ -1,11 +1,14 @@
 #include "gnss_config.h"
 
 #include <Preferences.h>
+#include <LittleFS.h>
+#include <ArduinoJson.h>
 
 #include "app.h"
 
 namespace {
 constexpr const char* kGnssNvsNs = "gnss";
+constexpr const char* kGnssJsonPath = "/gnss.json";
 
 bool g_nvs_ready = false;
 GnssConfig g_config{};
@@ -26,6 +29,37 @@ bool load_config_nvs(GnssConfig& cfg) {
   cfg.baud = prefs.getULong("baud", cfg.baud);
 
   prefs.end();
+  return true;
+}
+
+bool load_config_littlefs(GnssConfig& cfg, String* error) {
+  if (!LittleFS.begin(false)) {
+    if (error) *error = "LittleFS mount failed";
+    return false;
+  }
+
+  File file = LittleFS.open(kGnssJsonPath, "r");
+  if (!file) {
+    if (error) *error = "gnss.json not found";
+    return false;
+  }
+
+  JsonDocument doc;
+  const DeserializationError err = deserializeJson(doc, file);
+  file.close();
+  if (err) {
+    if (error) *error = String("gnss.json parse error: ") + err.c_str();
+    return false;
+  }
+
+  if (!doc["rx_pin"].is<int>() || !doc["tx_pin"].is<int>() || !doc["baud"].is<uint32_t>()) {
+    if (error) *error = "gnss.json missing rx_pin/tx_pin/baud";
+    return false;
+  }
+
+  cfg.rx_pin = doc["rx_pin"].as<int>();
+  cfg.tx_pin = doc["tx_pin"].as<int>();
+  cfg.baud = doc["baud"].as<uint32_t>();
   return true;
 }
 } // namespace
@@ -71,16 +105,29 @@ bool gnss_config_begin() {
   g_nvs_ready = true;
   Serial.println("[GNSS] NVS ready");
 
-  GnssConfig loaded = g_config;
-  if (load_config_nvs(loaded) && gnss_config_validate(loaded, nullptr)) {
-    g_config = loaded;
+  // Precedence: NVS first. Use /gnss.json only when NVS is empty/invalid.
+  GnssConfig loaded_nvs = g_config;
+  if (load_config_nvs(loaded_nvs) && gnss_config_validate(loaded_nvs, nullptr)) {
+    g_config = loaded_nvs;
     Serial.println("[GNSS] Config loaded from NVS");
   } else {
-    Serial.println("[GNSS] Config not found in NVS, creating with defaults");
-    if (gnss_config_save(g_config)) {
-      Serial.println("[GNSS] Default config saved successfully");
+    Serial.println("[GNSS] NVS config missing/invalid, trying /gnss.json");
+    GnssConfig loaded_fs = g_config;
+    String fs_error;
+    if (load_config_littlefs(loaded_fs, &fs_error) && gnss_config_validate(loaded_fs, nullptr)) {
+      g_config = loaded_fs;
+      Serial.println("[GNSS] Config loaded from /gnss.json");
+      if (!gnss_config_save(g_config)) {
+        Serial.println("[GNSS] Warning: Failed to sync /gnss.json to NVS");
+      }
     } else {
-      Serial.println("[GNSS] Warning: Failed to save default config");
+      Serial.println(String("[GNSS] /gnss.json not used: ") + fs_error);
+      Serial.println("[GNSS] Creating NVS config with defaults");
+      if (gnss_config_save(g_config)) {
+        Serial.println("[GNSS] Default config saved successfully");
+      } else {
+        Serial.println("[GNSS] Warning: Failed to save default config");
+      }
     }
   }
 

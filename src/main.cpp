@@ -21,6 +21,8 @@
 */
 
 #include <Arduino.h>
+#include <LittleFS.h>
+#include <ArduinoJson.h>
 
 // ---- BLE ----
 // NimBLE-Arduino implements BLE peripheral/server, characteristics, notifications, callbacks, etc.
@@ -717,6 +719,66 @@ static void yieldToTasks() {
 
 #if WIFI_ENABLE
 static void setupWiFi() {
+  auto parseIpField = [](const String& value, IPAddress& out) -> bool {
+    return !value.isEmpty() && out.fromString(value);
+  };
+
+  auto loadWifiConfigFromLittleFs = [&](WifiConfig& cfg, String* error) -> bool {
+    if (!LittleFS.begin(false)) {
+      if (error) *error = "LittleFS mount failed";
+      return false;
+    }
+
+    File file = LittleFS.open("/wifi.json", "r");
+    if (!file) {
+      if (error) *error = "wifi.json not found";
+      return false;
+    }
+
+    JsonDocument doc;
+    const DeserializationError err = deserializeJson(doc, file);
+    file.close();
+    if (err) {
+      if (error) *error = String("wifi.json parse error: ") + err.c_str();
+      return false;
+    }
+
+    if (!doc["ssid"].is<const char*>() || !doc["pass"].is<const char*>() || !doc["dhcp"].is<bool>()) {
+      if (error) *error = "wifi.json missing ssid/pass/dhcp";
+      return false;
+    }
+
+    cfg.ssid = doc["ssid"].as<String>();
+    cfg.pass = doc["pass"].as<String>();
+    cfg.dhcp = doc["dhcp"].as<bool>();
+    if (cfg.ssid.isEmpty()) {
+      if (error) *error = "wifi.json ssid is empty";
+      return false;
+    }
+
+    if (cfg.dhcp) {
+      cfg.ip = IPAddress(0, 0, 0, 0);
+      cfg.gw = IPAddress(0, 0, 0, 0);
+      cfg.subnet = IPAddress(0, 0, 0, 0);
+      cfg.dns = IPAddress(0, 0, 0, 0);
+      return true;
+    }
+
+    const String ip_str = doc["ip"] | "";
+    const String gw_str = doc["gw"] | "";
+    const String subnet_str = doc["subnet"] | "";
+    const String dns_str = doc["dns"] | "";
+    if (!parseIpField(ip_str, cfg.ip) ||
+        !parseIpField(gw_str, cfg.gw) ||
+        !parseIpField(subnet_str, cfg.subnet) ||
+        !parseIpField(dns_str, cfg.dns)) {
+      if (error) *error = "wifi.json contains invalid static IP fields";
+      return false;
+    }
+
+    return true;
+  };
+
   // Station mode: connect to an existing access point / hotspot.
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
@@ -731,10 +793,20 @@ static void setupWiFi() {
     use_file_cfg = true;
     Serial.println("[WiFi] Loaded config from NVS");
   } else {
-    Serial.println(String("[WiFi] Failed to load config from NVS: ") + wifi_error);
+    Serial.println(String("[WiFi] NVS config missing/invalid: ") + wifi_error);
+    if (loadWifiConfigFromLittleFs(file_cfg, &wifi_error)) {
+      use_file_cfg = true;
+      Serial.println("[WiFi] Loaded config from /wifi.json");
+      String save_error;
+      if (!wifi_config_save(file_cfg, &save_error)) {
+        Serial.println(String("[WiFi] Warning: Failed to sync /wifi.json to NVS: ") + save_error);
+      }
+    } else {
+      Serial.println(String("[WiFi] /wifi.json not used: ") + wifi_error);
+    }
   }
 #else
-  Serial.println("[WiFi] FORCE_WIFI_SECRETS enabled, skipping NVS config");
+  Serial.println("[WiFi] FORCE_WIFI_SECRETS enabled, skipping /wifi.json and NVS config");
 #endif
 
   const char* ssid = use_file_cfg ? file_cfg.ssid.c_str() : STA_SSID;
