@@ -21,7 +21,7 @@
 
 #include <Preferences.h>
 #include <LittleFS.h>
-#include "app.h"
+#include "menu.h"
 #define MODULE_LOG 1
 #include "logger.h"
 #include <NimBLEDevice.h>
@@ -282,7 +282,7 @@ class MenuRxCallbacks : public NimBLECharacteristicCallbacks {
 };
 #endif
 
-void menuToolSetup() {
+void menuToolSetup(NimBLEServer* server) {
 #if !BLE_ENABLE
   LOG_W("MENU", "Menu tool disabled: BLE_ENABLE=0");
   return;
@@ -301,10 +301,6 @@ void menuToolSetup() {
       NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY);
   g_menuChar->setCallbacks(new MenuRxCallbacks());
   g_menuService->start();
-  NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
-  adv->addServiceUUID("180C");
-  adv->start();
-
   if (!prefs.begin(NS_WIFI, false)) {
     LOG_E("MENU", "NVS init failed! Factory reset may be needed.");
   } else {
@@ -407,12 +403,10 @@ void handleInput(String input) {
                  "\nEnter Static IP (e.g. 192.168.1.50):");
         currentState = WIFI_IP;
       } else {
-        prefs.begin(NS_WIFI, false);
-        prefs.putString("ip", "0.0.0.0");
-        prefs.putString("gw", "0.0.0.0");
-        prefs.putString("subnet", "0.0.0.0");
-        prefs.putString("dns", "0.0.0.0");
-        prefs.end();
+        saveStr(K_WIFI_IP, "0.0.0.0");
+        saveStr(K_WIFI_GW, "0.0.0.0");
+        saveStr(K_WIFI_SUBNET, "0.0.0.0");
+        saveStr(K_WIFI_DNS, "0.0.0.0");
         returnToMenu("WiFi Saved (DHCP).");
       }
       break;
@@ -639,38 +633,28 @@ void handleMainMenu(const String& input) {
 // ---------------------------------------------------------------------------
 
 void showSettings() {
-  if (!prefs.begin(NS_WIFI, true)) {
-    sendMenu("ERROR: Cannot read NVS!");
-    return;
-  }
-
   // Build sections separately to control size
   String wifi = "--- CONFIG ---\nWiFi:\n";
-  wifi += "  SSID: " + prefs.getString("ssid", "Not set") + "\n";
-  bool dhcp = prefs.getBool("dhcp", true);
+  wifi += "  SSID: " + readStr(K_WIFI_SSID, "Not set") + "\n";
+  bool dhcp = readBool(K_WIFI_DHCP, true);
   wifi += "  DHCP: " + String(dhcp ? "Yes" : "No") + "\n";
   if (!dhcp) {
-    wifi += "  IP: " + prefs.getString("ip", "Not set") + "\n";
-    wifi += "  GW: " + prefs.getString("gw", "Not set") + "\n";
-    wifi += "  Subnet: " + prefs.getString("subnet", "Not set") + "\n";
-    wifi += "  DNS: " + prefs.getString("dns", "Not set") + "\n";
+    wifi += "  IP: " + readStr(K_WIFI_IP, "Not set") + "\n";
+    wifi += "  GW: " + readStr(K_WIFI_GW, "Not set") + "\n";
+    wifi += "  Subnet: " + readStr(K_WIFI_SUBNET, "Not set") + "\n";
+    wifi += "  DNS: " + readStr(K_WIFI_DNS, "Not set") + "\n";
   }
-  prefs.end();
 
-  prefs.begin(NS_GNSS, true);
   String uart = "UART:\n";
-  uart += "  RX:" + String(prefs.getInt("rx_pin", -1));
-  uart += " TX:" + String(prefs.getInt("tx_pin", -1));
-  uart += " Baud:" + String((int)prefs.getUInt("baud", 115200)) + "\n";
-  prefs.end();
+  uart += "  RX:" + String(readInt(K_GNSS_RX, -1));
+  uart += " TX:" + String(readInt(K_GNSS_TX, -1));
+  uart += " Baud:" + String((int)readUInt(K_GNSS_BAUD, 115200)) + "\n";
 
-  prefs.begin(NS_NTRIP, true);
   String ntrip = "NTRIP:\n";
-  ntrip += "  Enabled: " + String(prefs.getBool("enabled", false) ? "Yes" : "No") + "\n";
-  ntrip += "  URL: " + prefs.getString("host", "Not set") + "\n";
-  ntrip += "  Port: " + String((int)prefs.getUInt("port", 2101)) + "\n";
-  ntrip += "  Base: " + prefs.getString("mount", "Not set") + "\n";
-  prefs.end();
+  ntrip += "  Enabled: " + String(readBool(K_NTRIP_ENABLED, false) ? "Yes" : "No") + "\n";
+  ntrip += "  URL: " + readStr(K_NTRIP_HOST, "Not set") + "\n";
+  ntrip += "  Port: " + String((int)readUInt(K_NTRIP_PORT, 2101)) + "\n";
+  ntrip += "  Base: " + readStr(K_NTRIP_MOUNT, "Not set") + "\n";
 
   String full = wifi + uart + ntrip + "\n(1-6 to navigate)";
 
@@ -690,12 +674,18 @@ void showSettings() {
 
 void factoryReset() {
   bool ok = true;
-  if (!prefs.begin(NS_WIFI, false)) ok = false;
-  else { prefs.clear(); prefs.end(); }
-  if (!prefs.begin(NS_GNSS, false)) ok = false;
-  else { prefs.clear(); prefs.end(); }
-  if (!prefs.begin(NS_NTRIP, false)) ok = false;
-  else { prefs.clear(); prefs.end(); }
+
+  prefs.begin(NS_WIFI, false);
+  ok = ok && prefs.clear();
+  prefs.end();
+
+  prefs.begin(NS_GNSS, false);
+  ok = ok && prefs.clear();
+  prefs.end();
+
+  prefs.begin(NS_NTRIP, false);
+  ok = ok && prefs.clear();
+  prefs.end();
 
   if (!LittleFS.begin(true)) {
     ok = false;
@@ -709,5 +699,6 @@ void factoryReset() {
   }
   returnToMenu("NVS + NTRIP JSON cleared. All settings reset to defaults.");
 }
+
 
 #endif
