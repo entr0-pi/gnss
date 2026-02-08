@@ -1,8 +1,6 @@
 #include "gnss_config.h"
 
 #include <Preferences.h>
-#include <LittleFS.h>
-#include <ArduinoJson.h>
 
 #include "app.h"
 #define MODULE_LOG 1
@@ -10,7 +8,6 @@
 
 namespace {
 constexpr const char* kGnssNvsNs = "gnss";
-constexpr const char* kGnssJsonPath = "/gnss.json";
 
 bool g_nvs_ready = false;
 GnssConfig g_config{};
@@ -31,37 +28,6 @@ bool load_config_nvs(GnssConfig& cfg) {
   cfg.baud = prefs.getULong("baud");
 
   prefs.end();
-  return true;
-}
-
-bool load_config_littlefs(GnssConfig& cfg, String* error) {
-  if (!LittleFS.begin(false)) {
-    if (error) *error = "LittleFS mount failed";
-    return false;
-  }
-
-  File file = LittleFS.open(kGnssJsonPath, "r");
-  if (!file) {
-    if (error) *error = "gnss.json not found";
-    return false;
-  }
-
-  JsonDocument doc;
-  const DeserializationError err = deserializeJson(doc, file);
-  file.close();
-  if (err) {
-    if (error) *error = String("gnss.json parse error: ") + err.c_str();
-    return false;
-  }
-
-  if (!doc["rx_pin"].is<int>() || !doc["tx_pin"].is<int>() || !doc["baud"].is<uint32_t>()) {
-    if (error) *error = "gnss.json missing rx_pin/tx_pin/baud";
-    return false;
-  }
-
-  cfg.rx_pin = doc["rx_pin"].as<int>();
-  cfg.tx_pin = doc["tx_pin"].as<int>();
-  cfg.baud = doc["baud"].as<uint32_t>();
   return true;
 }
 } // namespace
@@ -107,29 +73,17 @@ bool gnss_config_begin() {
   g_nvs_ready = true;
   LOG_I("GNSS", "NVS ready");
 
-  // Precedence: NVS first. Use /gnss.json only when NVS is empty/invalid.
+  // NVS only.
   GnssConfig loaded_nvs = g_config;
   if (load_config_nvs(loaded_nvs) && gnss_config_validate(loaded_nvs, nullptr)) {
     g_config = loaded_nvs;
     LOG_I("GNSS", "Config loaded from NVS");
   } else {
-    LOG_W("GNSS", "NVS config missing/invalid, trying /gnss.json");
-    GnssConfig loaded_fs = g_config;
-    String fs_error;
-    if (load_config_littlefs(loaded_fs, &fs_error) && gnss_config_validate(loaded_fs, nullptr)) {
-      g_config = loaded_fs;
-      LOG_I("GNSS", "Config loaded from /gnss.json");
-      if (!gnss_config_save(g_config)) {
-        LOG_W("GNSS", "Failed to sync /gnss.json to NVS");
-      }
+    LOG_W("GNSS", "NVS config missing/invalid, using defaults");
+    if (gnss_config_save(g_config)) {
+      LOG_I("GNSS", "Default config saved successfully");
     } else {
-      LOG_W("GNSS", "/gnss.json not used: %s", fs_error.c_str());
-      LOG_I("GNSS", "Creating NVS config with defaults");
-      if (gnss_config_save(g_config)) {
-        LOG_I("GNSS", "Default config saved successfully");
-      } else {
-        LOG_W("GNSS", "Failed to save default config");
-      }
+      LOG_W("GNSS", "Failed to save default config");
     }
   }
 

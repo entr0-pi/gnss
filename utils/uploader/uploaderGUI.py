@@ -33,35 +33,43 @@ class ESPUploaderGUI:
         self.BUNDLE_DIR = bundle_dir
         self.BASE_DIR = app_dir
         self.CONFIG_FILE = os.path.join(app_dir, "uploaderGUI.json")
-        self.DATA_DIR = os.path.join(app_dir, "data")
+        self.DATA_DIR = os.path.normpath(os.path.join(app_dir, "..", "..", "data"))
+        if not os.path.isdir(self.DATA_DIR):
+            self.DATA_DIR = os.path.join(app_dir, "data")
         self.IMAGE_NAME = os.path.join(app_dir, "littlefs.bin")
+        self.WEB_DIR = os.path.join(self.DATA_DIR, "web")
+        if not os.path.isdir(self.WEB_DIR):
+            local_web = os.path.join(app_dir, "web")
+            project_web = os.path.normpath(os.path.join(app_dir, "..", "..", "web"))
+            if os.path.isdir(local_web):
+                self.WEB_DIR = local_web
+            elif os.path.isdir(project_web):
+                self.WEB_DIR = project_web
+        self.WEB_ALLOWED_EXTS = {".ico", ".css", ".html", ".js"}
 
         self.LIB_DIR = os.path.join(app_dir, "lib")
         self.ALT_LIB_DIR = os.path.normpath(os.path.join(app_dir, "..", "..", "lib"))
 
-        self.DEFAULT_MKLITTLEFS_PY = self._first_existing([
-            os.path.join(self.LIB_DIR, "mklittlefs.py"),
-            os.path.join(self.ALT_LIB_DIR, "mklittlefs.py"),
+        binary_name = "mklittlefs.exe" if platform.system() == "Windows" else "mklittlefs"
+        self.DEFAULT_MKLITTLEFS_PATH = self._first_existing([
+            os.path.join(bundle_dir, "mklittlefs", binary_name),
+            os.path.join(self.LIB_DIR, "mklittlefs", binary_name),
+            os.path.join(self.ALT_LIB_DIR, "mklittlefs", binary_name),
         ])
         self.DEFAULT_NVS_GEN_PY = self._first_existing([
             os.path.join(self.LIB_DIR, "nvs_partition_gen.py"),
             os.path.join(self.ALT_LIB_DIR, "nvs_partition_gen.py"),
         ])
 
-        self.WEB_FILES = ["app.js", "favicon.ico", "index.html", "style.css"]
-        self.WEB_DIR = os.path.join(app_dir, "web")
-        if not os.path.isdir(self.WEB_DIR):
-            project_web = os.path.normpath(os.path.join(app_dir, "..", "..", "web"))
-            if os.path.isdir(project_web):
-                self.WEB_DIR = project_web
-
         self.setup_ui()
 
         import sv_ttk
 
         sv_ttk.set_theme("dark")
+        self.last_nvs_csv_path = ""
         self.load_config()
         self.refresh_status()
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     @staticmethod
     def _first_existing(paths):
@@ -72,27 +80,39 @@ class ESPUploaderGUI:
 
     def setup_ui(self):
         self.tabs = ttk.Notebook(self.root)
+        self.config_tab = ttk.Frame(self.tabs)
         self.flash_tab = ttk.Frame(self.tabs)
         self.nvs_tab = ttk.Frame(self.tabs)
         self.terminal_tab = ttk.Frame(self.tabs)
         self.help_tab = ttk.Frame(self.tabs)
 
+        self.tabs.add(self.config_tab, text="  Configuration  ")
         self.tabs.add(self.flash_tab, text="  Flash Operations  ")
         self.tabs.add(self.nvs_tab, text="  NVS Editor  ")
         self.tabs.add(self.terminal_tab, text="  Terminal Output  ")
         self.tabs.add(self.help_tab, text="  System Setup  ")
         self.tabs.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
+        self._build_config_tab()
         self._build_flash_tab()
         self._build_nvs_tab()
         self._build_terminal_tab()
         self._build_help_tab()
 
-    def _build_flash_tab(self):
-        container = ttk.Frame(self.flash_tab, padding=20)
+    def _build_config_tab(self):
+        container = ttk.Frame(self.config_tab, padding=20)
         container.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(container, text="Flash Configuration", font=("Segoe UI", 16, "bold")).pack(anchor=tk.W, pady=(0, 20))
+        ttk.Label(container, text="Main Information", font=("Segoe UI", 16, "bold")).pack(anchor=tk.W, pady=(0, 20))
+
+        self.port_var = tk.StringVar(value="/dev/ttyUSB0" if platform.system() == "Linux" else "COM8")
+        self.chip_var = tk.StringVar(value="esp32c3")
+        self.csv_path_var = tk.StringVar()
+        self.mklittlefs_path_var = tk.StringVar(value=self.DEFAULT_MKLITTLEFS_PATH)
+        self.nvs_gen_py_var = tk.StringVar(value=self.DEFAULT_NVS_GEN_PY)
+        self.erase_fs_var = tk.BooleanVar(value=False)
+        self.erase_nvs_var = tk.BooleanVar(value=False)
+
         grid = ttk.Frame(container)
         grid.pack(fill=tk.X)
 
@@ -100,13 +120,7 @@ class ESPUploaderGUI:
             row=0, column=0, columnspan=3, sticky=tk.W, pady=(0, 10)
         )
 
-        self.port_var = tk.StringVar(value="/dev/ttyUSB0" if platform.system() == "Linux" else "COM8")
-        self.chip_var = tk.StringVar(value="esp32c3")
-        self.csv_path_var = tk.StringVar()
-        self.mklittlefs_py_var = tk.StringVar(value=self.DEFAULT_MKLITTLEFS_PY)
-        self.nvs_gen_py_var = tk.StringVar(value=self.DEFAULT_NVS_GEN_PY)
-
-        ttk.Label(grid, text="Serial Port").grid(row=1, column=0, sticky=tk.W)
+        ttk.Label(grid, text="Serial Port (COM)").grid(row=1, column=0, sticky=tk.W)
         ttk.Entry(grid, textvariable=self.port_var, width=28).grid(row=2, column=0, sticky=tk.W, padx=(0, 20), pady=(5, 10))
 
         ttk.Label(grid, text="Chip Family").grid(row=1, column=1, sticky=tk.W)
@@ -117,35 +131,79 @@ class ESPUploaderGUI:
         ttk.Entry(grid, textvariable=self.csv_path_var).grid(row=4, column=0, columnspan=2, sticky=tk.EW)
         ttk.Button(grid, text="Browse", command=self.browse_csv).grid(row=4, column=2, padx=8)
 
-        ttk.Label(grid, text="mklittlefs.py path").grid(row=5, column=0, sticky=tk.W, pady=(10, 4))
-        ttk.Entry(grid, textvariable=self.mklittlefs_py_var).grid(row=6, column=0, columnspan=2, sticky=tk.EW)
-        ttk.Button(grid, text="Browse", command=lambda: self._browse_file(self.mklittlefs_py_var, "Python", "*.py")).grid(row=6, column=2, padx=8)
+        ttk.Label(grid, text="mklittlefs binary path").grid(row=5, column=0, sticky=tk.W, pady=(10, 4))
+        ttk.Entry(grid, textvariable=self.mklittlefs_path_var).grid(row=6, column=0, columnspan=2, sticky=tk.EW)
+        ttk.Button(grid, text="Browse", command=lambda: self._browse_file(self.mklittlefs_path_var, "Executable", "*")).grid(row=6, column=2, padx=8)
 
         ttk.Label(grid, text="nvs_partition_gen.py path").grid(row=7, column=0, sticky=tk.W, pady=(10, 4))
         ttk.Entry(grid, textvariable=self.nvs_gen_py_var).grid(row=8, column=0, columnspan=2, sticky=tk.EW)
         ttk.Button(grid, text="Browse", command=lambda: self._browse_file(self.nvs_gen_py_var, "Python", "*.py")).grid(row=8, column=2, padx=8)
 
-        self.gzip_web_var = tk.BooleanVar(value=True)
-        self.erase_fs_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(grid, text="Gzip web assets (html, css, js)", variable=self.gzip_web_var).grid(row=9, column=0, columnspan=2, sticky=tk.W, pady=(14, 0))
-        ttk.Checkbutton(grid, text="Erase FS partition before flash", variable=self.erase_fs_var).grid(row=10, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
+        ttk.Checkbutton(grid, text="Erase FS partition before flash", variable=self.erase_fs_var).grid(row=9, column=0, columnspan=2, sticky=tk.W, pady=(14, 0))
+        ttk.Checkbutton(grid, text="Erase NVS before write", variable=self.erase_nvs_var).grid(row=10, column=0, columnspan=2, sticky=tk.W, pady=(8, 0))
 
         grid.columnconfigure(0, weight=1)
+        status_row = ttk.Frame(container)
+        status_row.pack(fill=tk.X, pady=(18, 0))
+        status_row.columnconfigure(0, weight=1)
+        status_row.columnconfigure(1, weight=1)
 
-        status = ttk.LabelFrame(container, text="Environment Status", padding=10)
-        status.pack(fill=tk.X, pady=(18, 0))
+        status_libs = ttk.LabelFrame(status_row, text="Environment Status - Libraries", padding=10)
+        status_libs.grid(row=0, column=0, sticky=tk.NSEW, padx=(0, 6))
+        status_files = ttk.LabelFrame(status_row, text="Environment Status - Files", padding=10)
+        status_files.grid(row=0, column=1, sticky=tk.NSEW, padx=(6, 0))
+
         self.status_labels = {}
-        for key in ["mklittlefs", "nvsgen", "data", "web", "csv"]:
-            lbl = ttk.Label(status, text="", font=("Segoe UI", 10))
-            lbl.pack(anchor=tk.W, pady=2)
-            self.status_labels[key] = lbl
+        self.status_labels["mklittlefs"] = ttk.Label(status_libs, text="", font=("Segoe UI", 10))
+        self.status_labels["mklittlefs"].pack(anchor=tk.W, pady=2)
+        self.status_labels["nvsgen"] = ttk.Label(status_libs, text="", font=("Segoe UI", 10))
+        self.status_labels["nvsgen"].pack(anchor=tk.W, pady=2)
+        self.status_labels["csv"] = ttk.Label(status_libs, text="", font=("Segoe UI", 10))
+        self.status_labels["csv"].pack(anchor=tk.W, pady=2)
+
+        self.status_labels["data"] = ttk.Label(status_files, text="", font=("Segoe UI", 10))
+        self.status_labels["data"].pack(anchor=tk.W, pady=2)
+        self.status_labels["data_files"] = ttk.Label(status_files, text="", font=("Consolas", 9), foreground="#888888")
+        self.status_labels["data_files"].pack(anchor=tk.W, pady=(0, 4), padx=(16, 0))
+        self.status_labels["web"] = ttk.Label(status_files, text="", font=("Segoe UI", 10))
+        self.status_labels["web"].pack(anchor=tk.W, pady=2)
+        self.status_labels["web_files"] = ttk.Label(status_files, text="", font=("Consolas", 9), foreground="#888888")
+        self.status_labels["web_files"].pack(anchor=tk.W, pady=(0, 4), padx=(16, 0))
 
         btns = ttk.Frame(container)
         btns.pack(fill=tk.X, pady=(20, 0))
         ttk.Button(btns, text="Refresh", command=self.refresh_status).pack(side=tk.LEFT)
-        ttk.Button(btns, text="Show Terminal", command=lambda: self.tabs.select(self.terminal_tab)).pack(side=tk.LEFT, padx=(8, 0))
-        self.run_btn = ttk.Button(btns, text="Build & Flash LittleFS", command=self.start_flash_thread)
-        self.run_btn.pack(side=tk.RIGHT)
+        ttk.Button(btns, text="Save Configuration", command=self.save_config).pack(side=tk.LEFT, padx=(8, 0))
+
+
+    def _build_flash_tab(self):
+        container = ttk.Frame(self.flash_tab, padding=20)
+        container.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(container, text="LittleFS Operations", font=("Segoe UI", 16, "bold")).pack(anchor=tk.W, pady=(0, 20))
+        ttk.Label(
+            container,
+            text="Use Configuration tab for COM, paths, and options. This tab only runs the flash operation.",
+            font=("Segoe UI", 10),
+        ).pack(anchor=tk.W, pady=(0, 12))
+
+        btns = ttk.Frame(container)
+        btns.pack(fill=tk.X, pady=(8, 0))
+        self.run_btn = tk.Button(
+            btns,
+            text="Build & Flash LittleFS",
+            command=self.start_flash_thread,
+            bg="#d64b4b",
+            fg="#ffffff",
+            activebackground="#be3f3f",
+            activeforeground="#ffffff",
+            relief=tk.FLAT,
+            bd=0,
+            padx=12,
+            pady=6,
+            cursor="hand2",
+        )
+        self.run_btn.pack(side=tk.LEFT)
 
     def _build_nvs_tab(self):
         container = ttk.Frame(self.nvs_tab, padding=16)
@@ -155,10 +213,18 @@ class ESPUploaderGUI:
 
         top = ttk.Frame(container)
         top.pack(fill=tk.X)
-        ttk.Label(top, text="Namespace").grid(row=0, column=0, sticky=tk.W)
-        ttk.Label(top, text="Key").grid(row=0, column=1, sticky=tk.W)
-        ttk.Label(top, text="Type").grid(row=0, column=2, sticky=tk.W)
-        ttk.Label(top, text="Encoding").grid(row=0, column=3, sticky=tk.W)
+        self.unlock_meta_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(
+            top,
+            text="Unlock namespace/key/type/encoding (at your own risk)",
+            variable=self.unlock_meta_var,
+            command=self._apply_nvs_meta_lock_state,
+        ).grid(row=0, column=0, columnspan=6, sticky=tk.W, pady=(0, 8))
+        ttk.Label(top, text="Namespace").grid(row=1, column=0, sticky=tk.W)
+        ttk.Label(top, text="Key").grid(row=1, column=1, sticky=tk.W)
+        ttk.Label(top, text="Type").grid(row=1, column=2, sticky=tk.W)
+        ttk.Label(top, text="Encoding").grid(row=1, column=3, sticky=tk.W)
+        ttk.Label(top, text="Value").grid(row=1, column=4, sticky=tk.W)
 
         self.nvs_namespace_var = tk.StringVar(value="storage")
         self.nvs_key_var = tk.StringVar()
@@ -166,16 +232,25 @@ class ESPUploaderGUI:
         self.nvs_encoding_var = tk.StringVar(value="string")
         self.nvs_value_var = tk.StringVar()
 
-        ttk.Entry(top, textvariable=self.nvs_namespace_var, width=20).grid(row=1, column=0, sticky=tk.EW, padx=(0, 8))
-        ttk.Entry(top, textvariable=self.nvs_key_var, width=24).grid(row=1, column=1, sticky=tk.EW, padx=(0, 8))
-        ttk.Combobox(top, textvariable=self.nvs_type_var, values=["data", "namespace", "file", "key"], width=10).grid(row=1, column=2, sticky=tk.EW, padx=(0, 8))
-        ttk.Combobox(top, textvariable=self.nvs_encoding_var,
-                     values=["string", "u8", "i8", "u16", "u32", "i32", "base64", "hex2bin", "binary"],
-                     width=12).grid(row=1, column=3, sticky=tk.EW, padx=(0, 8))
-        ttk.Label(top, text="Value").grid(row=2, column=0, sticky=tk.W, pady=(10, 0))
-        ttk.Entry(top, textvariable=self.nvs_value_var).grid(row=3, column=0, columnspan=4, sticky=tk.EW)
+        self.nvs_namespace_entry = ttk.Entry(top, textvariable=self.nvs_namespace_var, width=20)
+        self.nvs_namespace_entry.grid(row=2, column=0, sticky=tk.EW, padx=(0, 8))
+        self.nvs_key_entry = ttk.Entry(top, textvariable=self.nvs_key_var, width=18)
+        self.nvs_key_entry.grid(row=2, column=1, sticky=tk.EW, padx=(0, 8))
+        self.nvs_type_combo = ttk.Combobox(top, textvariable=self.nvs_type_var, values=["data", "namespace", "file", "key"], width=10)
+        self.nvs_type_combo.grid(row=2, column=2, sticky=tk.EW, padx=(0, 8))
+        self.nvs_encoding_combo = ttk.Combobox(
+            top,
+            textvariable=self.nvs_encoding_var,
+            values=["string", "u8", "i8", "u16", "u32", "i32", "base64", "hex2bin", "binary"],
+            width=12,
+        )
+        self.nvs_encoding_combo.grid(row=2, column=3, sticky=tk.EW, padx=(0, 8))
+        ttk.Entry(top, textvariable=self.nvs_value_var).grid(row=2, column=4, sticky=tk.EW)
         top.columnconfigure(1, weight=1)
         top.columnconfigure(3, weight=1)
+        top.columnconfigure(4, weight=1)
+        top.columnconfigure(5, weight=1)
+        self._apply_nvs_meta_lock_state()
 
         self.nvs_tree = ttk.Treeview(container, columns=("namespace", "key", "type", "encoding", "value"), show="headings", height=13)
         for c, w in [("namespace", 140), ("key", 180), ("type", 90), ("encoding", 110), ("value", 420)]:
@@ -189,13 +264,69 @@ class ESPUploaderGUI:
         ttk.Button(row, text="Add / Update", command=self.add_or_update_nvs).pack(side=tk.LEFT)
         ttk.Button(row, text="Remove Selected", command=self.remove_selected_nvs).pack(side=tk.LEFT, padx=(8, 0))
         ttk.Button(row, text="Clear", command=self.clear_nvs_form).pack(side=tk.LEFT, padx=(8, 0))
+        export_btn = tk.Button(
+            row,
+            text="Export CSV",
+            command=self.export_nvs_csv,
+            bg="#2e79d1",
+            fg="#ffffff",
+            activebackground="#2667b3",
+            activeforeground="#ffffff",
+            relief=tk.FLAT,
+            bd=0,
+            padx=10,
+            pady=4,
+            cursor="hand2",
+        )
+        export_btn.pack(side=tk.LEFT, padx=(8, 0))
+        import_btn = tk.Button(
+            row,
+            text="Import CSV",
+            command=self.import_nvs_csv,
+            bg="#2e79d1",
+            fg="#ffffff",
+            activebackground="#2667b3",
+            activeforeground="#ffffff",
+            relief=tk.FLAT,
+            bd=0,
+            padx=10,
+            pady=4,
+            cursor="hand2",
+        )
+        import_btn.pack(side=tk.LEFT, padx=(8, 0))
 
-        row2 = ttk.Frame(container)
-        row2.pack(fill=tk.X, pady=(8, 0))
-        ttk.Button(row2, text="Export CSV", command=self.export_nvs_csv).pack(side=tk.LEFT)
-        ttk.Button(row2, text="Import CSV", command=self.import_nvs_csv).pack(side=tk.LEFT, padx=(8, 0))
-        ttk.Button(row2, text="Read from Device", command=self.start_nvs_read_thread).pack(side=tk.RIGHT)
-        ttk.Button(row2, text="Write to Device", command=self.start_nvs_write_thread).pack(side=tk.RIGHT, padx=(0, 8))
+        row_write = ttk.Frame(container)
+        row_write.pack(fill=tk.X, pady=(8, 0))
+        self.nvs_erase_btn = tk.Button(
+            row_write,
+            text="Erase NVS (No Write)",
+            command=self.start_nvs_erase_thread,
+            bg="#b06b2a",
+            fg="#ffffff",
+            activebackground="#935821",
+            activeforeground="#ffffff",
+            relief=tk.FLAT,
+            bd=0,
+            padx=12,
+            pady=4,
+            cursor="hand2",
+        )
+        self.nvs_erase_btn.pack(side=tk.LEFT)
+        self.nvs_write_btn = tk.Button(
+            row_write,
+            text="Write to Device",
+            command=self.start_nvs_write_thread,
+            bg="#d64b4b",
+            fg="#ffffff",
+            activebackground="#be3f3f",
+            activeforeground="#ffffff",
+            relief=tk.FLAT,
+            bd=0,
+            padx=12,
+            pady=4,
+            cursor="hand2",
+        )
+        self.nvs_write_btn.pack(side=tk.LEFT, padx=(8, 0))
 
     def _build_terminal_tab(self):
         frame = ttk.Frame(self.terminal_tab, padding=12)
@@ -208,14 +339,23 @@ class ESPUploaderGUI:
         frame = ttk.Frame(self.help_tab, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
         text = (
-            "This uploader now uses Python scripts from lib/.\n\n"
-            "Required scripts:\n"
-            "- mklittlefs.py\n"
-            "- nvs_partition_gen.py\n\n"
-            "NVS tab workflow:\n"
-            "1) Read from Device to inspect current NVS values\n"
-            "2) Add/edit rows in the table\n"
-            "3) Write to Device to generate and flash an updated NVS partition"
+            "Uploader workflow (current):\n\n"
+            "1) Configuration tab\n"
+            "- Select COM port, chip, partition CSV, mklittlefs path, and nvs_partition_gen.py path\n"
+            "- Optional: enable erase before LittleFS/NVS flashing\n"
+            "- Refresh status to validate environment\n\n"
+            "2) Flash Operations tab\n"
+            "- Builds LittleFS image from /data (all files) and /web (.ico/.css/.html/.js)\n"
+            "- Flashes LittleFS at the SPIFFS partition offset from partitions.csv\n\n"
+            "3) NVS Editor tab\n"
+            "- Import or edit NVS rows in CSV format (key,type,encoding,value)\n"
+            "- Auto-imports last CSV saved in uploaderGUI.json when available\n"
+            "- Export CSV for backup, then Write to Device to generate+flash NVS\n\n"
+            "Required tools:\n"
+            "- mklittlefs binary\n"
+            "- nvs_partition_gen.py\n"
+            "- esp_idf_nvs_partition_gen (Python module)\n"
+            "- esptool (Python module)"
         )
         ttk.Label(frame, text=text, justify=tk.LEFT, font=("Segoe UI", 10)).pack(anchor=tk.W)
 
@@ -228,7 +368,16 @@ class ESPUploaderGUI:
     def _run_python(self, args, check=True):
         cmd = [sys.executable] + args
         self.log(f">>> {' '.join(cmd)}")
-        return subprocess.run(cmd, check=check, capture_output=True, text=True)
+        result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+        if result.stdout:
+            self.log(result.stdout.rstrip())
+        if result.stderr:
+            self.log(result.stderr.rstrip())
+        if check and result.returncode != 0:
+            raise subprocess.CalledProcessError(
+                result.returncode, cmd, output=result.stdout, stderr=result.stderr
+            )
+        return result
 
     def _run_with_fallbacks(self, variants):
         last = None
@@ -255,9 +404,10 @@ class ESPUploaderGUI:
             "port": self.port_var.get(),
             "chip": self.chip_var.get(),
             "csv_path": self.csv_path_var.get(),
-            "gzip_web": self.gzip_web_var.get(),
+            "nvs_csv_path": getattr(self, "last_nvs_csv_path", ""),
             "erase_fs": self.erase_fs_var.get(),
-            "mklittlefs_py": self.mklittlefs_py_var.get(),
+            "erase_nvs": self.erase_nvs_var.get(),
+            "mklittlefs_path": self.mklittlefs_path_var.get(),
             "nvs_gen_py": self.nvs_gen_py_var.get(),
         }
         with open(self.CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -272,28 +422,84 @@ class ESPUploaderGUI:
             self.port_var.set(c.get("port", self.port_var.get()))
             self.chip_var.set(c.get("chip", self.chip_var.get()))
             self.csv_path_var.set(c.get("csv_path", ""))
-            self.gzip_web_var.set(c.get("gzip_web", True))
+            self.last_nvs_csv_path = c.get("nvs_csv_path", "")
             self.erase_fs_var.set(c.get("erase_fs", False))
-            self.mklittlefs_py_var.set(c.get("mklittlefs_py", self.mklittlefs_py_var.get()))
+            self.erase_nvs_var.set(c.get("erase_nvs", False))
+            self.mklittlefs_path_var.set(
+                c.get("mklittlefs_path", c.get("mklittlefs_py", self.mklittlefs_path_var.get()))
+            )
             self.nvs_gen_py_var.set(c.get("nvs_gen_py", self.nvs_gen_py_var.get()))
+            if self.last_nvs_csv_path and os.path.isfile(self.last_nvs_csv_path):
+                self._load_nvs_csv_to_tree(self.last_nvs_csv_path)
+                self.log(f">>> Auto-imported NVS CSV: {self.last_nvs_csv_path}")
         except Exception:
             pass
 
     def refresh_status(self):
+        ok_color = "#4ec969"
+        warn_color = "#e0a820"
+        err_color = "#e05555"
+
         checks = {
-            "mklittlefs": os.path.isfile(self.mklittlefs_py_var.get()),
+            "mklittlefs": os.path.isfile(self.mklittlefs_path_var.get()),
             "nvsgen": os.path.isfile(self.nvs_gen_py_var.get()),
-            "data": os.path.isdir(self.DATA_DIR) and len(os.listdir(self.DATA_DIR)) > 0,
             "web": os.path.isdir(self.WEB_DIR),
             "csv": bool(self.csv_path_var.get() and os.path.isfile(self.csv_path_var.get())),
         }
-        self.status_labels["mklittlefs"].config(text=f"mklittlefs.py: {'Found' if checks['mklittlefs'] else 'Missing'}")
-        self.status_labels["nvsgen"].config(text=f"nvs_partition_gen.py: {'Found' if checks['nvsgen'] else 'Missing'}")
-        self.status_labels["data"].config(text=f"data/: {'OK' if checks['data'] else 'Missing or empty'}")
-        self.status_labels["web"].config(text=f"web/: {'Found' if checks['web'] else 'Missing'}")
-        self.status_labels["csv"].config(text=f"partitions.csv: {'Found' if checks['csv'] else 'Not selected'}")
-        ready = all(checks.values())
-        self.run_btn.state(["!disabled"] if ready else ["disabled"])
+
+        data_dir_exists = os.path.isdir(self.DATA_DIR)
+        data_count = 0
+        data_files = []
+        if data_dir_exists:
+            data_files = sorted(
+                f
+                for f in os.listdir(self.DATA_DIR)
+                if os.path.isfile(os.path.join(self.DATA_DIR, f))
+            )
+            data_count = len(data_files)
+        web_files = []
+        if checks["web"]:
+            web_files = sorted(
+                f
+                for f in os.listdir(self.WEB_DIR)
+                if os.path.isfile(os.path.join(self.WEB_DIR, f))
+                and os.path.splitext(f)[1].lower() in self.WEB_ALLOWED_EXTS
+            )
+
+        self.status_labels["mklittlefs"].config(
+            text=f"mklittlefs: {'Found' if checks['mklittlefs'] else 'Missing'}",
+            foreground=ok_color if checks["mklittlefs"] else err_color,
+        )
+        self.status_labels["nvsgen"].config(
+            text=f"nvs_partition_gen.py: {'Found' if checks['nvsgen'] else 'Missing'}",
+            foreground=ok_color if checks["nvsgen"] else err_color,
+        )
+        self.status_labels["csv"].config(
+            text=f"partitions.csv: {'Found' if checks['csv'] else 'Not selected'}",
+            foreground=ok_color if checks["csv"] else err_color,
+        )
+        if checks["web"]:
+            web_label = "file" if len(web_files) == 1 else "files"
+            self.status_labels["web"].config(
+                text=f"/web: {len(web_files)} {web_label}",
+                foreground=ok_color,
+            )
+        else:
+            self.status_labels["web"].config(text="/web: Missing", foreground=err_color)
+        self.status_labels["web_files"].config(text=", ".join(web_files) if web_files else "")
+        if not data_dir_exists:
+            self.status_labels["data"].config(text="/data: Missing (warning only)", foreground=warn_color)
+            self.status_labels["data_files"].config(text="")
+        elif data_count == 0:
+            self.status_labels["data"].config(text="/data: 0 files", foreground=warn_color)
+            self.status_labels["data_files"].config(text="")
+        else:
+            data_label = "file" if data_count == 1 else "files"
+            self.status_labels["data"].config(text=f"/data: {data_count} {data_label}", foreground=ok_color)
+            self.status_labels["data_files"].config(text=", ".join(data_files))
+
+        ready = checks["mklittlefs"] and checks["nvsgen"] and checks["csv"]
+        self.run_btn.config(state=(tk.NORMAL if ready else tk.DISABLED))
         return ready
 
     @staticmethod
@@ -343,28 +549,47 @@ class ESPUploaderGUI:
 
             staging = tempfile.mkdtemp(prefix="littlefs_staging_")
             try:
-                for f in os.listdir(self.DATA_DIR):
-                    src = os.path.join(self.DATA_DIR, f)
-                    if os.path.isfile(src):
-                        shutil.copy2(src, staging)
+                if os.path.isdir(self.DATA_DIR):
+                    for f in os.listdir(self.DATA_DIR):
+                        src = os.path.join(self.DATA_DIR, f)
+                        if os.path.isfile(src):
+                            shutil.copy2(src, staging)
+                else:
+                    self.log("[WARN] data/ folder not found. Building image without data files.")
 
                 web_staging = os.path.join(staging, "web")
                 os.makedirs(web_staging, exist_ok=True)
-                for f in self.WEB_FILES:
-                    src = os.path.join(self.WEB_DIR, f)
-                    if not os.path.isfile(src):
-                        continue
-                    if self.gzip_web_var.get() and os.path.splitext(f)[1] in {".html", ".css", ".js", ".ico"}:
-                        dst = os.path.join(web_staging, f + ".gz")
-                        with open(src, "rb") as fin, gzip.open(dst, "wb") as fout:
-                            shutil.copyfileobj(fin, fout)
-                    else:
-                        shutil.copy2(src, web_staging)
+                if os.path.isdir(self.WEB_DIR):
+                    for f in sorted(os.listdir(self.WEB_DIR)):
+                        src = os.path.join(self.WEB_DIR, f)
+                        if not os.path.isfile(src):
+                            continue
+                        ext = os.path.splitext(f)[1].lower()
+                        if ext not in self.WEB_ALLOWED_EXTS:
+                            continue
+                        if ext in {".html", ".css", ".js", ".ico"}:
+                            dst = os.path.join(web_staging, f + ".gz")
+                            with open(src, "rb") as fin, gzip.open(dst, "wb") as fout:
+                                shutil.copyfileobj(fin, fout)
+                        else:
+                            shutil.copy2(src, web_staging)
+                else:
+                    self.log("[WARN] web/ folder not found. Building image without web files.")
 
-                self._run_with_fallbacks([
-                    [self.mklittlefs_py_var.get(), "-c", staging, "-b", "4096", "-p", "256", "-s", str(fs["size"]), self.IMAGE_NAME],
-                    [self.mklittlefs_py_var.get(), "create", "--path", staging, "--block-size", "4096", "--page-size", "256", "--size", str(fs["size"]), "--output", self.IMAGE_NAME],
-                ])
+                mkl_cmd = [
+                    self.mklittlefs_path_var.get(),
+                    "-c",
+                    staging,
+                    "-b",
+                    "4096",
+                    "-p",
+                    "256",
+                    "-s",
+                    str(fs["size"]),
+                    self.IMAGE_NAME,
+                ]
+                self.log(f">>> {' '.join(mkl_cmd)}")
+                subprocess.run(mkl_cmd, check=True, capture_output=True, text=True)
             finally:
                 shutil.rmtree(staging, ignore_errors=True)
 
@@ -399,6 +624,15 @@ class ESPUploaderGUI:
         self.nvs_type_var.set(vals[2])
         self.nvs_encoding_var.set(vals[3])
         self.nvs_value_var.set(vals[4])
+
+    def _apply_nvs_meta_lock_state(self):
+        editable = self.unlock_meta_var.get()
+        state = "normal" if editable else "disabled"
+        combo_state = "readonly" if editable else "disabled"
+        self.nvs_namespace_entry.config(state=state)
+        self.nvs_key_entry.config(state=state)
+        self.nvs_type_combo.config(state=combo_state)
+        self.nvs_encoding_combo.config(state=combo_state)
 
     def add_or_update_nvs(self):
         row = (
@@ -460,6 +694,7 @@ class ESPUploaderGUI:
         p = filedialog.askopenfilename(filetypes=[("CSV", "*.csv")])
         if not p:
             return
+        self.last_nvs_csv_path = p
         self._load_nvs_csv_to_tree(p)
         self.log(f">>> Imported NVS CSV: {p}")
 
@@ -480,34 +715,11 @@ class ESPUploaderGUI:
                     continue
                 self.nvs_tree.insert("", tk.END, values=(current_ns, key, typ, enc, val))
 
-    def start_nvs_read_thread(self):
-        threading.Thread(target=self.read_nvs_from_device, daemon=True).start()
-
-    def read_nvs_from_device(self):
-        self.tabs.select(self.terminal_tab)
-        try:
-            nvs = self.get_partition("nvs")
-            self.log(f">>> NVS partition offset={hex(nvs['offset'])}, size={hex(nvs['size'])}")
-            with tempfile.TemporaryDirectory(prefix="nvs_read_") as tmp:
-                bin_path = os.path.join(tmp, "nvs.bin")
-                csv_path = os.path.join(tmp, "nvs.csv")
-                self._run_python([
-                    "-m", "esptool", "--chip", self.chip_var.get(), "--port", self.port_var.get(), "--baud", "921600",
-                    "read-flash", hex(nvs["offset"]), hex(nvs["size"]), bin_path,
-                ])
-                self._run_with_fallbacks([
-                    [self.nvs_gen_py_var.get(), "parse", bin_path, csv_path, str(nvs["size"])],
-                    [self.nvs_gen_py_var.get(), "parse", "--input", bin_path, "--output", csv_path, "--size", str(nvs["size"])],
-                ])
-                self._load_nvs_csv_to_tree(csv_path)
-            self.tabs.select(self.nvs_tab)
-            self.log("[SUCCESS] NVS values loaded from device.")
-        except Exception as e:
-            self.log(f"[ERROR] {e}")
-            messagebox.showerror("NVS read failed", str(e))
-
     def start_nvs_write_thread(self):
         threading.Thread(target=self.write_nvs_to_device, daemon=True).start()
+
+    def start_nvs_erase_thread(self):
+        threading.Thread(target=self.erase_nvs_partition, daemon=True).start()
 
     def write_nvs_to_device(self):
         self.tabs.select(self.terminal_tab)
@@ -525,6 +737,11 @@ class ESPUploaderGUI:
                     [self.nvs_gen_py_var.get(), "generate", csv_path, bin_path, str(nvs["size"])],
                     [self.nvs_gen_py_var.get(), "generate", "--input", csv_path, "--output", bin_path, "--size", str(nvs["size"])],
                 ])
+                if self.erase_nvs_var.get():
+                    self._run_python([
+                        "-m", "esptool", "--chip", self.chip_var.get(), "--port", self.port_var.get(), "--baud", "921600",
+                        "erase-region", hex(nvs["offset"]), hex(nvs["size"]),
+                    ])
                 self._run_python([
                     "-m", "esptool", "--chip", self.chip_var.get(), "--port", self.port_var.get(), "--baud", "921600",
                     "write-flash", hex(nvs["offset"]), bin_path,
@@ -535,6 +752,26 @@ class ESPUploaderGUI:
         except Exception as e:
             self.log(f"[ERROR] {e}")
             messagebox.showerror("NVS write failed", str(e))
+
+    def erase_nvs_partition(self):
+        self.tabs.select(self.terminal_tab)
+        if not messagebox.askyesno("Confirm erase", "Erase the full NVS partition without writing new data?"):
+            return
+        try:
+            nvs = self.get_partition("nvs")
+            self._run_python([
+                "-m", "esptool", "--chip", self.chip_var.get(), "--port", self.port_var.get(), "--baud", "921600",
+                "erase-region", hex(nvs["offset"]), hex(nvs["size"]),
+            ])
+            self.log("[SUCCESS] NVS partition erased.")
+            messagebox.showinfo("Success", "NVS partition erased successfully.")
+        except Exception as e:
+            self.log(f"[ERROR] {e}")
+            messagebox.showerror("NVS erase failed", str(e))
+
+    def on_close(self):
+        self.save_config()
+        self.root.destroy()
 
 
 def check_dependencies():

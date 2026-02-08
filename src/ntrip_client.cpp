@@ -3,7 +3,6 @@
 #if NTRIP_CLIENT_ENABLE
 
 #include <Arduino.h>
-#include <LittleFS.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
 #include <WiFi.h>
@@ -18,8 +17,20 @@
 #endif
 
 namespace {
-const char* kConfigPath = "/ntrip_config.json";
 const char* kNtripNvsNs = "ntrip";
+const char* kNtripEnabledKey = "enabled";
+const char* kNtripHostKey = "host";
+const char* kNtripPortKey = "port";
+const char* kNtripMountKey = "mount";
+const char* kNtripUserKey = "user";
+const char* kNtripPassKey = "pass";
+const char* kNtripMaxTriesKey = "max_tries";
+const char* kNtripRetryDelayKey = "retry_delay";
+const char* kNtripHealthTimeoutKey = "health_to";
+const char* kNtripPassiveMsKey = "passive_ms";
+const char* kNtripReqValidKey = "req_valid";
+const char* kNtripBufferSizeKey = "buf_size";
+const char* kNtripConnectTimeoutKey = "conn_to";
 const char* kLockoutAttemptsKey = "lock_fails";
 const char* kLockoutAbandonedKey = "lock_aband";
 const char* kLockoutHashKey = "lock_hash";
@@ -92,12 +103,12 @@ bool loadNtripFromNvs(JsonDocument& doc, String* error) {
   }
 
   const bool hasRequired =
-      prefs.isKey("enabled") && prefs.isKey("host") && prefs.isKey("port") &&
-      prefs.isKey("mount") && prefs.isKey("user") && prefs.isKey("pass") &&
-      prefs.isKey("max_tries") && prefs.isKey("retry_delay_ms") &&
-      prefs.isKey("health_timeout_ms") && prefs.isKey("passive_sample_ms") &&
-      prefs.isKey("required_valid_frames") && prefs.isKey("buffer_size") &&
-      prefs.isKey("connect_timeout_ms");
+      prefs.isKey(kNtripEnabledKey) && prefs.isKey(kNtripHostKey) && prefs.isKey(kNtripPortKey) &&
+      prefs.isKey(kNtripMountKey) && prefs.isKey(kNtripUserKey) && prefs.isKey(kNtripPassKey) &&
+      prefs.isKey(kNtripMaxTriesKey) && prefs.isKey(kNtripRetryDelayKey) &&
+      prefs.isKey(kNtripHealthTimeoutKey) && prefs.isKey(kNtripPassiveMsKey) &&
+      prefs.isKey(kNtripReqValidKey) && prefs.isKey(kNtripBufferSizeKey) &&
+      prefs.isKey(kNtripConnectTimeoutKey);
 
   if (!hasRequired) {
     prefs.end();
@@ -106,48 +117,21 @@ bool loadNtripFromNvs(JsonDocument& doc, String* error) {
   }
 
   JsonObject ntrip = doc["ntrip"].to<JsonObject>();
-  ntrip["enabled"] = prefs.getBool("enabled");
-  ntrip["host"] = prefs.getString("host");
-  ntrip["port"] = prefs.getUInt("port");
-  ntrip["mount"] = prefs.getString("mount");
-  ntrip["user"] = prefs.getString("user");
-  ntrip["pass"] = prefs.getString("pass");
-  ntrip["max_tries"] = prefs.getInt("max_tries");
-  ntrip["retry_delay_ms"] = prefs.getULong("retry_delay_ms");
-  ntrip["health_timeout_ms"] = prefs.getULong("health_timeout_ms");
-  ntrip["passive_sample_ms"] = prefs.getULong("passive_sample_ms");
-  ntrip["required_valid_frames"] = prefs.getUInt("required_valid_frames");
-  ntrip["buffer_size"] = prefs.getUInt("buffer_size");
-  ntrip["connect_timeout_ms"] = prefs.getULong("connect_timeout_ms");
+  ntrip["enabled"] = prefs.getBool(kNtripEnabledKey);
+  ntrip["host"] = prefs.getString(kNtripHostKey);
+  ntrip["port"] = prefs.getUInt(kNtripPortKey);
+  ntrip["mount"] = prefs.getString(kNtripMountKey);
+  ntrip["user"] = prefs.getString(kNtripUserKey);
+  ntrip["pass"] = prefs.getString(kNtripPassKey);
+  ntrip["max_tries"] = prefs.getInt(kNtripMaxTriesKey);
+  ntrip["retry_delay_ms"] = prefs.getULong(kNtripRetryDelayKey);
+  ntrip["health_timeout_ms"] = prefs.getULong(kNtripHealthTimeoutKey);
+  ntrip["passive_sample_ms"] = prefs.getULong(kNtripPassiveMsKey);
+  ntrip["required_valid_frames"] = prefs.getUInt(kNtripReqValidKey);
+  ntrip["buffer_size"] = prefs.getUInt(kNtripBufferSizeKey);
+  ntrip["connect_timeout_ms"] = prefs.getULong(kNtripConnectTimeoutKey);
   prefs.end();
   return true;
-}
-
-bool saveNtripToNvs(JsonObjectConst ntrip, String* error) {
-  Preferences prefs;
-  if (!prefs.begin(kNtripNvsNs, false)) {
-    if (error) *error = "NVS open failed";
-    return false;
-  }
-
-  bool ok = true;
-  ok = ok && prefs.putBool("enabled", ntrip["enabled"] | false);
-  ok = ok && prefs.putString("host", (ntrip["host"] | "rtk2go.com"));
-  ok = ok && prefs.putUInt("port", ntrip["port"] | 2101);
-  ok = ok && prefs.putString("mount", (ntrip["mount"] | "YOUR_MOUNT"));
-  ok = ok && prefs.putString("user", (ntrip["user"] | "user"));
-  ok = ok && prefs.putString("pass", (ntrip["pass"] | "pass"));
-  ok = ok && prefs.putInt("max_tries", ntrip["max_tries"] | 5);
-  ok = ok && prefs.putULong("retry_delay_ms", ntrip["retry_delay_ms"] | 30000);
-  ok = ok && prefs.putULong("health_timeout_ms", ntrip["health_timeout_ms"] | 60000);
-  ok = ok && prefs.putULong("passive_sample_ms", ntrip["passive_sample_ms"] | 5000);
-  ok = ok && prefs.putUInt("required_valid_frames", ntrip["required_valid_frames"] | 3);
-  ok = ok && prefs.putUInt("buffer_size", ntrip["buffer_size"] | 1024);
-  ok = ok && prefs.putULong("connect_timeout_ms", ntrip["connect_timeout_ms"] | 5000);
-  prefs.end();
-
-  if (!ok && error) *error = "NVS write failed";
-  return ok;
 }
 
 bool loadLockoutFromNvs(JsonDocument& doc) {
@@ -179,17 +163,6 @@ bool saveLockoutToNvs(int attempts, bool abandoned, const String& currentHash) {
   return ok;
 }
 
-void loadLockoutFromJson(JsonDocument& doc) {
-  File file = LittleFS.open(kConfigPath, "r");
-  if (!file) return;
-  JsonDocument fileDoc;
-  const DeserializationError err = deserializeJson(fileDoc, file);
-  file.close();
-  if (!err && fileDoc["lockout"].is<JsonObject>()) {
-    doc["lockout"].set(fileDoc["lockout"]);
-  }
-}
-
 bool isInternetReachable() {
 #if WEBUI_ENABLE
   return webui_get_internet_reachable();
@@ -209,13 +182,6 @@ void updateJsonState(int attempts, bool abandoned, const String& currentHash) {
   g_configDoc["lockout"]["abandoned"] = abandoned;
   g_configDoc["lockout"]["last_config_hash"] = currentHash;
   saveLockoutToNvs(attempts, abandoned, currentHash);
-
-  File file = LittleFS.open(kConfigPath, "w");
-  if (file) {
-    serializeJson(g_configDoc, file);
-    file.close();
-    LOG_I("NTRIP", "Status updated to Flash.");
-  }
 }
 
 bool loadAndValidateConfig(NtripConfig& config) {
@@ -225,35 +191,17 @@ bool loadAndValidateConfig(NtripConfig& config) {
   if (loadNtripFromNvs(g_configDoc, &nvsError)) {
     LOG_I("NTRIP", "Loaded config from NVS");
     if (!loadLockoutFromNvs(g_configDoc)) {
-      loadLockoutFromJson(g_configDoc);
-      const int attempts = g_configDoc["lockout"]["failed_attempts"] | 0;
-      const bool abandoned = g_configDoc["lockout"]["abandoned"] | false;
-      const String hash = g_configDoc["lockout"]["last_config_hash"] | "";
+      const int attempts = 0;
+      const bool abandoned = false;
+      const String hash = "";
+      g_configDoc["lockout"]["failed_attempts"] = attempts;
+      g_configDoc["lockout"]["abandoned"] = abandoned;
+      g_configDoc["lockout"]["last_config_hash"] = hash;
       saveLockoutToNvs(attempts, abandoned, hash);
     }
   } else {
     LOG_W("NTRIP", "NVS config missing/invalid: %s", nvsError.c_str());
-    File file = LittleFS.open(kConfigPath, "r");
-    if (!file) {
-      LOG_E("NTRIP", "Config file missing!");
-      return false;
-    }
-    DeserializationError error = deserializeJson(g_configDoc, file);
-    file.close();
-    if (error || !g_configDoc["ntrip"].is<JsonObject>()) {
-      LOG_E("NTRIP", "JSON parse error: %s", error.c_str());
-      return false;
-    }
-    String saveError;
-    if (!saveNtripToNvs(g_configDoc["ntrip"].as<JsonObject>(), &saveError)) {
-      LOG_W("NTRIP", "Failed to sync JSON to NVS: %s", saveError.c_str());
-    } else {
-      LOG_I("NTRIP", "Loaded config from JSON and synced to NVS");
-    }
-    const int attempts = g_configDoc["lockout"]["failed_attempts"] | 0;
-    const bool abandoned = g_configDoc["lockout"]["abandoned"] | false;
-    const String hash = g_configDoc["lockout"]["last_config_hash"] | "";
-    saveLockoutToNvs(attempts, abandoned, hash);
+    return false;
   }
 
   const bool isEnabled = g_configDoc["ntrip"]["enabled"] | false;
@@ -396,7 +344,7 @@ void handleLockout() {
         LOG_I("NTRIP", "Verify host and port are correct");
         break;
       default:
-        LOG_I("NTRIP", "Edit /ntrip_config.json to fix configuration");
+        LOG_I("NTRIP", "Update NTRIP configuration to fix this");
         LOG_I("NTRIP", "Or wait for auto-reset in 2 minutes");
     }
 
@@ -502,44 +450,6 @@ void configMonitorTask(void* pvParameters) {
   }
 }
 
-void ensureConfigTemplate() {
-  if (LittleFS.exists(kConfigPath)) {
-    return;
-  }
-
-  LOG_I("NTRIP", "Creating default configuration...");
-  File file = LittleFS.open(kConfigPath, "w");
-  if (!file) {
-    LOG_E("NTRIP", "Failed to create config file!");
-    return;
-  }
-
-  JsonDocument templateDoc;
-  JsonObject ntrip = templateDoc["ntrip"].to<JsonObject>();
-  ntrip["enabled"] = false;
-  ntrip["host"] = "rtk2go.com";
-  ntrip["port"] = 2101;
-  ntrip["mount"] = "YOUR_MOUNT";
-  ntrip["user"] = "your_email@example.com";
-  ntrip["pass"] = "none";
-  ntrip["max_tries"] = 5;
-  ntrip["retry_delay_ms"] = 30000;
-  ntrip["health_timeout_ms"] = 60000;
-  ntrip["passive_sample_ms"] = 5000;
-  ntrip["required_valid_frames"] = 3;
-  ntrip["buffer_size"] = 1024;
-  ntrip["connect_timeout_ms"] = 5000;
-
-  JsonObject lockout = templateDoc["lockout"].to<JsonObject>();
-  lockout["failed_attempts"] = 0;
-  lockout["abandoned"] = false;
-  lockout["last_config_hash"] = "";
-
-  serializeJson(templateDoc, file);
-  file.close();
-  LOG_I("NTRIP", "Template created");
-  LOG_I("NTRIP", "Edit /ntrip_config.json to configure NTRIP.");
-}
 }  // namespace
 
 void ntrip_client_setup(StreamBufferHandle_t sb_ntrip2uart) {
@@ -547,13 +457,6 @@ void ntrip_client_setup(StreamBufferHandle_t sb_ntrip2uart) {
   g_ntripClient.setLogger(ntripClientLogAdapter);
 
   LOG_I("NTRIP", "Initializing NTRIP client...");
-
-  if (!LittleFS.begin(true)) {
-    LOG_E("NTRIP", "LittleFS mount failed - NTRIP disabled");
-    return;
-  }
-
-  ensureConfigTemplate();
 
   xTaskCreatePinnedToCore(
       configMonitorTask,

@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-WEB_DIR = ROOT / "web"
+WEB_DIR = ROOT / "data" / "web"
 STATUS_FILE = WEB_DIR / "status.json"
 CONFIG_FILE = WEB_DIR / "config.json"
 NTRIP_CONFIG_FILE = WEB_DIR / "ntrip_config.json"
