@@ -76,6 +76,42 @@ void handleMainMenu(const String& input);
 void showSettings();
 void factoryReset();
 
+enum class NvsValueType { Bool, Int, UInt, String };
+struct NvsKey {
+  const char* ns;
+  const char* key;
+  NvsValueType type;
+};
+
+// WiFi keys
+static const NvsKey K_WIFI_SSID   = {NS_WIFI, "ssid", NvsValueType::String};
+static const NvsKey K_WIFI_PASS   = {NS_WIFI, "pass", NvsValueType::String};
+static const NvsKey K_WIFI_DHCP   = {NS_WIFI, "dhcp", NvsValueType::Bool};
+static const NvsKey K_WIFI_IP     = {NS_WIFI, "ip", NvsValueType::String};
+static const NvsKey K_WIFI_GW     = {NS_WIFI, "gw", NvsValueType::String};
+static const NvsKey K_WIFI_SUBNET = {NS_WIFI, "subnet", NvsValueType::String};
+static const NvsKey K_WIFI_DNS    = {NS_WIFI, "dns", NvsValueType::String};
+
+// GNSS keys
+static const NvsKey K_GNSS_RX   = {NS_GNSS, "rx_pin", NvsValueType::Int};
+static const NvsKey K_GNSS_TX   = {NS_GNSS, "tx_pin", NvsValueType::Int};
+static const NvsKey K_GNSS_BAUD = {NS_GNSS, "baud", NvsValueType::UInt};
+
+// NTRIP keys
+static const NvsKey K_NTRIP_ENABLED            = {NS_NTRIP, "enabled", NvsValueType::Bool};
+static const NvsKey K_NTRIP_HOST               = {NS_NTRIP, "host", NvsValueType::String};
+static const NvsKey K_NTRIP_PORT               = {NS_NTRIP, "port", NvsValueType::UInt};
+static const NvsKey K_NTRIP_MOUNT              = {NS_NTRIP, "mount", NvsValueType::String};
+static const NvsKey K_NTRIP_USER               = {NS_NTRIP, "user", NvsValueType::String};
+static const NvsKey K_NTRIP_PASS               = {NS_NTRIP, "pass", NvsValueType::String};
+static const NvsKey K_NTRIP_MAX_TRIES          = {NS_NTRIP, "max_tries", NvsValueType::Int};
+static const NvsKey K_NTRIP_RETRY_DELAY_MS     = {NS_NTRIP, "retry_delay_ms", NvsValueType::UInt};
+static const NvsKey K_NTRIP_HEALTH_TIMEOUT_MS  = {NS_NTRIP, "health_timeout_ms", NvsValueType::UInt};
+static const NvsKey K_NTRIP_PASSIVE_SAMPLE_MS  = {NS_NTRIP, "passive_sample_ms", NvsValueType::UInt};
+static const NvsKey K_NTRIP_REQUIRED_VALID     = {NS_NTRIP, "required_valid_frames", NvsValueType::UInt};
+static const NvsKey K_NTRIP_BUFFER_SIZE        = {NS_NTRIP, "buffer_size", NvsValueType::UInt};
+static const NvsKey K_NTRIP_CONNECT_TIMEOUT_MS = {NS_NTRIP, "connect_timeout_ms", NvsValueType::UInt};
+
 
 // ---------------------------------------------------------------------------
 // Helpers – validation
@@ -144,61 +180,61 @@ bool isPinSafe(const String& input) {
 // Helpers – NVS wrappers
 // ---------------------------------------------------------------------------
 
-void saveStrNs(const char* ns, const char* key, const String& val) {
-  prefs.begin(ns, false);
-  prefs.putString(key, val);
+void saveStr(const NvsKey& k, const String& val) {
+  prefs.begin(k.ns, false);
+  prefs.putString(k.key, val);
   prefs.end();
 }
 
-void saveIntNs(const char* ns, const char* key, int val) {
-  prefs.begin(ns, false);
-  prefs.putInt(key, val);
+void saveInt(const NvsKey& k, int val) {
+  prefs.begin(k.ns, false);
+  prefs.putInt(k.key, val);
   prefs.end();
 }
 
-void saveUIntNs(const char* ns, const char* key, uint32_t val) {
-  prefs.begin(ns, false);
-  prefs.putUInt(key, val);
+void saveUInt(const NvsKey& k, uint32_t val) {
+  prefs.begin(k.ns, false);
+  prefs.putUInt(k.key, val);
   prefs.end();
 }
 
-void saveBoolNs(const char* ns, const char* key, bool val) {
-  prefs.begin(ns, false);
-  prefs.putBool(key, val);
+void saveBool(const NvsKey& k, bool val) {
+  prefs.begin(k.ns, false);
+  prefs.putBool(k.key, val);
   prefs.end();
 }
 
-String readStrNs(const char* ns, const char* key, const char* def) {
-  prefs.begin(ns, true);
-  String val = prefs.getString(key, def);
-  prefs.end();
-  return val;
-}
-
-int readIntNs(const char* ns, const char* key, int def) {
-  prefs.begin(ns, true);
-  int val = prefs.getInt(key, def);
+String readStr(const NvsKey& k, const char* def) {
+  prefs.begin(k.ns, true);
+  String val = prefs.getString(k.key, def);
   prefs.end();
   return val;
 }
 
-uint32_t readUIntNs(const char* ns, const char* key, uint32_t def) {
-  prefs.begin(ns, true);
-  uint32_t val = prefs.getUInt(key, def);
+int readInt(const NvsKey& k, int def) {
+  prefs.begin(k.ns, true);
+  int val = prefs.getInt(k.key, def);
   prefs.end();
   return val;
 }
 
-bool readBoolNs(const char* ns, const char* key, bool def) {
-  prefs.begin(ns, true);
-  bool val = prefs.getBool(key, def);
+uint32_t readUInt(const NvsKey& k, uint32_t def) {
+  prefs.begin(k.ns, true);
+  uint32_t val = prefs.getUInt(k.key, def);
   prefs.end();
   return val;
 }
 
-bool hasKeyNs(const char* ns, const char* key) {
-  prefs.begin(ns, true);
-  bool exists = prefs.isKey(key);
+bool readBool(const NvsKey& k, bool def) {
+  prefs.begin(k.ns, true);
+  bool val = prefs.getBool(k.key, def);
+  prefs.end();
+  return val;
+}
+
+bool hasKey(const NvsKey& k) {
+  prefs.begin(k.ns, true);
+  bool exists = prefs.isKey(k.key);
   prefs.end();
   return exists;
 }
@@ -324,7 +360,7 @@ void handleInput(String input) {
     // ===================== WIFI =====================
     case WIFI_MENU:
       if (input == "1") {
-        String cur = readStrNs(NS_WIFI, "ssid", "Not set");
+        String cur = readStr(K_WIFI_SSID, "Not set");
         sendMenu("--- WiFi Setup (Step 1/4) ---\nCurrent SSID: " + cur +
                  "\nEnter WiFi SSID:");
         currentState = WIFI_SSID;
@@ -340,7 +376,7 @@ void handleInput(String input) {
         sendMenu("ERROR: SSID must be 1-32 chars.\nEnter WiFi SSID:");
         return;
       }
-      saveStrNs(NS_WIFI, "ssid", input);
+      saveStr(K_WIFI_SSID, input);
       sendMenu("--- WiFi Setup (Step 2/4) ---\nEnter Password (leave empty for open network):");
       currentState = WIFI_PASS;
       break;
@@ -350,9 +386,9 @@ void handleInput(String input) {
         sendMenu("ERROR: Password max 64 chars.\nEnter Password:");
         return;
       }
-      saveStrNs(NS_WIFI, "pass", input);
+      saveStr(K_WIFI_PASS, input);
       {
-        bool dhcp = readBoolNs(NS_WIFI, "dhcp", true);
+        bool dhcp = readBool(K_WIFI_DHCP, true);
         sendMenu("--- WiFi Setup (Step 3/4) ---\nCurrent DHCP: " +
                  String(dhcp ? "Yes" : "No") + "\nUse DHCP? (y/n):");
       }
@@ -364,9 +400,9 @@ void handleInput(String input) {
         sendMenu("ERROR: Enter 'y' or 'n' for DHCP:");
         return;
       }
-      saveBoolNs(NS_WIFI, "dhcp", input == "y");
+      saveBool(K_WIFI_DHCP, input == "y");
       if (input == "n") {
-        String ip = readStrNs(NS_WIFI, "ip", "Not set");
+        String ip = readStr(K_WIFI_IP, "Not set");
         sendMenu("--- WiFi Setup (Step 4/6) ---\nCurrent IP: " + ip +
                  "\nEnter Static IP (e.g. 192.168.1.50):");
         currentState = WIFI_IP;
@@ -386,9 +422,9 @@ void handleInput(String input) {
         sendMenu("ERROR: Invalid IP format.\nEnter Static IP:");
         return;
       }
-      saveStrNs(NS_WIFI, "ip", input);
+      saveStr(K_WIFI_IP, input);
       {
-        String gw = readStrNs(NS_WIFI, "gw", "Not set");
+        String gw = readStr(K_WIFI_GW, "Not set");
         sendMenu("--- WiFi Setup (Step 5/6) ---\nCurrent Gateway: " + gw +
                  "\nEnter Gateway IP (e.g. 192.168.1.1):");
         currentState = WIFI_GW;
@@ -400,9 +436,9 @@ void handleInput(String input) {
         sendMenu("ERROR: Invalid IP format.\nEnter Gateway IP:");
         return;
       }
-      saveStrNs(NS_WIFI, "gw", input);
+      saveStr(K_WIFI_GW, input);
       {
-        String sub = readStrNs(NS_WIFI, "subnet", "255.255.255.0");
+        String sub = readStr(K_WIFI_SUBNET, "255.255.255.0");
         sendMenu("Current Subnet: " + sub + "\nEnter Subnet Mask:");
       }
       currentState = WIFI_SUB;
@@ -413,9 +449,9 @@ void handleInput(String input) {
         sendMenu("ERROR: Invalid subnet format.\nEnter Subnet Mask:");
         return;
       }
-      saveStrNs(NS_WIFI, "subnet", input);
+      saveStr(K_WIFI_SUBNET, input);
       {
-        String dns = readStrNs(NS_WIFI, "dns", "8.8.8.8");
+        String dns = readStr(K_WIFI_DNS, "8.8.8.8");
         sendMenu("--- WiFi Setup (Step 6/6) ---\nCurrent DNS: " + dns + "\nEnter DNS IP:");
       }
       currentState = WIFI_DNS;
@@ -426,7 +462,7 @@ void handleInput(String input) {
         sendMenu("ERROR: Invalid DNS format.\nEnter DNS IP:");
         return;
       }
-      saveStrNs(NS_WIFI, "dns", input);
+      saveStr(K_WIFI_DNS, input);
       returnToMenu("Static WiFi Saved.");
       break;
 
@@ -436,9 +472,9 @@ void handleInput(String input) {
         sendMenu("ERROR: Invalid pin. Safe: 4,13,14,16-19,21-23,25-27,32,33\nEnter RX Pin:");
         return;
       }
-      saveIntNs(NS_GNSS, "rx_pin", input.toInt());
+      saveInt(K_GNSS_RX, input.toInt());
       {
-        int tx = readIntNs(NS_GNSS, "tx_pin", -1);
+        int tx = readInt(K_GNSS_TX, -1);
         sendMenu("--- UART Setup (Step 2/3) ---\nCurrent TX: " + String(tx) +
                  "\nEnter TX Pin:");
       }
@@ -450,9 +486,9 @@ void handleInput(String input) {
         sendMenu("ERROR: Invalid pin. Safe: 4,13,14,16-19,21-23,25-27,32,33\nEnter TX Pin:");
         return;
       }
-      saveIntNs(NS_GNSS, "tx_pin", input.toInt());
+      saveInt(K_GNSS_TX, input.toInt());
       {
-        int baud = readIntNs(NS_GNSS, "baud", 115200);
+        int baud = readInt(K_GNSS_BAUD, 115200);
         sendMenu("--- UART Setup (Step 3/3) ---\nCurrent Baud: " + String(baud) +
                  "\nEnter Baud Rate (9600,19200,38400,57600,115200):");
       }
@@ -464,7 +500,7 @@ void handleInput(String input) {
         sendMenu("ERROR: Invalid baud. Use: 9600,19200,38400,57600,115200\nEnter Baud Rate:");
         return;
       }
-      saveUIntNs(NS_GNSS, "baud", (uint32_t)input.toInt());
+      saveUInt(K_GNSS_BAUD, (uint32_t)input.toInt());
       returnToMenu("UART Settings Saved.");
       break;  // Fixed: was missing
 
@@ -474,10 +510,10 @@ void handleInput(String input) {
         sendMenu("ERROR: URL cannot be empty.\nEnter NTRIP URL:");
         return;
       }
-      saveBoolNs(NS_NTRIP, "enabled", true);
-      saveStrNs(NS_NTRIP, "host", input);
+      saveBool(K_NTRIP_ENABLED, true);
+      saveStr(K_NTRIP_HOST, input);
       {
-        int port = (int)readUIntNs(NS_NTRIP, "port", 2101);
+        int port = (int)readUInt(K_NTRIP_PORT, 2101);
         sendMenu("--- NTRIP Setup (Step 2/5) ---\nCurrent Port: " + String(port) +
                  "\nEnter Port (1-65535):");
       }
@@ -489,9 +525,9 @@ void handleInput(String input) {
         sendMenu("ERROR: Port must be 1-65535.\nEnter Port:");
         return;
       }
-      saveUIntNs(NS_NTRIP, "port", (uint32_t)input.toInt());
+      saveUInt(K_NTRIP_PORT, (uint32_t)input.toInt());
       {
-        String base = readStrNs(NS_NTRIP, "mount", "Not set");
+        String base = readStr(K_NTRIP_MOUNT, "Not set");
         sendMenu("--- NTRIP Setup (Step 3/5) ---\nCurrent Base ID: " + base +
                  "\nEnter Base ID:");
       }
@@ -499,9 +535,9 @@ void handleInput(String input) {
       break;
 
     case NTRIP_BASE:
-      saveStrNs(NS_NTRIP, "mount", input);
+      saveStr(K_NTRIP_MOUNT, input);
       {
-        String email = readStrNs(NS_NTRIP, "user", "Not set");
+        String email = readStr(K_NTRIP_USER, "Not set");
         sendMenu("--- NTRIP Setup (Step 4/5) ---\nCurrent Email: " + email +
                  "\nEnter Email:");
       }
@@ -509,21 +545,21 @@ void handleInput(String input) {
       break;
 
     case NTRIP_EMAIL:
-      saveStrNs(NS_NTRIP, "user", input);
+      saveStr(K_NTRIP_USER, input);
       sendMenu("--- NTRIP Setup (Step 5/5) ---\nEnter Password:");
       currentState = NTRIP_PASS;
       break;
 
     case NTRIP_PASS:
-      saveStrNs(NS_NTRIP, "pass", input);
+      saveStr(K_NTRIP_PASS, input);
       // Ensure all runtime NTRIP keys exist
-      if (!hasKeyNs(NS_NTRIP, "max_tries")) saveIntNs(NS_NTRIP, "max_tries", 5);
-      if (!hasKeyNs(NS_NTRIP, "retry_delay_ms")) saveUIntNs(NS_NTRIP, "retry_delay_ms", 30000);
-      if (!hasKeyNs(NS_NTRIP, "health_timeout_ms")) saveUIntNs(NS_NTRIP, "health_timeout_ms", 60000);
-      if (!hasKeyNs(NS_NTRIP, "passive_sample_ms")) saveUIntNs(NS_NTRIP, "passive_sample_ms", 5000);
-      if (!hasKeyNs(NS_NTRIP, "required_valid_frames")) saveUIntNs(NS_NTRIP, "required_valid_frames", 3);
-      if (!hasKeyNs(NS_NTRIP, "buffer_size")) saveUIntNs(NS_NTRIP, "buffer_size", 1024);
-      if (!hasKeyNs(NS_NTRIP, "connect_timeout_ms")) saveUIntNs(NS_NTRIP, "connect_timeout_ms", 5000);
+      if (!hasKey(K_NTRIP_MAX_TRIES)) saveInt(K_NTRIP_MAX_TRIES, 5);
+      if (!hasKey(K_NTRIP_RETRY_DELAY_MS)) saveUInt(K_NTRIP_RETRY_DELAY_MS, 30000);
+      if (!hasKey(K_NTRIP_HEALTH_TIMEOUT_MS)) saveUInt(K_NTRIP_HEALTH_TIMEOUT_MS, 60000);
+      if (!hasKey(K_NTRIP_PASSIVE_SAMPLE_MS)) saveUInt(K_NTRIP_PASSIVE_SAMPLE_MS, 5000);
+      if (!hasKey(K_NTRIP_REQUIRED_VALID)) saveUInt(K_NTRIP_REQUIRED_VALID, 3);
+      if (!hasKey(K_NTRIP_BUFFER_SIZE)) saveUInt(K_NTRIP_BUFFER_SIZE, 1024);
+      if (!hasKey(K_NTRIP_CONNECT_TIMEOUT_MS)) saveUInt(K_NTRIP_CONNECT_TIMEOUT_MS, 5000);
       returnToMenu("NTRIP Settings Saved.");
       break;  // Fixed: was missing
 
@@ -562,22 +598,22 @@ void handleInput(String input) {
 
 void handleMainMenu(const String& input) {
   if (input == "1") {
-    String cur = readStrNs(NS_WIFI, "ssid", "Not set");
+    String cur = readStr(K_WIFI_SSID, "Not set");
     sendMenu("--- WiFi Setup ---\nCurrent SSID: " + cur +
              "\n\n1. Change SSID\n2. Back");
     currentState = WIFI_MENU;
   }
   else if (input == "2") {
-    int rx   = readIntNs(NS_GNSS, "rx_pin", -1);
-    int tx   = readIntNs(NS_GNSS, "tx_pin", -1);
-    int baud = (int)readUIntNs(NS_GNSS, "baud", 115200);
+    int rx   = readInt(K_GNSS_RX, -1);
+    int tx   = readInt(K_GNSS_TX, -1);
+    int baud = (int)readUInt(K_GNSS_BAUD, 115200);
     sendMenu("--- UART Setup (Step 1/3) ---\nCurrent: RX=" + String(rx) +
              ", TX=" + String(tx) + " @ " + String(baud) +
              "\nEnter RX Pin (e.g. 16, 17, 21) or 'x' to cancel:");
     currentState = UART_RX;
   }
   else if (input == "3") {
-    String url = readStrNs(NS_NTRIP, "host", "Not set");
+    String url = readStr(K_NTRIP_HOST, "Not set");
     sendMenu("--- NTRIP Setup (Step 1/5) ---\nCurrent URL: " + url +
              "\nEnter NTRIP URL or 'x' to cancel:");
     currentState = NTRIP_URL;
