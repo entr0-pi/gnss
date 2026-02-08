@@ -66,11 +66,19 @@
 #include <Arduino.h>
 #include "app.h"
 
-#define CLR_ERR  "\033[0;31m"
-#define CLR_WRN  "\033[0;33m"
-#define CLR_INF  "\033[0;32m"
-#define CLR_DBG  "\033[0;36m"
-#define CLR_RST  "\033[0m"
+#if LOG_USE_COLOR
+  #define CLR_ERR  "\033[0;31m"
+  #define CLR_WRN  "\033[0;33m"
+  #define CLR_INF  "\033[0;32m"
+  #define CLR_DBG  "\033[0;36m"
+  #define CLR_RST  "\033[0m"
+#else
+  #define CLR_ERR  ""
+  #define CLR_WRN  ""
+  #define CLR_INF  ""
+  #define CLR_DBG  ""
+  #define CLR_RST  ""
+#endif
 
 #ifndef MODULE_LOG
 #error "Define MODULE_LOG (0 or 1) before including logger.h in each translation unit."

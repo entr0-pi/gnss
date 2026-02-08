@@ -26,9 +26,9 @@ bool load_config_nvs(GnssConfig& cfg) {
     return false;
   }
 
-  cfg.rx_pin = prefs.getInt("rx_pin", cfg.rx_pin);
-  cfg.tx_pin = prefs.getInt("tx_pin", cfg.tx_pin);
-  cfg.baud = prefs.getULong("baud", cfg.baud);
+  cfg.rx_pin = prefs.getInt("rx_pin");
+  cfg.tx_pin = prefs.getInt("tx_pin");
+  cfg.baud = prefs.getULong("baud");
 
   prefs.end();
   return true;

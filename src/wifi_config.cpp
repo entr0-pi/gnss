@@ -44,15 +44,15 @@ bool wifi_config_load(WifiConfig& cfg, String* error) {
     return false;
   }
 
-  cfg.ssid = prefs.getString("ssid", "");
-  cfg.pass = prefs.getString("pass", "");
-  cfg.dhcp = prefs.getBool("dhcp", false);
+  cfg.ssid = prefs.getString("ssid");
+  cfg.pass = prefs.getString("pass");
+  cfg.dhcp = prefs.getBool("dhcp");
 
   if (!cfg.dhcp) {
-    const String ip_str = prefs.getString("ip", "");
-    const String gw_str = prefs.getString("gw", "");
-    const String subnet_str = prefs.getString("subnet", "");
-    const String dns_str = prefs.getString("dns", "");
+    const String ip_str = prefs.getString("ip");
+    const String gw_str = prefs.getString("gw");
+    const String subnet_str = prefs.getString("subnet");
+    const String dns_str = prefs.getString("dns");
     prefs.end();
 
     if (!parse_ip_field(ip_str, "ip", cfg.ip, error)) return false;

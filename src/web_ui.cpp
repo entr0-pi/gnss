@@ -690,29 +690,14 @@ static void handleNtripConfigGet() {
   markRequestAndGetPrevAgeMs();
 
   constexpr const char* kNtripNvsNs = "ntrip";
+  constexpr const char* kLockoutAttemptsKey = "lock_fails";
+  constexpr const char* kLockoutAbandonedKey = "lock_aband";
+  constexpr const char* kLockoutHashKey = "lock_hash";
 
   JsonDocument doc;
   doc["locked"] = false;
-
   JsonObject ntrip = doc["ntrip"].to<JsonObject>();
-  ntrip["enabled"] = false;
-  ntrip["host"] = "rtk2go.com";
-  ntrip["port"] = 2101;
-  ntrip["mount"] = "YOUR_MOUNT";
-  ntrip["user"] = "user";
-  ntrip["pass"] = "pass";
-  ntrip["max_tries"] = 5;
-  ntrip["retry_delay_ms"] = 30000;
-  ntrip["health_timeout_ms"] = 60000;
-  ntrip["passive_sample_ms"] = 5000;
-  ntrip["required_valid_frames"] = 3;
-  ntrip["buffer_size"] = 1024;
-  ntrip["connect_timeout_ms"] = 5000;
-
   JsonObject lockout = doc["lockout"].to<JsonObject>();
-  lockout["failed_attempts"] = 0;
-  lockout["abandoned"] = false;
-  lockout["last_config_hash"] = "";
 
   bool loadedFromNvs = false;
   Preferences prefs;
@@ -725,19 +710,22 @@ static void handleNtripConfigGet() {
         prefs.isKey("required_valid_frames") && prefs.isKey("buffer_size") &&
         prefs.isKey("connect_timeout_ms");
     if (hasRequired) {
-      ntrip["enabled"] = prefs.getBool("enabled", false);
-      ntrip["host"] = prefs.getString("host", "rtk2go.com");
-      ntrip["port"] = prefs.getUInt("port", 2101);
-      ntrip["mount"] = prefs.getString("mount", "YOUR_MOUNT");
-      ntrip["user"] = prefs.getString("user", "user");
-      ntrip["pass"] = prefs.getString("pass", "pass");
-      ntrip["max_tries"] = prefs.getInt("max_tries", 5);
-      ntrip["retry_delay_ms"] = prefs.getULong("retry_delay_ms", 30000);
-      ntrip["health_timeout_ms"] = prefs.getULong("health_timeout_ms", 60000);
-      ntrip["passive_sample_ms"] = prefs.getULong("passive_sample_ms", 5000);
-      ntrip["required_valid_frames"] = prefs.getUInt("required_valid_frames", 3);
-      ntrip["buffer_size"] = prefs.getUInt("buffer_size", 1024);
-      ntrip["connect_timeout_ms"] = prefs.getULong("connect_timeout_ms", 5000);
+      ntrip["enabled"] = prefs.getBool("enabled");
+      ntrip["host"] = prefs.getString("host");
+      ntrip["port"] = prefs.getUInt("port");
+      ntrip["mount"] = prefs.getString("mount");
+      ntrip["user"] = prefs.getString("user");
+      ntrip["pass"] = prefs.getString("pass");
+      ntrip["max_tries"] = prefs.getInt("max_tries");
+      ntrip["retry_delay_ms"] = prefs.getULong("retry_delay_ms");
+      ntrip["health_timeout_ms"] = prefs.getULong("health_timeout_ms");
+      ntrip["passive_sample_ms"] = prefs.getULong("passive_sample_ms");
+      ntrip["required_valid_frames"] = prefs.getUInt("required_valid_frames");
+      ntrip["buffer_size"] = prefs.getUInt("buffer_size");
+      ntrip["connect_timeout_ms"] = prefs.getULong("connect_timeout_ms");
+      lockout["failed_attempts"] = prefs.getInt(kLockoutAttemptsKey);
+      lockout["abandoned"] = prefs.getBool(kLockoutAbandonedKey);
+      lockout["last_config_hash"] = prefs.getString(kLockoutHashKey);
       loadedFromNvs = true;
     }
     prefs.end();
@@ -803,6 +791,9 @@ static void handleNtripConfigGet() {
 static void handleNtripConfigPost() {
   markRequestAndGetPrevAgeMs();
   constexpr const char* kNtripNvsNs = "ntrip";
+  constexpr const char* kLockoutAttemptsKey = "lock_fails";
+  constexpr const char* kLockoutAbandonedKey = "lock_aband";
+  constexpr const char* kLockoutHashKey = "lock_hash";
 
   if (!s_server->hasArg("plain")) {
     s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Missing body\"}");
@@ -896,6 +887,9 @@ static void handleNtripConfigPost() {
   ok = ok && prefs.putUInt("required_valid_frames", ntripOut["required_valid_frames"] | 3);
   ok = ok && prefs.putUInt("buffer_size", ntripOut["buffer_size"] | 1024);
   ok = ok && prefs.putULong("connect_timeout_ms", ntripOut["connect_timeout_ms"] | 5000);
+  ok = ok && prefs.putInt(kLockoutAttemptsKey, lockoutOut["failed_attempts"] | 0) > 0;
+  ok = ok && prefs.putBool(kLockoutAbandonedKey, lockoutOut["abandoned"] | false);
+  ok = ok && prefs.putString(kLockoutHashKey, lockoutOut["last_config_hash"] | "") > 0;
   prefs.end();
   if (!ok) {
     s_server->send(500, "application/json", "{\"ok\":false,\"error\":\"Failed to write NVS\"}");

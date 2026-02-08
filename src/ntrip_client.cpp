@@ -20,6 +20,9 @@
 namespace {
 const char* kConfigPath = "/ntrip_config.json";
 const char* kNtripNvsNs = "ntrip";
+const char* kLockoutAttemptsKey = "lock_fails";
+const char* kLockoutAbandonedKey = "lock_aband";
+const char* kLockoutHashKey = "lock_hash";
 
 NtripClient g_ntripClient;
 JsonDocument g_configDoc;
@@ -61,28 +64,24 @@ class NtripStreamWriter : public Print {
 
 NtripStreamWriter g_ntripWriter;
 
-void applyDefaultNtrip(JsonDocument& doc) {
-  JsonObject ntrip = doc["ntrip"].to<JsonObject>();
-  ntrip["enabled"] = false;
-  ntrip["host"] = "rtk2go.com";
-  ntrip["port"] = 2101;
-  ntrip["mount"] = "YOUR_MOUNT";
-  ntrip["user"] = "user";
-  ntrip["pass"] = "pass";
-  ntrip["max_tries"] = 5;
-  ntrip["retry_delay_ms"] = 30000;
-  ntrip["health_timeout_ms"] = 60000;
-  ntrip["passive_sample_ms"] = 5000;
-  ntrip["required_valid_frames"] = 3;
-  ntrip["buffer_size"] = 1024;
-  ntrip["connect_timeout_ms"] = 5000;
-}
-
-void applyDefaultLockout(JsonDocument& doc) {
-  JsonObject lockout = doc["lockout"].to<JsonObject>();
-  lockout["failed_attempts"] = 0;
-  lockout["abandoned"] = false;
-  lockout["last_config_hash"] = "";
+void ntripClientLogAdapter(NtripLogLevel level, const char* tag, const char* message) {
+  const char* safeTag = (tag && tag[0]) ? tag : "NTRIP_LIB";
+  const char* safeMsg = message ? message : "";
+  switch (level) {
+    case NtripLogLevel::Error:
+      LOG_E(safeTag, "%s", safeMsg);
+      break;
+    case NtripLogLevel::Warning:
+      LOG_W(safeTag, "%s", safeMsg);
+      break;
+    case NtripLogLevel::Info:
+      LOG_I(safeTag, "%s", safeMsg);
+      break;
+    case NtripLogLevel::Debug:
+    default:
+      LOG_D(safeTag, "%s", safeMsg);
+      break;
+  }
 }
 
 bool loadNtripFromNvs(JsonDocument& doc, String* error) {
@@ -107,19 +106,19 @@ bool loadNtripFromNvs(JsonDocument& doc, String* error) {
   }
 
   JsonObject ntrip = doc["ntrip"].to<JsonObject>();
-  ntrip["enabled"] = prefs.getBool("enabled", false);
-  ntrip["host"] = prefs.getString("host", "rtk2go.com");
-  ntrip["port"] = prefs.getUInt("port", 2101);
-  ntrip["mount"] = prefs.getString("mount", "YOUR_MOUNT");
-  ntrip["user"] = prefs.getString("user", "user");
-  ntrip["pass"] = prefs.getString("pass", "pass");
-  ntrip["max_tries"] = prefs.getInt("max_tries", 5);
-  ntrip["retry_delay_ms"] = prefs.getULong("retry_delay_ms", 30000);
-  ntrip["health_timeout_ms"] = prefs.getULong("health_timeout_ms", 60000);
-  ntrip["passive_sample_ms"] = prefs.getULong("passive_sample_ms", 5000);
-  ntrip["required_valid_frames"] = prefs.getUInt("required_valid_frames", 3);
-  ntrip["buffer_size"] = prefs.getUInt("buffer_size", 1024);
-  ntrip["connect_timeout_ms"] = prefs.getULong("connect_timeout_ms", 5000);
+  ntrip["enabled"] = prefs.getBool("enabled");
+  ntrip["host"] = prefs.getString("host");
+  ntrip["port"] = prefs.getUInt("port");
+  ntrip["mount"] = prefs.getString("mount");
+  ntrip["user"] = prefs.getString("user");
+  ntrip["pass"] = prefs.getString("pass");
+  ntrip["max_tries"] = prefs.getInt("max_tries");
+  ntrip["retry_delay_ms"] = prefs.getULong("retry_delay_ms");
+  ntrip["health_timeout_ms"] = prefs.getULong("health_timeout_ms");
+  ntrip["passive_sample_ms"] = prefs.getULong("passive_sample_ms");
+  ntrip["required_valid_frames"] = prefs.getUInt("required_valid_frames");
+  ntrip["buffer_size"] = prefs.getUInt("buffer_size");
+  ntrip["connect_timeout_ms"] = prefs.getULong("connect_timeout_ms");
   prefs.end();
   return true;
 }
@@ -151,8 +150,36 @@ bool saveNtripToNvs(JsonObjectConst ntrip, String* error) {
   return ok;
 }
 
+bool loadLockoutFromNvs(JsonDocument& doc) {
+  Preferences prefs;
+  if (!prefs.begin(kNtripNvsNs, true)) return false;
+  if (!prefs.isKey(kLockoutAttemptsKey) ||
+      !prefs.isKey(kLockoutAbandonedKey) ||
+      !prefs.isKey(kLockoutHashKey)) {
+    prefs.end();
+    return false;
+  }
+
+  JsonObject lockout = doc["lockout"].to<JsonObject>();
+  lockout["failed_attempts"] = prefs.getInt(kLockoutAttemptsKey);
+  lockout["abandoned"] = prefs.getBool(kLockoutAbandonedKey);
+  lockout["last_config_hash"] = prefs.getString(kLockoutHashKey);
+  prefs.end();
+  return true;
+}
+
+bool saveLockoutToNvs(int attempts, bool abandoned, const String& currentHash) {
+  Preferences prefs;
+  if (!prefs.begin(kNtripNvsNs, false)) return false;
+  bool ok = true;
+  ok = ok && prefs.putInt(kLockoutAttemptsKey, attempts) > 0;
+  ok = ok && prefs.putBool(kLockoutAbandonedKey, abandoned);
+  ok = ok && prefs.putString(kLockoutHashKey, currentHash) > 0;
+  prefs.end();
+  return ok;
+}
+
 void loadLockoutFromJson(JsonDocument& doc) {
-  applyDefaultLockout(doc);
   File file = LittleFS.open(kConfigPath, "r");
   if (!file) return;
   JsonDocument fileDoc;
@@ -181,6 +208,7 @@ void updateJsonState(int attempts, bool abandoned, const String& currentHash) {
   g_configDoc["lockout"]["failed_attempts"] = attempts;
   g_configDoc["lockout"]["abandoned"] = abandoned;
   g_configDoc["lockout"]["last_config_hash"] = currentHash;
+  saveLockoutToNvs(attempts, abandoned, currentHash);
 
   File file = LittleFS.open(kConfigPath, "w");
   if (file) {
@@ -192,12 +220,17 @@ void updateJsonState(int attempts, bool abandoned, const String& currentHash) {
 
 bool loadAndValidateConfig(NtripConfig& config) {
   g_configDoc.clear();
-  applyDefaultNtrip(g_configDoc);
 
   String nvsError;
   if (loadNtripFromNvs(g_configDoc, &nvsError)) {
     LOG_I("NTRIP", "Loaded config from NVS");
-    loadLockoutFromJson(g_configDoc);
+    if (!loadLockoutFromNvs(g_configDoc)) {
+      loadLockoutFromJson(g_configDoc);
+      const int attempts = g_configDoc["lockout"]["failed_attempts"] | 0;
+      const bool abandoned = g_configDoc["lockout"]["abandoned"] | false;
+      const String hash = g_configDoc["lockout"]["last_config_hash"] | "";
+      saveLockoutToNvs(attempts, abandoned, hash);
+    }
   } else {
     LOG_W("NTRIP", "NVS config missing/invalid: %s", nvsError.c_str());
     File file = LittleFS.open(kConfigPath, "r");
@@ -217,6 +250,10 @@ bool loadAndValidateConfig(NtripConfig& config) {
     } else {
       LOG_I("NTRIP", "Loaded config from JSON and synced to NVS");
     }
+    const int attempts = g_configDoc["lockout"]["failed_attempts"] | 0;
+    const bool abandoned = g_configDoc["lockout"]["abandoned"] | false;
+    const String hash = g_configDoc["lockout"]["last_config_hash"] | "";
+    saveLockoutToNvs(attempts, abandoned, hash);
   }
 
   const bool isEnabled = g_configDoc["ntrip"]["enabled"] | false;
@@ -477,30 +514,28 @@ void ensureConfigTemplate() {
     return;
   }
 
-  const char* templateJson =
-      "{\n"
-      "  \"ntrip\": {\n"
-      "    \"enabled\": false,\n"
-      "    \"host\": \"rtk2go.com\",\n"
-      "    \"port\": 2101,\n"
-      "    \"mount\": \"YOUR_MOUNT\",\n"
-      "    \"user\": \"your_email@example.com\",\n"
-      "    \"pass\": \"none\",\n"
-      "    \"max_tries\": 5,\n"
-      "    \"retry_delay_ms\": 30000,\n"
-      "    \"health_timeout_ms\": 60000,\n"
-      "    \"passive_sample_ms\": 5000,\n"
-      "    \"required_valid_frames\": 3,\n"
-      "    \"buffer_size\": 1024,\n"
-      "    \"connect_timeout_ms\": 5000\n"
-      "  },\n"
-      "  \"lockout\": {\n"
-      "    \"failed_attempts\": 0,\n"
-      "    \"abandoned\": false,\n"
-      "    \"last_config_hash\": \"\"\n"
-      "  }\n"
-      "}";
-  file.print(templateJson);
+  JsonDocument templateDoc;
+  JsonObject ntrip = templateDoc["ntrip"].to<JsonObject>();
+  ntrip["enabled"] = false;
+  ntrip["host"] = "rtk2go.com";
+  ntrip["port"] = 2101;
+  ntrip["mount"] = "YOUR_MOUNT";
+  ntrip["user"] = "your_email@example.com";
+  ntrip["pass"] = "none";
+  ntrip["max_tries"] = 5;
+  ntrip["retry_delay_ms"] = 30000;
+  ntrip["health_timeout_ms"] = 60000;
+  ntrip["passive_sample_ms"] = 5000;
+  ntrip["required_valid_frames"] = 3;
+  ntrip["buffer_size"] = 1024;
+  ntrip["connect_timeout_ms"] = 5000;
+
+  JsonObject lockout = templateDoc["lockout"].to<JsonObject>();
+  lockout["failed_attempts"] = 0;
+  lockout["abandoned"] = false;
+  lockout["last_config_hash"] = "";
+
+  serializeJson(templateDoc, file);
   file.close();
   LOG_I("NTRIP", "Template created");
   LOG_I("NTRIP", "Edit /ntrip_config.json to configure NTRIP.");
@@ -509,6 +544,7 @@ void ensureConfigTemplate() {
 
 void ntrip_client_setup(StreamBufferHandle_t sb_ntrip2uart) {
   g_ntripWriter.setStreamBuffer(sb_ntrip2uart);
+  g_ntripClient.setLogger(ntripClientLogAdapter);
 
   LOG_I("NTRIP", "Initializing NTRIP client...");
 
