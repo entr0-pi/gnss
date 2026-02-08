@@ -35,6 +35,14 @@
 #define FORCE_WIFI_SECRETS 0
 #endif
 
+#ifndef GLOBAL_LOG_LEVEL
+// 0:SILENT, 1:ERROR, 2:WARNING, 3:INFO, 4:DEBUG
+#define GLOBAL_LOG_LEVEL 0
+#else
+#define APP_NAME    "GNSS-ESP32"
+#define APP_VERSION "1.0.0"
+#endif
+
 // ---------------- Dependency rule ----------------
 // If Web UI is disabled, NMEA must be disabled too.
 #if WEBUI_ENABLE == 0 && NMEA_ENABLE != 0

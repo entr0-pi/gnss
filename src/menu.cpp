@@ -22,6 +22,8 @@
 #include <Preferences.h>
 #include <LittleFS.h>
 #include "app.h"
+#define MODULE_LOG 1
+#include "logger.h"
 #include <NimBLEDevice.h>
 
 // ---------------------------------------------------------------------------
@@ -256,7 +258,7 @@ void sendMenu(const String& msg) {
     g_menuChar->notify();
   }
 #endif
-  Serial.println("Menu: " + out);
+  LOG_I("MENU", "%s", out.c_str());
 }
 
 void returnToMenu(const String& msg) {
@@ -282,17 +284,15 @@ class MenuRxCallbacks : public NimBLECharacteristicCallbacks {
 
 void menuToolSetup() {
 #if !BLE_ENABLE
-  Serial.println("Menu tool disabled: BLE_ENABLE=0");
+  LOG_W("MENU", "Menu tool disabled: BLE_ENABLE=0");
   return;
 #else
   Serial.begin(115200);
-  if (!NimBLEDevice::getInitialized()) {
-    NimBLEDevice::init("ESP32-Config-Tool");
-  }
+  NimBLEDevice::init("ESP32-Config-Tool");
 
   NimBLEServer* server = NimBLEDevice::createServer();
   if (!server) {
-    Serial.println("BLE init failed!");
+    LOG_E("MENU", "BLE init failed!");
     while (1);
   }
   g_menuService = server->createService("180C");
@@ -306,12 +306,12 @@ void menuToolSetup() {
   adv->start();
 
   if (!prefs.begin(NS_WIFI, false)) {
-    Serial.println("NVS init failed! Factory reset may be needed.");
+    LOG_E("MENU", "NVS init failed! Factory reset may be needed.");
   } else {
     prefs.end();
   }
 
-  Serial.println("BLE Config Tool ready.");
+  LOG_I("MENU", "BLE Config Tool ready.");
 #endif
 }
 

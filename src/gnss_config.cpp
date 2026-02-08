@@ -5,6 +5,8 @@
 #include <ArduinoJson.h>
 
 #include "app.h"
+#define MODULE_LOG 1
+#include "logger.h"
 
 namespace {
 constexpr const char* kGnssNvsNs = "gnss";
@@ -94,8 +96,8 @@ bool gnss_config_begin() {
 
   Preferences prefs;
   if (!prefs.begin(kGnssNvsNs, false)) {
-    Serial.println("[GNSS] NVS open failed");
-    Serial.println("[GNSS] Using fallback hardcoded config");
+    LOG_E("GNSS", "NVS open failed");
+    LOG_W("GNSS", "Using fallback hardcoded config");
     g_nvs_ready = false;
     g_config = GnssConfig{FALLBACK_GNSS_RX, FALLBACK_GNSS_TX, FALLBACK_GNSS_BAUD};
     return true;
@@ -103,30 +105,30 @@ bool gnss_config_begin() {
   prefs.end();
 
   g_nvs_ready = true;
-  Serial.println("[GNSS] NVS ready");
+  LOG_I("GNSS", "NVS ready");
 
   // Precedence: NVS first. Use /gnss.json only when NVS is empty/invalid.
   GnssConfig loaded_nvs = g_config;
   if (load_config_nvs(loaded_nvs) && gnss_config_validate(loaded_nvs, nullptr)) {
     g_config = loaded_nvs;
-    Serial.println("[GNSS] Config loaded from NVS");
+    LOG_I("GNSS", "Config loaded from NVS");
   } else {
-    Serial.println("[GNSS] NVS config missing/invalid, trying /gnss.json");
+    LOG_W("GNSS", "NVS config missing/invalid, trying /gnss.json");
     GnssConfig loaded_fs = g_config;
     String fs_error;
     if (load_config_littlefs(loaded_fs, &fs_error) && gnss_config_validate(loaded_fs, nullptr)) {
       g_config = loaded_fs;
-      Serial.println("[GNSS] Config loaded from /gnss.json");
+      LOG_I("GNSS", "Config loaded from /gnss.json");
       if (!gnss_config_save(g_config)) {
-        Serial.println("[GNSS] Warning: Failed to sync /gnss.json to NVS");
+        LOG_W("GNSS", "Failed to sync /gnss.json to NVS");
       }
     } else {
-      Serial.println(String("[GNSS] /gnss.json not used: ") + fs_error);
-      Serial.println("[GNSS] Creating NVS config with defaults");
+      LOG_W("GNSS", "/gnss.json not used: %s", fs_error.c_str());
+      LOG_I("GNSS", "Creating NVS config with defaults");
       if (gnss_config_save(g_config)) {
-        Serial.println("[GNSS] Default config saved successfully");
+        LOG_I("GNSS", "Default config saved successfully");
       } else {
-        Serial.println("[GNSS] Warning: Failed to save default config");
+        LOG_W("GNSS", "Failed to save default config");
       }
     }
   }

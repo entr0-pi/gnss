@@ -10,6 +10,8 @@
 #include "NtripClient.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#define MODULE_LOG 1
+#include "logger.h"
 
 #if WEBUI_ENABLE
 #include "web_ui.h"
@@ -184,7 +186,7 @@ void updateJsonState(int attempts, bool abandoned, const String& currentHash) {
   if (file) {
     serializeJson(g_configDoc, file);
     file.close();
-    Serial.println(F("[NTRIP] Status updated to Flash."));
+    LOG_I("NTRIP", "Status updated to Flash.");
   }
 }
 
@@ -194,26 +196,26 @@ bool loadAndValidateConfig(NtripConfig& config) {
 
   String nvsError;
   if (loadNtripFromNvs(g_configDoc, &nvsError)) {
-    Serial.println(F("[NTRIP] Loaded config from NVS"));
+    LOG_I("NTRIP", "Loaded config from NVS");
     loadLockoutFromJson(g_configDoc);
   } else {
-    Serial.println(String("[NTRIP] NVS config missing/invalid: ") + nvsError);
+    LOG_W("NTRIP", "NVS config missing/invalid: %s", nvsError.c_str());
     File file = LittleFS.open(kConfigPath, "r");
     if (!file) {
-      Serial.println(F("[NTRIP] Config file missing!"));
+      LOG_E("NTRIP", "Config file missing!");
       return false;
     }
     DeserializationError error = deserializeJson(g_configDoc, file);
     file.close();
     if (error || !g_configDoc["ntrip"].is<JsonObject>()) {
-      Serial.printf("[NTRIP] JSON parse error: %s\n", error.c_str());
+      LOG_E("NTRIP", "JSON parse error: %s", error.c_str());
       return false;
     }
     String saveError;
     if (!saveNtripToNvs(g_configDoc["ntrip"].as<JsonObject>(), &saveError)) {
-      Serial.println(String("[NTRIP] Warning: failed to sync JSON to NVS: ") + saveError);
+      LOG_W("NTRIP", "Failed to sync JSON to NVS: %s", saveError.c_str());
     } else {
-      Serial.println(F("[NTRIP] Loaded config from JSON and synced to NVS"));
+      LOG_I("NTRIP", "Loaded config from JSON and synced to NVS");
     }
   }
 
@@ -230,14 +232,14 @@ bool loadAndValidateConfig(NtripConfig& config) {
   const int maxTries = g_configDoc["ntrip"]["max_tries"] | 5;
 
   if (currentSettings != oldHash) {
-    Serial.println(F("[NTRIP] New config detected. Resetting lockout."));
+    LOG_I("NTRIP", "New config detected. Resetting lockout.");
     attempts = 0;
     abandoned = false;
     updateJsonState(attempts, abandoned, currentSettings);
   }
 
   if (abandoned) {
-    Serial.println(F("[NTRIP] Locked out due to repeated failures"));
+    LOG_W("NTRIP", "Locked out due to repeated failures");
     return false;
   }
 
@@ -278,66 +280,58 @@ void syncJsonWithClientState() {
   }
 }
 
-void printMessageName(uint16_t msgType) {
+const char* messageName(uint16_t msgType) {
   switch (msgType) {
-    case 1005: Serial.print("Station Position"); break;
-    case 1074: Serial.print("GPS MSM4"); break;
-    case 1077: Serial.print("GPS MSM7"); break;
-    case 1084: Serial.print("GLONASS MSM4"); break;
-    case 1087: Serial.print("GLONASS MSM7"); break;
-    case 1094: Serial.print("Galileo MSM4"); break;
-    case 1097: Serial.print("Galileo MSM7"); break;
-    case 1124: Serial.print("BeiDou MSM4"); break;
-    case 1127: Serial.print("BeiDou MSM7"); break;
-    case 1230: Serial.print("GLONASS Biases"); break;
-    default: Serial.print("Unknown");
+    case 1005: return "Station Position";
+    case 1074: return "GPS MSM4";
+    case 1077: return "GPS MSM7";
+    case 1084: return "GLONASS MSM4";
+    case 1087: return "GLONASS MSM7";
+    case 1094: return "Galileo MSM4";
+    case 1097: return "Galileo MSM7";
+    case 1124: return "BeiDou MSM4";
+    case 1127: return "BeiDou MSM7";
+    case 1230: return "GLONASS Biases";
+    default: return "Unknown";
   }
 }
 
 void displayDetailedStats() {
   const NtripStats stats = g_ntripClient.getStats();
 
-  Serial.println(F("\n╔════════════════════════════════════════╗"));
-  Serial.println(F("║        NTRIP STATISTICS                ║"));
-  Serial.println(F("╚════════════════════════════════════════╝"));
-  Serial.printf("Uptime:        %lu seconds\n", stats.totalUptime / 1000);
-  Serial.printf("Valid Frames:  %lu\n", stats.totalFrames);
-  Serial.printf("CRC Errors:    %lu (%.1f%%)\n",
-                stats.crcErrors,
-                stats.totalFrames > 0
-                    ? (100.0 * stats.crcErrors / (stats.totalFrames + stats.crcErrors))
-                    : 0);
-  Serial.printf("Data RX:       %.2f KB\n", stats.bytesReceived / 1024.0);
-  Serial.printf("Reconnects:    %lu\n", stats.reconnects);
+  LOG_I("NTRIP", "NTRIP STATISTICS");
+  LOG_I("NTRIP", "Uptime: %lu seconds", stats.totalUptime / 1000);
+  LOG_I("NTRIP", "Valid Frames: %lu", stats.totalFrames);
+  LOG_I("NTRIP", "CRC Errors: %lu (%.1f%%)",
+        stats.crcErrors,
+        stats.totalFrames > 0
+            ? (100.0 * stats.crcErrors / (stats.totalFrames + stats.crcErrors))
+            : 0);
+  LOG_I("NTRIP", "Data RX: %.2f KB", stats.bytesReceived / 1024.0);
+  LOG_I("NTRIP", "Reconnects: %lu", stats.reconnects);
 
   if (stats.lastMessageType > 0) {
-    Serial.printf("Last RTCM:     %d (", stats.lastMessageType);
-    printMessageName(stats.lastMessageType);
-    Serial.println(")");
+    LOG_I("NTRIP", "Last RTCM: %d (%s)", stats.lastMessageType, messageName(stats.lastMessageType));
 
     const unsigned long ageMs = millis() - stats.lastFrameTime;
-    Serial.printf("Frame Age:     %lu.%03lu seconds\n",
-                  ageMs / 1000, ageMs % 1000);
+    LOG_I("NTRIP", "Frame Age: %lu.%03lu seconds", ageMs / 1000, ageMs % 1000);
   }
 
   if (stats.totalUptime > 0) {
     const float bandwidth =
         static_cast<float>(stats.bytesReceived) / (stats.totalUptime / 1000.0);
-    Serial.printf("Avg Rate:      %.2f bytes/sec\n", bandwidth);
+    LOG_I("NTRIP", "Avg Rate: %.2f bytes/sec", bandwidth);
 
     if (stats.totalFrames > 0) {
       const float framesPerSec =
           static_cast<float>(stats.totalFrames) / (stats.totalUptime / 1000.0);
-      Serial.printf("Frame Rate:    %.2f frames/sec\n", framesPerSec);
+      LOG_I("NTRIP", "Frame Rate: %.2f frames/sec", framesPerSec);
     }
   }
 
   if (stats.lastError != NtripError::NONE) {
-    Serial.print("Last Error:    ");
-    Serial.println(stats.lastErrorMessage);
+    LOG_W("NTRIP", "Last Error: %s", stats.lastErrorMessage.c_str());
   }
-
-  Serial.println(F("════════════════════════════════════════\n"));
 }
 
 void handleLockout() {
@@ -345,29 +339,28 @@ void handleLockout() {
   static unsigned long lockoutStart = 0;
 
   if (!lockoutLogged) {
-    Serial.println(F("\n⚠️  CLIENT LOCKED OUT ⚠️"));
-    Serial.println(F("Too many connection failures."));
+    LOG_W("NTRIP", "CLIENT LOCKED OUT");
+    LOG_W("NTRIP", "Too many connection failures.");
 
     const NtripError err = g_ntripClient.getLastError();
-    Serial.print(F("Reason: "));
-    Serial.println(g_ntripClient.getErrorMessage());
+    LOG_W("NTRIP", "Reason: %s", g_ntripClient.getErrorMessage().c_str());
 
     switch (err) {
       case NtripError::HTTP_AUTH_FAILED:
-        Serial.println(F("\n💡 Check your username and password in config file"));
-        Serial.println(F("   Some casters require email address as username"));
+        LOG_I("NTRIP", "Check your username and password in config file");
+        LOG_I("NTRIP", "Some casters require email address as username");
         break;
       case NtripError::HTTP_MOUNT_NOT_FOUND:
-        Serial.println(F("\n💡 Verify mount point name (case-sensitive)"));
-        Serial.println(F("   Check caster's source table"));
+        LOG_I("NTRIP", "Verify mount point name (case-sensitive)");
+        LOG_I("NTRIP", "Check caster's source table");
         break;
       case NtripError::TCP_CONNECT_FAILED:
-        Serial.println(F("\n💡 Check network connectivity"));
-        Serial.println(F("   Verify host and port are correct"));
+        LOG_I("NTRIP", "Check network connectivity");
+        LOG_I("NTRIP", "Verify host and port are correct");
         break;
       default:
-        Serial.println(F("\n💡 Edit /ntrip_config.json to fix configuration"));
-        Serial.println(F("   Or wait for auto-reset in 2 minutes"));
+        LOG_I("NTRIP", "Edit /ntrip_config.json to fix configuration");
+        LOG_I("NTRIP", "Or wait for auto-reset in 2 minutes");
     }
 
     lockoutLogged = true;
@@ -375,7 +368,7 @@ void handleLockout() {
   }
 
   if (millis() - lockoutStart > 120000) {
-    Serial.println(F("\n🔄 Auto-resetting lockout..."));
+    LOG_I("NTRIP", "Auto-resetting lockout...");
     g_ntripClient.reset();
 
     String currentSettings;
@@ -400,11 +393,11 @@ void configMonitorTask(void* pvParameters) {
       wasInternetReachable = internetReachable;
 
       if (!internetReachable) {
-        Serial.println(F("[NTRIP] Internet lost - stopping client"));
+        LOG_W("NTRIP", "Internet lost - stopping client");
         g_ntripClient.stop();
         wasConfigured = false;
       } else {
-        Serial.println(F("[NTRIP] Internet restored"));
+        LOG_I("NTRIP", "Internet restored");
       }
     }
 
@@ -425,9 +418,9 @@ void configMonitorTask(void* pvParameters) {
 
         if (shouldBeRunning && (!wasConfigured || configChanged)) {
           if (configChanged && wasConfigured) {
-            Serial.println(F("[NTRIP] Configuration changed - restarting client"));
+            LOG_I("NTRIP", "Configuration changed - restarting client");
           } else {
-            Serial.println(F("[NTRIP] Starting NTRIP client"));
+            LOG_I("NTRIP", "Starting NTRIP client");
           }
 
           g_ntripClient.stop();
@@ -440,11 +433,11 @@ void configMonitorTask(void* pvParameters) {
             if (!g_ntripTaskStarted) {
               g_ntripClient.startTask(0);
               g_ntripTaskStarted = true;
-              Serial.println(F("[NTRIP] Task started on core 0"));
+              LOG_I("NTRIP", "Task started on core 0");
             }
           }
         } else if (!shouldBeRunning && wasConfigured) {
-          Serial.println(F("[NTRIP] NTRIP disabled - stopping client"));
+          LOG_I("NTRIP", "NTRIP disabled - stopping client");
           g_ntripClient.stop();
           wasConfigured = false;
         }
@@ -477,10 +470,10 @@ void ensureConfigTemplate() {
     return;
   }
 
-  Serial.println(F("[NTRIP] Creating default configuration..."));
+  LOG_I("NTRIP", "Creating default configuration...");
   File file = LittleFS.open(kConfigPath, "w");
   if (!file) {
-    Serial.println(F("[NTRIP] Failed to create config file!"));
+    LOG_E("NTRIP", "Failed to create config file!");
     return;
   }
 
@@ -509,18 +502,18 @@ void ensureConfigTemplate() {
       "}";
   file.print(templateJson);
   file.close();
-  Serial.println(F("[NTRIP] Template created"));
-  Serial.println(F("[NTRIP] Edit /ntrip_config.json to configure NTRIP."));
+  LOG_I("NTRIP", "Template created");
+  LOG_I("NTRIP", "Edit /ntrip_config.json to configure NTRIP.");
 }
 }  // namespace
 
 void ntrip_client_setup(StreamBufferHandle_t sb_ntrip2uart) {
   g_ntripWriter.setStreamBuffer(sb_ntrip2uart);
 
-  Serial.println(F("[NTRIP] Initializing NTRIP client..."));
+  LOG_I("NTRIP", "Initializing NTRIP client...");
 
   if (!LittleFS.begin(true)) {
-    Serial.println(F("[NTRIP] LittleFS mount failed - NTRIP disabled"));
+    LOG_E("NTRIP", "LittleFS mount failed - NTRIP disabled");
     return;
   }
 
@@ -534,7 +527,7 @@ void ntrip_client_setup(StreamBufferHandle_t sb_ntrip2uart) {
       1,
       &g_ntripMonitorHandle,
       1);
-  Serial.println(F("[NTRIP] Config monitor started on core 1"));
+  LOG_I("NTRIP", "Config monitor started on core 1");
 }
 
 void ntrip_client_loop() {
@@ -548,43 +541,38 @@ void ntrip_client_loop() {
   const bool healthy = g_ntripClient.isHealthy();
   const bool streaming = g_ntripClient.isStreaming();
 
-  Serial.print(F("[NTRIP] "));
-
   switch (state) {
     case NtripState::DISCONNECTED:
-      Serial.print(F("DISCONNECTED"));
       if (!isInternetReachable()) {
-        Serial.print(F(" (No Internet)"));
+        LOG_I("NTRIP", "DISCONNECTED (No Internet)");
+      } else {
+        LOG_I("NTRIP", "DISCONNECTED");
       }
       break;
     case NtripState::CONNECTING:
-      Serial.print(F("CONNECTING"));
+      LOG_I("NTRIP", "CONNECTING");
       break;
     case NtripState::STREAMING:
-      Serial.print(healthy ? F("STREAMING") : F("VALIDATING"));
+      LOG_I("NTRIP", "%s", healthy ? "STREAMING" : "VALIDATING");
       break;
     case NtripState::LOCKED_OUT:
-      Serial.print(F("LOCKED_OUT"));
+      LOG_W("NTRIP", "LOCKED_OUT");
       break;
   }
 
   if (streaming) {
     const NtripStats stats = g_ntripClient.getStats();
-    Serial.printf(" | ⬇ %lu KB | 📡 RTCM%d",
-                  stats.bytesReceived / 1024,
-                  stats.lastMessageType);
+    LOG_I("NTRIP", "Stream: %lu KB | RTCM%d", stats.bytesReceived / 1024, stats.lastMessageType);
 
     if (stats.totalFrames > 0) {
       const unsigned long ageMs = millis() - stats.lastFrameTime;
       if (ageMs < 10000) {
-        Serial.printf(" | ✓ Fresh (%.1fs ago)", ageMs / 1000.0);
+        LOG_I("NTRIP", "Fresh (%.1fs ago)", ageMs / 1000.0);
       } else {
-        Serial.printf(" | ⚠ Stale (%lus ago)", ageMs / 1000);
+        LOG_W("NTRIP", "Stale (%lus ago)", ageMs / 1000);
       }
     }
   }
-
-  Serial.println();
 }
 
 bool ntrip_client_get_snapshot(NtripClientSnapshot& out) {

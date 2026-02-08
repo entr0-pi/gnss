@@ -1,6 +1,8 @@
 // ======================= web_ui.cpp (FINAL - JSON built here) =======================
 
 #include "app.h"
+#define MODULE_LOG 1
+#include "logger.h"
 
 #if WEBUI_ENABLE
 //
@@ -122,7 +124,7 @@ static void sendFileFromLittleFs(const char* path,
 static bool logInternetHTTP() {
   // If STA is not connected, no point trying HTTP.
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("[NET] WiFi not connected");
+    LOG_W("NET", "WiFi not connected");
     return false;
   }
 
@@ -144,28 +146,26 @@ static bool logInternetHTTP() {
 
   // Prepare HTTP request (DNS, TCP connect, etc.)
   if (!http.begin(client, url)) {
-    Serial.println("[NET] http.begin() failed");
+    LOG_E("NET", "http.begin() failed");
     return false;
   }
 
   // Perform the GET request. On error, code is negative.
   int code = http.GET();
-  Serial.print("[NET] HTTP code: ");
-  Serial.println(code);
+  LOG_I("NET", "HTTP code: %d", code);
 
   bool ok = false;
 
   // Interpret result.
   if (code == 204) {
-    Serial.println("[NET] Internet reachable");
+    LOG_I("NET", "Internet reachable");
     ok = true;
   } else if (code > 0) {
-    Serial.println("[NET] Reached server, but unexpected code");
+    LOG_W("NET", "Reached server, but unexpected code");
     ok = false;
   } else {
     // Negative code means transport error (timeout, DNS fail, etc.)
-    Serial.print("[NET] HTTP GET failed, err=");
-    Serial.println(http.errorToString(code)); // code is negative on error
+    LOG_W("NET", "HTTP GET failed, err=%s", http.errorToString(code).c_str()); // code is negative on error
     ok = false;
   }
 
@@ -936,7 +936,7 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
   server.collectHeaders(headerKeys, 1);
 
   if (!LittleFS.begin()) {
-    Serial.println("[WEBUI] LittleFS mount failed; static assets unavailable");
+    LOG_E("WEBUI", "LittleFS mount failed; static assets unavailable");
   }
 
   // -------- HTTP UI routes ----------
