@@ -34,6 +34,9 @@
 // WiFi STA mode connects to an existing hotspot/router and hosts a small status web server.
 #include "app.h"
 #include "gnss_config.h"
+#if BLE_ENABLE
+#include "menu.h"
+#endif
 #include "ntrip_client.h"
 #include "wifi_config.h"
 
@@ -440,6 +443,9 @@ void setup() {
   #if BLE_ENABLE
   // Initialize NimBLE stack, create NUS service, and start advertising.
   startBleServer();
+
+  // Register BLE configuration menu service on the active NimBLE server.
+  menuToolSetup(g_server);
   #endif
 
   #if WEBUI_ENABLE
@@ -488,6 +494,11 @@ void loop() {
   #if NTRIP_CLIENT_ENABLE
   // Periodic NTRIP status logging and lockout handling.
   ntrip_client_loop();
+  #endif
+
+  #if BLE_ENABLE
+  // Tick BLE menu lock timeout state machine.
+  menuToolTick();
   #endif
 
   // Yield CPU time to other FreeRTOS tasks.
