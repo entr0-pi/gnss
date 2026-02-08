@@ -341,7 +341,9 @@ class ESPUploaderGUI:
         text = (
             "Uploader workflow (current):\n\n"
             "1) Configuration tab\n"
-            "- Select COM port, chip, partition CSV, mklittlefs path, and nvs_partition_gen.py path\n"
+            "- Select COM port, chip, and point to partition CSV\n"
+            "- Point to mklittlefs path (binary)\n"
+            "- Point to nvs_partition_gen.py path (from ESP-IDF): https://github.com/espressif/esp-idf/blob/master/components/nvs_flash/nvs_partition_generator/\n"
             "- Optional: enable erase before LittleFS/NVS flashing\n"
             "- Refresh status to validate environment\n\n"
             "2) Flash Operations tab\n"

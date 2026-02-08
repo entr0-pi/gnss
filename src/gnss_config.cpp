@@ -3,12 +3,11 @@
 #include <Preferences.h>
 
 #include "app.h"
+#include "nvs_keys.h"
 #define MODULE_LOG 1
 #include "logger.h"
 
 namespace {
-constexpr const char* kGnssNvsNs = "gnss";
-
 bool g_nvs_ready = false;
 GnssConfig g_config{};
 
@@ -16,16 +15,18 @@ bool load_config_nvs(GnssConfig& cfg) {
   if (!g_nvs_ready) return false;
 
   Preferences prefs;
-  if (!prefs.begin(kGnssNvsNs, true)) return false;
+  if (!prefs.begin(nvs_keys::gnss::kNamespace, true)) return false;
 
-  if (!prefs.isKey("rx_pin") || !prefs.isKey("tx_pin") || !prefs.isKey("baud")) {
+  if (!prefs.isKey(nvs_keys::gnss::kRxPin) ||
+      !prefs.isKey(nvs_keys::gnss::kTxPin) ||
+      !prefs.isKey(nvs_keys::gnss::kBaud)) {
     prefs.end();
     return false;
   }
 
-  cfg.rx_pin = prefs.getInt("rx_pin");
-  cfg.tx_pin = prefs.getInt("tx_pin");
-  cfg.baud = prefs.getULong("baud");
+  cfg.rx_pin = prefs.getInt(nvs_keys::gnss::kRxPin);
+  cfg.tx_pin = prefs.getInt(nvs_keys::gnss::kTxPin);
+  cfg.baud = prefs.getULong(nvs_keys::gnss::kBaud);
 
   prefs.end();
   return true;
@@ -61,7 +62,7 @@ bool gnss_config_begin() {
   g_config = gnss_config_defaults();
 
   Preferences prefs;
-  if (!prefs.begin(kGnssNvsNs, false)) {
+  if (!prefs.begin(nvs_keys::gnss::kNamespace, false)) {
     LOG_E("GNSS", "NVS open failed");
     LOG_W("GNSS", "Using fallback hardcoded config");
     g_nvs_ready = false;
@@ -98,12 +99,12 @@ bool gnss_config_save(const GnssConfig& cfg) {
   if (!g_nvs_ready) return false;
 
   Preferences prefs;
-  if (!prefs.begin(kGnssNvsNs, false)) return false;
+  if (!prefs.begin(nvs_keys::gnss::kNamespace, false)) return false;
 
   bool ok = true;
-  ok = ok && prefs.putInt("rx_pin", cfg.rx_pin) > 0;
-  ok = ok && prefs.putInt("tx_pin", cfg.tx_pin) > 0;
-  ok = ok && prefs.putULong("baud", cfg.baud) > 0;
+  ok = ok && prefs.putInt(nvs_keys::gnss::kRxPin, cfg.rx_pin) > 0;
+  ok = ok && prefs.putInt(nvs_keys::gnss::kTxPin, cfg.tx_pin) > 0;
+  ok = ok && prefs.putULong(nvs_keys::gnss::kBaud, cfg.baud) > 0;
 
   prefs.end();
 
