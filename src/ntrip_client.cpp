@@ -5,6 +5,7 @@
 #include <Arduino.h>
 #include <LittleFS.h>
 #include <ArduinoJson.h>
+#include <Preferences.h>
 #include <WiFi.h>
 #include "NtripClient.h"
 #include "freertos/FreeRTOS.h"
@@ -16,6 +17,7 @@
 
 namespace {
 const char* kConfigPath = "/ntrip_config.json";
+const char* kNtripNvsNs = "ntrip";
 
 NtripClient g_ntripClient;
 JsonDocument g_configDoc;
@@ -57,6 +59,108 @@ class NtripStreamWriter : public Print {
 
 NtripStreamWriter g_ntripWriter;
 
+void applyDefaultNtrip(JsonDocument& doc) {
+  JsonObject ntrip = doc["ntrip"].to<JsonObject>();
+  ntrip["enabled"] = false;
+  ntrip["host"] = "rtk2go.com";
+  ntrip["port"] = 2101;
+  ntrip["mount"] = "YOUR_MOUNT";
+  ntrip["user"] = "user";
+  ntrip["pass"] = "pass";
+  ntrip["max_tries"] = 5;
+  ntrip["retry_delay_ms"] = 30000;
+  ntrip["health_timeout_ms"] = 60000;
+  ntrip["passive_sample_ms"] = 5000;
+  ntrip["required_valid_frames"] = 3;
+  ntrip["buffer_size"] = 1024;
+  ntrip["connect_timeout_ms"] = 5000;
+}
+
+void applyDefaultLockout(JsonDocument& doc) {
+  JsonObject lockout = doc["lockout"].to<JsonObject>();
+  lockout["failed_attempts"] = 0;
+  lockout["abandoned"] = false;
+  lockout["last_config_hash"] = "";
+}
+
+bool loadNtripFromNvs(JsonDocument& doc, String* error) {
+  Preferences prefs;
+  if (!prefs.begin(kNtripNvsNs, true)) {
+    if (error) *error = "NVS open failed";
+    return false;
+  }
+
+  const bool hasRequired =
+      prefs.isKey("enabled") && prefs.isKey("host") && prefs.isKey("port") &&
+      prefs.isKey("mount") && prefs.isKey("user") && prefs.isKey("pass") &&
+      prefs.isKey("max_tries") && prefs.isKey("retry_delay_ms") &&
+      prefs.isKey("health_timeout_ms") && prefs.isKey("passive_sample_ms") &&
+      prefs.isKey("required_valid_frames") && prefs.isKey("buffer_size") &&
+      prefs.isKey("connect_timeout_ms");
+
+  if (!hasRequired) {
+    prefs.end();
+    if (error) *error = "NTRIP config not found in NVS";
+    return false;
+  }
+
+  JsonObject ntrip = doc["ntrip"].to<JsonObject>();
+  ntrip["enabled"] = prefs.getBool("enabled", false);
+  ntrip["host"] = prefs.getString("host", "rtk2go.com");
+  ntrip["port"] = prefs.getUInt("port", 2101);
+  ntrip["mount"] = prefs.getString("mount", "YOUR_MOUNT");
+  ntrip["user"] = prefs.getString("user", "user");
+  ntrip["pass"] = prefs.getString("pass", "pass");
+  ntrip["max_tries"] = prefs.getInt("max_tries", 5);
+  ntrip["retry_delay_ms"] = prefs.getULong("retry_delay_ms", 30000);
+  ntrip["health_timeout_ms"] = prefs.getULong("health_timeout_ms", 60000);
+  ntrip["passive_sample_ms"] = prefs.getULong("passive_sample_ms", 5000);
+  ntrip["required_valid_frames"] = prefs.getUInt("required_valid_frames", 3);
+  ntrip["buffer_size"] = prefs.getUInt("buffer_size", 1024);
+  ntrip["connect_timeout_ms"] = prefs.getULong("connect_timeout_ms", 5000);
+  prefs.end();
+  return true;
+}
+
+bool saveNtripToNvs(JsonObjectConst ntrip, String* error) {
+  Preferences prefs;
+  if (!prefs.begin(kNtripNvsNs, false)) {
+    if (error) *error = "NVS open failed";
+    return false;
+  }
+
+  bool ok = true;
+  ok = ok && prefs.putBool("enabled", ntrip["enabled"] | false);
+  ok = ok && prefs.putString("host", (ntrip["host"] | "rtk2go.com"));
+  ok = ok && prefs.putUInt("port", ntrip["port"] | 2101);
+  ok = ok && prefs.putString("mount", (ntrip["mount"] | "YOUR_MOUNT"));
+  ok = ok && prefs.putString("user", (ntrip["user"] | "user"));
+  ok = ok && prefs.putString("pass", (ntrip["pass"] | "pass"));
+  ok = ok && prefs.putInt("max_tries", ntrip["max_tries"] | 5);
+  ok = ok && prefs.putULong("retry_delay_ms", ntrip["retry_delay_ms"] | 30000);
+  ok = ok && prefs.putULong("health_timeout_ms", ntrip["health_timeout_ms"] | 60000);
+  ok = ok && prefs.putULong("passive_sample_ms", ntrip["passive_sample_ms"] | 5000);
+  ok = ok && prefs.putUInt("required_valid_frames", ntrip["required_valid_frames"] | 3);
+  ok = ok && prefs.putUInt("buffer_size", ntrip["buffer_size"] | 1024);
+  ok = ok && prefs.putULong("connect_timeout_ms", ntrip["connect_timeout_ms"] | 5000);
+  prefs.end();
+
+  if (!ok && error) *error = "NVS write failed";
+  return ok;
+}
+
+void loadLockoutFromJson(JsonDocument& doc) {
+  applyDefaultLockout(doc);
+  File file = LittleFS.open(kConfigPath, "r");
+  if (!file) return;
+  JsonDocument fileDoc;
+  const DeserializationError err = deserializeJson(fileDoc, file);
+  file.close();
+  if (!err && fileDoc["lockout"].is<JsonObject>()) {
+    doc["lockout"].set(fileDoc["lockout"]);
+  }
+}
+
 bool isInternetReachable() {
 #if WEBUI_ENABLE
   return webui_get_internet_reachable();
@@ -85,18 +189,32 @@ void updateJsonState(int attempts, bool abandoned, const String& currentHash) {
 }
 
 bool loadAndValidateConfig(NtripConfig& config) {
-  File file = LittleFS.open(kConfigPath, "r");
-  if (!file) {
-    Serial.println(F("[NTRIP] Config file missing!"));
-    return false;
-  }
+  g_configDoc.clear();
+  applyDefaultNtrip(g_configDoc);
 
-  DeserializationError error = deserializeJson(g_configDoc, file);
-  file.close();
-
-  if (error) {
-    Serial.printf("[NTRIP] JSON parse error: %s\n", error.c_str());
-    return false;
+  String nvsError;
+  if (loadNtripFromNvs(g_configDoc, &nvsError)) {
+    Serial.println(F("[NTRIP] Loaded config from NVS"));
+    loadLockoutFromJson(g_configDoc);
+  } else {
+    Serial.println(String("[NTRIP] NVS config missing/invalid: ") + nvsError);
+    File file = LittleFS.open(kConfigPath, "r");
+    if (!file) {
+      Serial.println(F("[NTRIP] Config file missing!"));
+      return false;
+    }
+    DeserializationError error = deserializeJson(g_configDoc, file);
+    file.close();
+    if (error || !g_configDoc["ntrip"].is<JsonObject>()) {
+      Serial.printf("[NTRIP] JSON parse error: %s\n", error.c_str());
+      return false;
+    }
+    String saveError;
+    if (!saveNtripToNvs(g_configDoc["ntrip"].as<JsonObject>(), &saveError)) {
+      Serial.println(String("[NTRIP] Warning: failed to sync JSON to NVS: ") + saveError);
+    } else {
+      Serial.println(F("[NTRIP] Loaded config from JSON and synced to NVS"));
+    }
   }
 
   const bool isEnabled = g_configDoc["ntrip"]["enabled"] | false;
@@ -467,6 +585,20 @@ void ntrip_client_loop() {
   }
 
   Serial.println();
+}
+
+bool ntrip_client_get_snapshot(NtripClientSnapshot& out) {
+  const NtripState state = g_ntripClient.state();
+  const NtripStats stats = g_ntripClient.getStats();
+
+  out.connected = state == NtripState::STREAMING || state == NtripState::CONNECTING;
+  out.healthy = g_ntripClient.isHealthy();
+  out.streaming = g_ntripClient.isStreaming();
+  out.bytesReceived = static_cast<uint32_t>(stats.bytesReceived);
+  out.totalFrames = static_cast<uint32_t>(stats.totalFrames);
+  out.lastMessageType = stats.lastMessageType;
+  out.lastFrameAgeMs = (stats.lastFrameTime > 0) ? static_cast<uint32_t>(millis() - stats.lastFrameTime) : 0;
+  return true;
 }
 
 #endif

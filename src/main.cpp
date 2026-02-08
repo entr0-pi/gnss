@@ -258,6 +258,21 @@ bool webui_get_gps_snapshot(WebuiGpsSnapshot& out) {
 }
 #endif
 
+#if WEBUI_ENABLE && NTRIP_CLIENT_ENABLE
+bool webui_get_ntrip_snapshot(WebuiNtripSnapshot& out) {
+  NtripClientSnapshot snap{};
+  if (!ntrip_client_get_snapshot(snap)) return false;
+  out.connected = snap.connected;
+  out.healthy = snap.healthy;
+  out.streaming = snap.streaming;
+  out.bytesReceived = snap.bytesReceived;
+  out.totalFrames = snap.totalFrames;
+  out.lastMessageType = snap.lastMessageType;
+  out.lastFrameAgeMs = snap.lastFrameAgeMs;
+  return true;
+}
+#endif
+
 #if BLE_ENABLE
 // ---------------- BLE Callbacks ----------------
 // NimBLE calls these on BLE events (connect/disconnect/subscribe/write).

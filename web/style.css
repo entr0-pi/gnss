@@ -113,18 +113,18 @@ body{
 }
 .skyplot-ring{
   position:absolute;
-  border:1px dashed rgba(255,255,255,.12);
+  border:2px solid rgba(255,255,255,.08);
   border-radius:50%;
   top:50%;
   left:50%;
   transform:translate(-50%,-50%);
 }
 .skyplot-ring.skyplot-ring-thin{
-  border:1px solid rgba(255,255,255,.08);
+  border:0.75px dashed rgba(255,255,255,.12);
 }
-.ring-outer{ width:100%; height:100%; }
-.ring-mid{ width:58%; height:58%; }
-.ring-inner{ width:27%; height:27%; }
+.ring-90{ width:100%; height:100%; }
+.ring-60{ width:58%; height:58%; }
+.ring-30{ width:27%; height:27%; }
 .ring-75{ width:13%; height:13%; }
 .ring-45{ width:41%; height:41%; }
 .ring-10{ width:84%; height:84%; }
@@ -172,8 +172,8 @@ body{
   color:rgba(255,255,255,.55);
   pointer-events:none;
 }
-.skyplot-ring-label.ring-mid{ right:21%; top:50%; transform:translateY(-50%); width:auto; height:auto; }
-.skyplot-ring-label.ring-inner{ right:36.5%; top:50%; transform:translateY(-50%); width:auto; height:auto; }
+.skyplot-ring-label.ring-60{ right:21%; top:50%; transform:translateY(-50%); width:auto; height:auto; }
+.skyplot-ring-label.ring-30{ right:36.5%; top:50%; transform:translateY(-50%); width:auto; height:auto; }
 .skyplot-markers{
   position:absolute;
   inset:0;
@@ -235,6 +235,7 @@ body{
 }
 .line:last-child{ border-bottom:0; }
 .lk{ color:var(--muted); font-size:13px; }
+.lk-note{ color:var(--muted); font-size:10px; font-style: italic; }
 .lv{ font-weight:800; font-size:13px; }
 .input{
   width:120px;
@@ -285,10 +286,11 @@ body{
   box-shadow: 0 10px 30px rgba(255,59,48,.16);
 }
 
+
 .note{
   flex:1;
   color:var(--muted);
-  font-size:13px;
+  font-size:12px;
 }
 .foot{
   margin-top:12px;

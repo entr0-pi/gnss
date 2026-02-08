@@ -22,6 +22,7 @@
 #include <WiFiClient.h>
 #include <HTTPClient.h>
 #include <LittleFS.h>
+#include <Preferences.h>
 #include <cstring>
 #include <ArduinoJson.h>
 
@@ -244,6 +245,11 @@ static void handleStatus() {
   const bool has_gps = webui_get_gps_snapshot(gps);
   #endif
 
+  #if NTRIP_CLIENT_ENABLE
+  WebuiNtripSnapshot ntrip{};
+  const bool has_ntrip = webui_get_ntrip_snapshot(ntrip);
+  #endif
+
   // --- JSON ---
   // ArduinoJson v7
   // JsonDocument is a dynamic document type (v7); it will allocate as needed.
@@ -407,6 +413,20 @@ static void handleStatus() {
         sat["signal_power"]  = gps.sats[i].snr;
       }
     }
+  }
+  #endif
+
+  // ---------------- ntrip (optional) ----------------
+  #if NTRIP_CLIENT_ENABLE
+  if (has_ntrip) {
+    JsonObject ntripObj = doc["ntrip"].to<JsonObject>();
+    ntripObj["connected"] = ntrip.connected;
+    ntripObj["healthy"] = ntrip.healthy;
+    ntripObj["streaming"] = ntrip.streaming;
+    ntripObj["bytes_received"] = ntrip.bytesReceived;
+    ntripObj["total_frames"] = ntrip.totalFrames;
+    ntripObj["last_msg_type"] = ntrip.lastMessageType;
+    ntripObj["last_frame_age_ms"] = ntrip.lastFrameAgeMs;
   }
   #endif
 
@@ -665,6 +685,242 @@ static void handleWifiConfigPost() {
   s_server->send(200, "application/json", output);
 }
 
+// ------------- API: /api/ntrip_config -------------
+static void handleNtripConfigGet() {
+  markRequestAndGetPrevAgeMs();
+
+  constexpr const char* kNtripNvsNs = "ntrip";
+
+  JsonDocument doc;
+  doc["locked"] = false;
+
+  JsonObject ntrip = doc["ntrip"].to<JsonObject>();
+  ntrip["enabled"] = false;
+  ntrip["host"] = "rtk2go.com";
+  ntrip["port"] = 2101;
+  ntrip["mount"] = "YOUR_MOUNT";
+  ntrip["user"] = "user";
+  ntrip["pass"] = "pass";
+  ntrip["max_tries"] = 5;
+  ntrip["retry_delay_ms"] = 30000;
+  ntrip["health_timeout_ms"] = 60000;
+  ntrip["passive_sample_ms"] = 5000;
+  ntrip["required_valid_frames"] = 3;
+  ntrip["buffer_size"] = 1024;
+  ntrip["connect_timeout_ms"] = 5000;
+
+  JsonObject lockout = doc["lockout"].to<JsonObject>();
+  lockout["failed_attempts"] = 0;
+  lockout["abandoned"] = false;
+  lockout["last_config_hash"] = "";
+
+  bool loadedFromNvs = false;
+  Preferences prefs;
+  if (prefs.begin(kNtripNvsNs, true)) {
+    const bool hasRequired =
+        prefs.isKey("enabled") && prefs.isKey("host") && prefs.isKey("port") &&
+        prefs.isKey("mount") && prefs.isKey("user") && prefs.isKey("pass") &&
+        prefs.isKey("max_tries") && prefs.isKey("retry_delay_ms") &&
+        prefs.isKey("health_timeout_ms") && prefs.isKey("passive_sample_ms") &&
+        prefs.isKey("required_valid_frames") && prefs.isKey("buffer_size") &&
+        prefs.isKey("connect_timeout_ms");
+    if (hasRequired) {
+      ntrip["enabled"] = prefs.getBool("enabled", false);
+      ntrip["host"] = prefs.getString("host", "rtk2go.com");
+      ntrip["port"] = prefs.getUInt("port", 2101);
+      ntrip["mount"] = prefs.getString("mount", "YOUR_MOUNT");
+      ntrip["user"] = prefs.getString("user", "user");
+      ntrip["pass"] = prefs.getString("pass", "pass");
+      ntrip["max_tries"] = prefs.getInt("max_tries", 5);
+      ntrip["retry_delay_ms"] = prefs.getULong("retry_delay_ms", 30000);
+      ntrip["health_timeout_ms"] = prefs.getULong("health_timeout_ms", 60000);
+      ntrip["passive_sample_ms"] = prefs.getULong("passive_sample_ms", 5000);
+      ntrip["required_valid_frames"] = prefs.getUInt("required_valid_frames", 3);
+      ntrip["buffer_size"] = prefs.getUInt("buffer_size", 1024);
+      ntrip["connect_timeout_ms"] = prefs.getULong("connect_timeout_ms", 5000);
+      loadedFromNvs = true;
+    }
+    prefs.end();
+  }
+
+  // Fallback to JSON only when NVS is missing/empty.
+  if (!loadedFromNvs) {
+    File file = LittleFS.open("/ntrip_config.json", "r");
+    if (file) {
+      JsonDocument fileDoc;
+      const DeserializationError err = deserializeJson(fileDoc, file);
+      file.close();
+      if (!err) {
+        if (fileDoc["ntrip"].is<JsonObject>()) {
+          doc["ntrip"].set(fileDoc["ntrip"]);
+          Preferences savePrefs;
+          if (savePrefs.begin(kNtripNvsNs, false)) {
+            JsonObjectConst n = doc["ntrip"].as<JsonObjectConst>();
+            savePrefs.putBool("enabled", n["enabled"] | false);
+            savePrefs.putString("host", n["host"] | "rtk2go.com");
+            savePrefs.putUInt("port", n["port"] | 2101);
+            savePrefs.putString("mount", n["mount"] | "YOUR_MOUNT");
+            savePrefs.putString("user", n["user"] | "user");
+            savePrefs.putString("pass", n["pass"] | "pass");
+            savePrefs.putInt("max_tries", n["max_tries"] | 5);
+            savePrefs.putULong("retry_delay_ms", n["retry_delay_ms"] | 30000);
+            savePrefs.putULong("health_timeout_ms", n["health_timeout_ms"] | 60000);
+            savePrefs.putULong("passive_sample_ms", n["passive_sample_ms"] | 5000);
+            savePrefs.putUInt("required_valid_frames", n["required_valid_frames"] | 3);
+            savePrefs.putUInt("buffer_size", n["buffer_size"] | 1024);
+            savePrefs.putULong("connect_timeout_ms", n["connect_timeout_ms"] | 5000);
+            savePrefs.end();
+          }
+        }
+        if (fileDoc["lockout"].is<JsonObject>()) {
+          doc["lockout"].set(fileDoc["lockout"]);
+        }
+      } else {
+        doc["error"] = String("Invalid ntrip_config.json: ") + err.c_str();
+      }
+    } else {
+      doc["error"] = "ntrip_config.json not found";
+    }
+  } else {
+    File file = LittleFS.open("/ntrip_config.json", "r");
+    if (file) {
+      JsonDocument fileDoc;
+      const DeserializationError err = deserializeJson(fileDoc, file);
+      file.close();
+      if (!err && fileDoc["lockout"].is<JsonObject>()) {
+        doc["lockout"].set(fileDoc["lockout"]);
+      }
+    }
+  }
+
+  String output;
+  doc.shrinkToFit();
+  serializeJson(doc, output);
+  s_server->sendHeader("Cache-Control", "no-store");
+  s_server->send(200, "application/json", output);
+}
+
+static void handleNtripConfigPost() {
+  markRequestAndGetPrevAgeMs();
+  constexpr const char* kNtripNvsNs = "ntrip";
+
+  if (!s_server->hasArg("plain")) {
+    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Missing body\"}");
+    return;
+  }
+
+  JsonDocument input;
+  const DeserializationError err = deserializeJson(input, s_server->arg("plain"));
+  if (err) {
+    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Invalid JSON\"}");
+    return;
+  }
+
+  if (!input["ntrip"].is<JsonObject>()) {
+    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"ntrip object is required\"}");
+    return;
+  }
+
+  JsonObject ntripIn = input["ntrip"].as<JsonObject>();
+  if (!ntripIn["enabled"].is<bool>() ||
+      !ntripIn["host"].is<const char*>() ||
+      !ntripIn["port"].is<uint16_t>() ||
+      !ntripIn["mount"].is<const char*>() ||
+      !ntripIn["user"].is<const char*>() ||
+      !ntripIn["pass"].is<const char*>() ||
+      !ntripIn["max_tries"].is<int>() ||
+      !ntripIn["retry_delay_ms"].is<uint32_t>() ||
+      !ntripIn["health_timeout_ms"].is<uint32_t>() ||
+      !ntripIn["passive_sample_ms"].is<uint32_t>() ||
+      !ntripIn["required_valid_frames"].is<uint32_t>() ||
+      !ntripIn["buffer_size"].is<uint32_t>() ||
+      !ntripIn["connect_timeout_ms"].is<uint32_t>()) {
+    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Invalid or missing NTRIP fields\"}");
+    return;
+  }
+
+  const String host = ntripIn["host"].as<String>();
+  const String mount = ntripIn["mount"].as<String>();
+  if (host.isEmpty() || mount.isEmpty()) {
+    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"host and mount are required\"}");
+    return;
+  }
+
+  JsonDocument out;
+  JsonObject ntripOut = out["ntrip"].to<JsonObject>();
+  ntripOut["enabled"] = ntripIn["enabled"].as<bool>();
+  ntripOut["host"] = host;
+  ntripOut["port"] = ntripIn["port"].as<uint16_t>();
+  ntripOut["mount"] = mount;
+  ntripOut["user"] = ntripIn["user"].as<String>();
+  ntripOut["pass"] = ntripIn["pass"].as<String>();
+  ntripOut["max_tries"] = ntripIn["max_tries"].as<int>();
+  ntripOut["retry_delay_ms"] = ntripIn["retry_delay_ms"].as<uint32_t>();
+  ntripOut["health_timeout_ms"] = ntripIn["health_timeout_ms"].as<uint32_t>();
+  ntripOut["passive_sample_ms"] = ntripIn["passive_sample_ms"].as<uint32_t>();
+  ntripOut["required_valid_frames"] = ntripIn["required_valid_frames"].as<uint32_t>();
+  ntripOut["buffer_size"] = ntripIn["buffer_size"].as<uint32_t>();
+  ntripOut["connect_timeout_ms"] = ntripIn["connect_timeout_ms"].as<uint32_t>();
+
+  JsonObject lockoutOut = out["lockout"].to<JsonObject>();
+  lockoutOut["failed_attempts"] = 0;
+  lockoutOut["abandoned"] = false;
+  lockoutOut["last_config_hash"] = "";
+
+  File existing = LittleFS.open("/ntrip_config.json", "r");
+  if (existing) {
+    JsonDocument existingDoc;
+    const DeserializationError readErr = deserializeJson(existingDoc, existing);
+    existing.close();
+    if (!readErr && existingDoc["lockout"].is<JsonObject>()) {
+      out["lockout"].set(existingDoc["lockout"]);
+    }
+  }
+
+  Preferences prefs;
+  if (!prefs.begin(kNtripNvsNs, false)) {
+    s_server->send(500, "application/json", "{\"ok\":false,\"error\":\"Failed to open NVS\"}");
+    return;
+  }
+  bool ok = true;
+  ok = ok && prefs.putBool("enabled", ntripOut["enabled"] | false);
+  ok = ok && prefs.putString("host", ntripOut["host"] | "rtk2go.com");
+  ok = ok && prefs.putUInt("port", ntripOut["port"] | 2101);
+  ok = ok && prefs.putString("mount", ntripOut["mount"] | "YOUR_MOUNT");
+  ok = ok && prefs.putString("user", ntripOut["user"] | "user");
+  ok = ok && prefs.putString("pass", ntripOut["pass"] | "pass");
+  ok = ok && prefs.putInt("max_tries", ntripOut["max_tries"] | 5);
+  ok = ok && prefs.putULong("retry_delay_ms", ntripOut["retry_delay_ms"] | 30000);
+  ok = ok && prefs.putULong("health_timeout_ms", ntripOut["health_timeout_ms"] | 60000);
+  ok = ok && prefs.putULong("passive_sample_ms", ntripOut["passive_sample_ms"] | 5000);
+  ok = ok && prefs.putUInt("required_valid_frames", ntripOut["required_valid_frames"] | 3);
+  ok = ok && prefs.putUInt("buffer_size", ntripOut["buffer_size"] | 1024);
+  ok = ok && prefs.putULong("connect_timeout_ms", ntripOut["connect_timeout_ms"] | 5000);
+  prefs.end();
+  if (!ok) {
+    s_server->send(500, "application/json", "{\"ok\":false,\"error\":\"Failed to write NVS\"}");
+    return;
+  }
+
+  // Keep lockout state in JSON for compatibility.
+  File file = LittleFS.open("/ntrip_config.json", "w");
+  if (file) {
+    serializeJson(out, file);
+    file.close();
+  }
+
+  JsonDocument resp;
+  resp["ok"] = true;
+  resp["message"] = "NTRIP config saved";
+  resp["config"].set(out["ntrip"]);
+
+  String output;
+  resp.shrinkToFit();
+  serializeJson(resp, output);
+  s_server->sendHeader("Cache-Control", "no-store");
+  s_server->send(200, "application/json", output);
+}
+
 // webui_begin():
 // Called once from main.cpp to register routes and provide dependencies.
 // Parameters:
@@ -719,6 +975,8 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
   server.on("/api/config", HTTP_POST, handleConfigPost);
   server.on("/api/wifi_config", HTTP_GET, handleWifiConfigGet);
   server.on("/api/wifi_config", HTTP_POST, handleWifiConfigPost);
+  server.on("/api/ntrip_config", HTTP_GET, handleNtripConfigGet);
+  server.on("/api/ntrip_config", HTTP_POST, handleNtripConfigPost);
 
   // Restart endpoint (POST)
   server.on("/api/restart", HTTP_POST, handleRestart);
