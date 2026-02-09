@@ -16,15 +16,6 @@
 // Version information
 #define NTRIP_CLIENT_VERSION "2.0.0"
 
-enum class NtripLogLevel : uint8_t {
-  Error = 1,
-  Warning = 2,
-  Info = 3,
-  Debug = 4,
-};
-
-using NtripLogFn = void (*)(NtripLogLevel level, const char* tag, const char* message);
-
 // Configuration structure for connection, validation, and recovery behavior.
 struct NtripConfig {
   String host;
@@ -159,11 +150,6 @@ public:
    */
   void reconnect();
 
-  /**
-   * Optional logger callback. If unset, the library is silent.
-   */
-  void setLogger(NtripLogFn logger);
-
 private:
   // Ensure mutexes are created before use.
   bool ensureMutexes() const;
@@ -182,8 +168,6 @@ private:
   void disconnect();
   // Store error code/message in stats (thread-safe).
   void setError(NtripError err, const String& msg);
-  // Format and emit a log message through the injected logger callback.
-  void logf(NtripLogLevel level, const char* fmt, ...) const;
   
   WiFiClient client;
   Print* gnssOutput = nullptr;
@@ -199,5 +183,4 @@ private:
   
   mutable SemaphoreHandle_t statsMutex = nullptr;
   mutable SemaphoreHandle_t configMutex = nullptr;
-  NtripLogFn logFn = nullptr;
 };

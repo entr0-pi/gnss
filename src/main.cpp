@@ -33,8 +33,6 @@
 // ---- (WiFi + WebServer) ----
 // WiFi STA mode connects to an existing hotspot/router and hosts a small status web server.
 #include "app.h"
-#define MODULE_LOG 1
-#include "logger.h"
 #include "gnss_config.h"
 #include "ntrip_client.h"
 #include "wifi_config.h"
@@ -260,21 +258,6 @@ bool webui_get_gps_snapshot(WebuiGpsSnapshot& out) {
 }
 #endif
 
-#if WEBUI_ENABLE && NTRIP_CLIENT_ENABLE
-bool webui_get_ntrip_snapshot(WebuiNtripSnapshot& out) {
-  NtripClientSnapshot snap{};
-  if (!ntrip_client_get_snapshot(snap)) return false;
-  out.connected = snap.connected;
-  out.healthy = snap.healthy;
-  out.streaming = snap.streaming;
-  out.bytesReceived = snap.bytesReceived;
-  out.totalFrames = snap.totalFrames;
-  out.lastMessageType = snap.lastMessageType;
-  out.lastFrameAgeMs = snap.lastFrameAgeMs;
-  return true;
-}
-#endif
-
 #if BLE_ENABLE
 // ---------------- BLE Callbacks ----------------
 // NimBLE calls these on BLE events (connect/disconnect/subscribe/write).
@@ -442,7 +425,6 @@ void setup() {
   #if BLE_ENABLE
   // Initialize NimBLE stack, create NUS service, and start advertising.
   startBleServer();
-
   #endif
 
   #if WEBUI_ENABLE
@@ -510,7 +492,7 @@ void loop() {
 static void initSerialAndConfig() {
   Serial.begin(SERIAL_BAUD);
   vTaskDelay(pdMS_TO_TICKS(200));
-  LOG_I("SETUP", "Loading config...");
+  Serial.println("[SETUP] Loading config...");
   gnss_config_begin();
 }
 
@@ -525,7 +507,7 @@ static void initSerialAndConfig() {
  * Halts with an infinite loop if allocation fails.
  */
 static void createStreamBuffers() {
-  LOG_I("SETUP", "Creating stream buffers...");
+  Serial.println("[SETUP] Creating stream buffers...");
 
 #if BLE_ENABLE
   g_sb_uart2ble = xStreamBufferCreateStatic(
@@ -565,7 +547,7 @@ static void createStreamBuffers() {
 #endif
 
   if (!ok) {
-    LOG_E("SETUP", "Stream buffer creation failed!");
+    Serial.println("[SETUP] ERROR: Stream buffer creation failed!");
     for (;;) vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
@@ -579,9 +561,9 @@ static void createStreamBuffers() {
 static void setupUartIfConfigured() {
   const GnssConfig& cfg = gnss_config_get();
   if (cfg.rx_pin == -1 || cfg.tx_pin == -1 || cfg.baud == 0) {
-    LOG_W("SETUP", "UART not configured - configure via web UI");
+    Serial.println("[SETUP] UART not configured - configure via web UI");
   } else {
-    LOG_I("SETUP", "Setting up UART...");
+    Serial.println("[SETUP] Setting up UART...");
     setupUART();
   }
 }
@@ -594,7 +576,7 @@ static void setupUartIfConfigured() {
  */
 #if BLE_ENABLE
 static void startBleServer() {
-  LOG_I("SETUP", "Starting BLE...");
+  Serial.println("[SETUP] Starting BLE...");
   setupBLE();
 }
 #endif
@@ -607,7 +589,7 @@ static void startBleServer() {
  * the server does not accept connections until server.begin() is called.
  */
 static void initWebUiRoutes() {
-  LOG_I("SETUP", "Initializing WebUI...");
+  Serial.println("[SETUP] Initializing WebUI...");
   webui_begin(server, STA_DNS);
 }
 #endif
@@ -620,9 +602,9 @@ static void initWebUiRoutes() {
  * connection; if it fails, loop() will retry periodically.
  */
 static void connectWiFi() {
-  LOG_I("SETUP", "Connecting to WiFi...");
+  Serial.println("[SETUP] Connecting to WiFi...");
   setupWiFi();
-  LOG_I("SETUP", "WiFi setup complete");
+  Serial.println("[SETUP] WiFi setup complete");
 }
 #endif
 
@@ -633,9 +615,9 @@ static void connectWiFi() {
  * the web UI becomes accessible at the device's IP address.
  */
 static void startWebServer() {
-  LOG_I("SETUP", "Starting web server...");
+  Serial.println("[SETUP] Starting web server...");
   server.begin();
-  LOG_I("SETUP", "Web server started");
+  Serial.println("[SETUP] Web server started");
 }
 #endif
 
@@ -647,7 +629,7 @@ static void startWebServer() {
  * satellite information for the web UI.
  */
 static void initNmea() {
-  LOG_I("SETUP", "Initializing NMEA...");
+  Serial.println("[SETUP] Initializing NMEA...");
   nmea_begin();
 }
 #endif
@@ -662,7 +644,7 @@ static void initNmea() {
  * UART tasks run at priority 3, BLE/TCP tasks at priority 2.
  */
 static void startWorkerTasks() {
-  LOG_I("SETUP", "Creating tasks...");
+  Serial.println("[SETUP] Creating tasks...");
   xTaskCreate(task_uart_rx, "uart_rx", 4096, nullptr, 3, nullptr);
   xTaskCreate(task_uart_tx, "uart_tx", 4096, nullptr, 3, nullptr);
 #if BLE_ENABLE
@@ -673,7 +655,7 @@ static void startWorkerTasks() {
   g_tcpServer.setNoDelay(true);
   xTaskCreate(task_tcp_io,  "tcp_io",  4096, nullptr, 2, nullptr);
 #endif
-  LOG_I("SETUP", "Setup complete!");
+  Serial.println("[SETUP] Setup complete!");
 }
 
 // -------------------------------------------
@@ -688,7 +670,7 @@ static void startWorkerTasks() {
 static void logLoopEntryOnce() {
   static bool first_loop = true;
   if (first_loop) {
-    LOG_I("LOOP", "Entered main loop");
+    Serial.println("[LOOP] Entered main loop");
     first_loop = false;
   }
 }
@@ -809,22 +791,22 @@ static void setupWiFi() {
   String wifi_error;
   if (wifi_config_load(file_cfg, &wifi_error)) {
     use_file_cfg = true;
-    LOG_I("WiFi", "Loaded config from NVS");
+    Serial.println("[WiFi] Loaded config from NVS");
   } else {
-    LOG_W("WiFi", "NVS config missing/invalid: %s", wifi_error.c_str());
+    Serial.println(String("[WiFi] NVS config missing/invalid: ") + wifi_error);
     if (loadWifiConfigFromLittleFs(file_cfg, &wifi_error)) {
       use_file_cfg = true;
-      LOG_I("WiFi", "Loaded config from /wifi.json");
+      Serial.println("[WiFi] Loaded config from /wifi.json");
       String save_error;
       if (!wifi_config_save(file_cfg, &save_error)) {
-        LOG_W("WiFi", "Warning: Failed to sync /wifi.json to NVS: %s", save_error.c_str());
+        Serial.println(String("[WiFi] Warning: Failed to sync /wifi.json to NVS: ") + save_error);
       }
     } else {
-      LOG_W("WiFi", "/wifi.json not used: %s", wifi_error.c_str());
+      Serial.println(String("[WiFi] /wifi.json not used: ") + wifi_error);
     }
   }
 #else
-  LOG_I("WiFi", "FORCE_WIFI_SECRETS enabled, skipping /wifi.json and NVS config");
+  Serial.println("[WiFi] FORCE_WIFI_SECRETS enabled, skipping /wifi.json and NVS config");
 #endif
 
   const char* ssid = use_file_cfg ? file_cfg.ssid.c_str() : STA_SSID;
@@ -835,55 +817,32 @@ static void setupWiFi() {
   const IPAddress subnet = use_file_cfg ? file_cfg.subnet : STA_SUBNET;
   const IPAddress dns = use_file_cfg ? file_cfg.dns : STA_DNS;
 
-  LOG_I("WiFi", "Config source: %s", use_file_cfg ? "NVS" : "compile-time");
-  LOG_I("WiFi", "SSID: '%s' (len=%u)", ssid ? ssid : "", ssid ? (unsigned)strlen(ssid) : 0U);
-  LOG_I("WiFi", "PASS length: %u", pass ? (unsigned)strlen(pass) : 0U);
-  LOG_I("WiFi", "DHCP: %s", use_dhcp ? "true" : "false");
-  if (!use_dhcp) {
-    LOG_I("WiFi", "Static IP: %s", ip.toString().c_str());
-    LOG_I("WiFi", "Gateway : %s", gw.toString().c_str());
-    LOG_I("WiFi", "Subnet  : %s", subnet.toString().c_str());
-    LOG_I("WiFi", "DNS     : %s", dns.toString().c_str());
-  }
-  if (strcmp(ssid, "CHANGE_ME") == 0 || strcmp(pass, "CHANGE_ME") == 0) {
-    LOG_E("WiFi", "Using placeholder credentials (CHANGE_ME). Update NVS, /wifi.json or secrets.");
-  }
-
   // Apply static IP configuration for the STA interface.
   // Order: local IP, gateway, subnet, DNS.
   if (use_dhcp) {
     if (!WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0))) {
-      LOG_E("WiFi", "DHCP config failed!");
-    } else {
-      LOG_I("WiFi", "DHCP config applied");
+      Serial.println("[WiFi] DHCP config failed!");
     }
   } else {
     if (!WiFi.config(ip, gw, subnet, dns)) {
-      LOG_E("WiFi", "Config failed!");
-    } else {
-      LOG_I("WiFi", "Static config applied");
+      Serial.println("[WiFi] Config failed!");
     }
   }
 
   // Start connection attempt using SSID/PASS.
-  LOG_I("WiFi", "Calling WiFi.begin(...)");
   WiFi.begin(ssid, pass);
 
   // Wait up to 10 seconds for connection with yield to prevent watchdog.
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && (millis() - t0) < 10000) {
     delay(500);
-    LOG_I("WiFi", ".");
+    Serial.print(".");
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    LOG_I("WiFi", "Connected: %s", WiFi.localIP().toString().c_str());
-    LOG_I("WiFi", "Gateway: %s", WiFi.gatewayIP().toString().c_str());
-    LOG_I("WiFi", "Subnet : %s", WiFi.subnetMask().toString().c_str());
-    LOG_I("WiFi", "DNS[0] : %s", WiFi.dnsIP(0).toString().c_str());
-    LOG_I("WiFi", "DNS[1] : %s", WiFi.dnsIP(1).toString().c_str());
+    Serial.println("\n[WiFi] Connected: " + WiFi.localIP().toString());
   } else {
-    LOG_W("WiFi", "Connection failed, will retry in loop");
+    Serial.println("\n[WiFi] Connection failed, will retry in loop");
   }
 }
 #endif
@@ -936,12 +895,13 @@ static void setupBLE() {
 // ---------------- Setup UART ----------------
 static void setupUART() {
   const GnssConfig& cfg = gnss_config_get();
-  LOG_I("UART", "Configuring: RX=%d, TX=%d, Baud=%u", cfg.rx_pin, cfg.tx_pin, cfg.baud);
+  Serial.printf("[UART] Configuring: RX=%d, TX=%d, Baud=%u\n",
+                cfg.rx_pin, cfg.tx_pin, cfg.baud);
 
   Serial1.begin(cfg.baud, SERIAL_8N1, cfg.rx_pin, cfg.tx_pin);
   delay(100); // Give UART time to initialize
 
-  LOG_I("UART", "UART configured successfully");
+  Serial.println("[UART] UART configured successfully");
 }
 
 bool gnss_apply_runtime_config(const GnssConfig& cfg, String* error) {

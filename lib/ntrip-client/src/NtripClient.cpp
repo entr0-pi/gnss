@@ -1,12 +1,6 @@
 #include "NtripClient.h"
 #include "RtcmParser.h"
 #include <base64.h>
-#include <stdarg.h>
-
-#define NTRIP_LOGE(...) logf(NtripLogLevel::Error, __VA_ARGS__)
-#define NTRIP_LOGW(...) logf(NtripLogLevel::Warning, __VA_ARGS__)
-#define NTRIP_LOGI(...) logf(NtripLogLevel::Info, __VA_ARGS__)
-#define NTRIP_LOGD(...) logf(NtripLogLevel::Debug, __VA_ARGS__)
 
 // Implementation notes:
 // - The task loop runs continuously on a FreeRTOS task.
@@ -25,7 +19,7 @@ bool NtripClient::ensureMutexes() const {
     configMutex = xSemaphoreCreateMutex();
   }
   if (statsMutex == nullptr || configMutex == nullptr) {
-    NTRIP_LOGE("failed to create mutexes");
+    Serial.println(F("[NtripClient] ERROR: failed to create mutexes"));
     return false;
   }
   return true;
@@ -46,7 +40,7 @@ bool NtripClient::begin(const NtripConfig& cfg, Print& gnss) {
   // Reset statistics
   _stats = NtripStats();
 
-  NTRIP_LOGI("Initialized");
+  Serial.println(F("[NtripClient] Initialized"));
   return true;
 }
 
@@ -57,7 +51,7 @@ bool NtripClient::begin(const NtripConfig& cfg, HardwareSerial& gnss) {
 void NtripClient::startTask(uint8_t core) {
   // Start FreeRTOS task pinned to the requested core.
   xTaskCreatePinnedToCore(taskEntry, "NtripClient", 8192, this, 1, nullptr, core);
-  NTRIP_LOGI("Task started on core %d", core);
+  Serial.printf("[NtripClient] Task started on core %d\n", core);
 }
 
 void NtripClient::taskEntry(void* arg) {
@@ -111,9 +105,9 @@ void NtripClient::taskLoop() {
     if (_state == NtripState::CONNECTING) {
       // Attempt TCP + HTTP connection to the caster.
       lastAttempt = millis();
-      NTRIP_LOGI("Connecting to %s:%d/%s (attempt %d/%d)",
-            localConfig.host.c_str(), localConfig.port, localConfig.mount.c_str(),
-            failures + 1, localConfig.maxTries);
+      Serial.printf("[NtripClient] Connecting to %s:%d/%s (attempt %d/%d)\n",
+                    localConfig.host.c_str(), localConfig.port, localConfig.mount.c_str(),
+                    failures + 1, localConfig.maxTries);
       
       if (connectCaster(localConfig)) {
         // Connection established; enter validation phase.
@@ -134,7 +128,7 @@ void NtripClient::taskLoop() {
           xSemaphoreGive(statsMutex);
         }
         
-        NTRIP_LOGI("Connected - validating stream...");
+        Serial.println(F("[NtripClient] Connected - validating stream..."));
       } else {
         failures++;
         _state = NtripState::DISCONNECTED;
@@ -144,7 +138,7 @@ void NtripClient::taskLoop() {
     if (_state == NtripState::STREAMING) {
       // Stream handling and health checks.
       if (!client.connected()) {
-        NTRIP_LOGW("Connection lost");
+        Serial.println(F("[NtripClient] Connection lost"));
         setError(NtripError::TCP_CONNECT_FAILED, "Socket closed by server");
         disconnect();
         continue;
@@ -182,14 +176,15 @@ void NtripClient::taskLoop() {
                 xSemaphoreGive(statsMutex);
               }
               
-              NTRIP_LOGD("Valid RTCM%d frame (%d/%d)",
-                    result.messageType, validFrames, localConfig.requiredValidFrames);
+              Serial.printf("[NtripClient] Valid RTCM%d frame (%d/%d)\n",
+                           result.messageType, validFrames, localConfig.requiredValidFrames);
 
               if (validFrames >= localConfig.requiredValidFrames) {
                 _healthy = true;
                 phase = StreamPhase::STREAMING;
                 lastSampleTime = millis();
-                NTRIP_LOGI("Stream validated! (%lu ms)", millis() - phaseStartTime);
+                Serial.printf("[NtripClient] Stream validated! (%lu ms)\n", 
+                             millis() - phaseStartTime);
                 break;
               }
             } else if (result.crcError) {
@@ -224,7 +219,7 @@ void NtripClient::taskLoop() {
             }
 
             if (!foundPreamble) {
-              NTRIP_LOGW("No preamble in sample");
+              Serial.println(F("[NtripClient] Warning: No preamble in sample"));
             }
           }
         }
@@ -232,7 +227,8 @@ void NtripClient::taskLoop() {
       
       // ZOMBIE STREAM DETECTION
       if (millis() - lastHealth > localConfig.healthTimeoutMs) {
-        NTRIP_LOGW("Zombie stream detected (%lu ms since valid data)", millis() - lastHealth);
+        Serial.printf("[NtripClient] Zombie stream detected (%lu ms since valid data)\n",
+                     millis() - lastHealth);
         setError(NtripError::ZOMBIE_STREAM_DETECTED,
                  "No valid RTCM for " + String(localConfig.healthTimeoutMs / 1000) + "s");
         disconnect();
@@ -267,7 +263,7 @@ bool NtripClient::connectCaster(const NtripConfig& cfg) {
     return true;
   }
 
-  NTRIP_LOGW("NTRIP Rev2 failed, falling back to Rev1");
+  Serial.println(F("[NtripClient] NTRIP Rev2 failed, falling back to Rev1"));
 
   if (connectCasterWithVersion(cfg, false, err, errMsg)) {
     return true;
@@ -327,7 +323,7 @@ bool NtripClient::connectCasterWithVersion(const NtripConfig& cfg,
   String line = client.readStringUntil('\n');
   line.trim();
 
-  NTRIP_LOGI("Server response: %s", line.c_str());
+  Serial.printf("[NtripClient] Server response: %s\n", line.c_str());
 
   if (line.startsWith("ICY 200") || line.startsWith("HTTP/1.1 200") ||
       line.startsWith("HTTP/1.0 200")) {
@@ -341,7 +337,7 @@ bool NtripClient::connectCasterWithVersion(const NtripConfig& cfg,
         header.trim();
         if (header.length() == 0) {
           // Empty line found - headers complete, binary stream begins
-          NTRIP_LOGI("Headers drained, starting binary stream");
+          Serial.println(F("[NtripClient] Headers drained, starting binary stream"));
           return true;
         }
         // Optional: log headers for debugging
@@ -350,7 +346,7 @@ bool NtripClient::connectCasterWithVersion(const NtripConfig& cfg,
       vTaskDelay(pdMS_TO_TICKS(10));
     }
     // Timeout waiting for header end - proceed anyway but warn
-    NTRIP_LOGW("Header drain timeout, proceeding");
+    Serial.println(F("[NtripClient] Warning: Header drain timeout, proceeding"));
     return true;
   }
 
@@ -385,7 +381,7 @@ void NtripClient::setError(NtripError err, const String& msg) {
     _stats.lastErrorMessage = msg;
     xSemaphoreGive(statsMutex);
   }
-  NTRIP_LOGE("%s", msg.c_str());
+  Serial.printf("[NtripClient] ERROR: %s\n", msg.c_str());
 }
 
 bool NtripClient::isStreaming() const { 
@@ -447,7 +443,7 @@ void NtripClient::stop() {
     xSemaphoreGive(configMutex);
   }
   _state = NtripState::LOCKED_OUT;
-  NTRIP_LOGI("Stopped by user");
+  Serial.println(F("[NtripClient] Stopped by user"));
 }
 
 void NtripClient::reset() {
@@ -461,28 +457,12 @@ void NtripClient::reset() {
     xSemaphoreGive(statsMutex);
   }
   
-  NTRIP_LOGI("Reset - lockout cleared");
+  Serial.println(F("[NtripClient] Reset - lockout cleared"));
 }
 
 void NtripClient::reconnect() {
   // Force immediate retry by clearing lastAttempt.
   disconnect();
   lastAttempt = 0;  // Force immediate retry
-  NTRIP_LOGI("Reconnection requested");
-}
-
-void NtripClient::setLogger(NtripLogFn logger) {
-  logFn = logger;
-}
-
-void NtripClient::logf(NtripLogLevel level, const char* fmt, ...) const {
-  if (logFn == nullptr || fmt == nullptr) return;
-
-  char message[256];
-  va_list args;
-  va_start(args, fmt);
-  vsnprintf(message, sizeof(message), fmt, args);
-  va_end(args);
-
-  logFn(level, "NtripClient", message);
+  Serial.println(F("[NtripClient] Reconnection requested"));
 }

@@ -1,8 +1,6 @@
 // ======================= web_ui.cpp (FINAL - JSON built here) =======================
 
 #include "app.h"
-#define MODULE_LOG 1
-#include "logger.h"
 
 #if WEBUI_ENABLE
 //
@@ -24,12 +22,10 @@
 #include <WiFiClient.h>
 #include <HTTPClient.h>
 #include <LittleFS.h>
-#include <Preferences.h>
 #include <cstring>
 #include <ArduinoJson.h>
 
 #include "gnss_config.h"
-#include "nvs_keys.h"
 #include "wifi_config.h"
 #include "web_ui.h"
 
@@ -52,7 +48,6 @@ static uint32_t g_http_last_req_ms = 0;
 
 // Last known internet reachability from /api/status probes.
 static bool g_internet_reachable = false;
-static uint32_t g_internet_probe_ms = 0;
 
 bool webui_get_internet_reachable() {
   return g_internet_reachable;
@@ -83,7 +78,6 @@ static void sendFileFromLittleFs(const char* path,
                                  const char* contentType,
                                  const char* cacheControl,
                                  bool allowGzip = false) {
-  LOG_I("WEBUI", "Request file: %s (gzip=%s)", path, allowGzip ? "on" : "off");
   String selectedPath(path);
   bool usingGzip = false;
 
@@ -100,27 +94,15 @@ static void sendFileFromLittleFs(const char* path,
   }
 
   File file = LittleFS.open(selectedPath, "r");
-  if (!file && allowGzip && !usingGzip) {
-    const String gzPath = selectedPath + ".gz";
-    LOG_W("WEBUI", "Plain missing, trying gzip fallback: %s", gzPath.c_str());
-    file = LittleFS.open(gzPath, "r");
-    if (file) {
-      selectedPath = gzPath;
-      usingGzip = true;
-    }
-  }
   if (!file) {
-    LOG_E("WEBUI", "File not found: %s", selectedPath.c_str());
     s_server->send(404, "text/plain", "404 Not Found");
     return;
   }
 
   s_server->sendHeader("Cache-Control", cacheControl);
   if (usingGzip) {
-    s_server->sendHeader("Content-Encoding", "gzip");
     s_server->sendHeader("Vary", "Accept-Encoding");
   }
-  LOG_I("WEBUI", "Serving file: %s (%s)", selectedPath.c_str(), usingGzip ? "gzip" : "plain");
   s_server->streamFile(file, contentType);
   file.close();
 }
@@ -139,7 +121,7 @@ static void sendFileFromLittleFs(const char* path,
 static bool logInternetHTTP() {
   // If STA is not connected, no point trying HTTP.
   if (WiFi.status() != WL_CONNECTED) {
-    LOG_W("NET", "WiFi not connected");
+    Serial.println("[NET] WiFi not connected");
     return false;
   }
 
@@ -150,7 +132,7 @@ static bool logInternetHTTP() {
   HTTPClient http;
 
   // Keep this short so /api/status doesn't block too long.
-  http.setTimeout(1000);
+  http.setTimeout(2500);
 
   // Avoid keep-alive reuse (simplifies behavior on embedded).
   http.setReuse(false);
@@ -161,42 +143,34 @@ static bool logInternetHTTP() {
 
   // Prepare HTTP request (DNS, TCP connect, etc.)
   if (!http.begin(client, url)) {
-    LOG_E("NET", "http.begin() failed");
+    Serial.println("[NET] http.begin() failed");
     return false;
   }
 
   // Perform the GET request. On error, code is negative.
   int code = http.GET();
-  LOG_I("NET", "HTTP code: %d", code);
+  Serial.print("[NET] HTTP code: ");
+  Serial.println(code);
 
   bool ok = false;
 
   // Interpret result.
   if (code == 204) {
-    LOG_I("NET", "Internet reachable");
+    Serial.println("[NET] Internet reachable");
     ok = true;
   } else if (code > 0) {
-    LOG_W("NET", "Reached server, but unexpected code");
+    Serial.println("[NET] Reached server, but unexpected code");
     ok = false;
   } else {
     // Negative code means transport error (timeout, DNS fail, etc.)
-    LOG_W("NET", "HTTP GET failed, err=%s", http.errorToString(code).c_str()); // code is negative on error
+    Serial.print("[NET] HTTP GET failed, err=");
+    Serial.println(http.errorToString(code)); // code is negative on error
     ok = false;
   }
 
   // Always release resources (closes TCP, frees internal buffers).
   http.end();
   return ok;
-}
-
-static bool getInternetReachabilityCached() {
-  const uint32_t now = millis();
-  const bool mustProbe = (g_internet_probe_ms == 0) || ((now - g_internet_probe_ms) >= 10000);
-  if (mustProbe) {
-    g_internet_reachable = logInternetHTTP();
-    g_internet_probe_ms = now;
-  }
-  return g_internet_reachable;
 }
 
 // ------------- API: /api/status -------------
@@ -239,7 +213,13 @@ static void handleStatus() {
   // --- Internet ---
   // You probe synchronously at each /api/status call.
   // HTML converts boolean -> ✅/❌ icons now.
-  const bool internet = getInternetReachabilityCached();
+  bool internet;
+  if (logInternetHTTP()) {
+    internet  = true;   // "✅" in html now
+  }
+  else {
+    internet  = false;  // "❌" in html now
+  }
   g_internet_reachable = internet;
 
   // --- HTTP ---
@@ -262,11 +242,6 @@ static void handleStatus() {
   #if NMEA_ENABLE
   WebuiGpsSnapshot gps{};
   const bool has_gps = webui_get_gps_snapshot(gps);
-  #endif
-
-  #if NTRIP_CLIENT_ENABLE
-  WebuiNtripSnapshot ntrip{};
-  const bool has_ntrip = webui_get_ntrip_snapshot(ntrip);
   #endif
 
   // --- JSON ---
@@ -432,20 +407,6 @@ static void handleStatus() {
         sat["signal_power"]  = gps.sats[i].snr;
       }
     }
-  }
-  #endif
-
-  // ---------------- ntrip (optional) ----------------
-  #if NTRIP_CLIENT_ENABLE
-  if (has_ntrip) {
-    JsonObject ntripObj = doc["ntrip"].to<JsonObject>();
-    ntripObj["connected"] = ntrip.connected;
-    ntripObj["healthy"] = ntrip.healthy;
-    ntripObj["streaming"] = ntrip.streaming;
-    ntripObj["bytes_received"] = ntrip.bytesReceived;
-    ntripObj["total_frames"] = ntrip.totalFrames;
-    ntripObj["last_msg_type"] = ntrip.lastMessageType;
-    ntripObj["last_frame_age_ms"] = ntrip.lastFrameAgeMs;
   }
   #endif
 
@@ -704,189 +665,6 @@ static void handleWifiConfigPost() {
   s_server->send(200, "application/json", output);
 }
 
-// ------------- API: /api/ntrip_config -------------
-static void handleNtripConfigGet() {
-  markRequestAndGetPrevAgeMs();
-
-  JsonDocument doc;
-  doc["locked"] = false;
-  JsonObject ntrip = doc["ntrip"].to<JsonObject>();
-  JsonObject lockout = doc["lockout"].to<JsonObject>();
-
-  bool loadedFromNvs = false;
-  Preferences prefs;
-  if (prefs.begin(nvs_keys::ntrip::kNamespace, true)) {
-    const bool hasRequired =
-        prefs.isKey(nvs_keys::ntrip::kEnabled) && prefs.isKey(nvs_keys::ntrip::kHost) &&
-        prefs.isKey(nvs_keys::ntrip::kPort) && prefs.isKey(nvs_keys::ntrip::kMount) &&
-        prefs.isKey(nvs_keys::ntrip::kUser) && prefs.isKey(nvs_keys::ntrip::kPass) &&
-        prefs.isKey(nvs_keys::ntrip::kMaxTries) && prefs.isKey(nvs_keys::ntrip::kRetryDelay) &&
-        prefs.isKey(nvs_keys::ntrip::kHealthTimeout) && prefs.isKey(nvs_keys::ntrip::kPassiveMs) &&
-        prefs.isKey(nvs_keys::ntrip::kReqValid) && prefs.isKey(nvs_keys::ntrip::kBufferSize) &&
-        prefs.isKey(nvs_keys::ntrip::kConnectTimeout);
-    if (hasRequired) {
-      ntrip["enabled"] = prefs.getBool(nvs_keys::ntrip::kEnabled);
-      ntrip["host"] = prefs.getString(nvs_keys::ntrip::kHost);
-      ntrip["port"] = prefs.getUInt(nvs_keys::ntrip::kPort);
-      ntrip["mount"] = prefs.getString(nvs_keys::ntrip::kMount);
-      ntrip["user"] = prefs.getString(nvs_keys::ntrip::kUser);
-      ntrip["pass"] = prefs.getString(nvs_keys::ntrip::kPass);
-      ntrip["max_tries"] = prefs.getInt(nvs_keys::ntrip::kMaxTries);
-      ntrip["retry_delay_ms"] = prefs.getULong(nvs_keys::ntrip::kRetryDelay);
-      ntrip["health_timeout_ms"] = prefs.getULong(nvs_keys::ntrip::kHealthTimeout);
-      ntrip["passive_sample_ms"] = prefs.getULong(nvs_keys::ntrip::kPassiveMs);
-      ntrip["required_valid_frames"] = prefs.getUInt(nvs_keys::ntrip::kReqValid);
-      ntrip["buffer_size"] = prefs.getUInt(nvs_keys::ntrip::kBufferSize);
-      ntrip["connect_timeout_ms"] = prefs.getULong(nvs_keys::ntrip::kConnectTimeout);
-      lockout["failed_attempts"] = prefs.getInt(nvs_keys::ntrip::lockout::kAttempts);
-      lockout["abandoned"] = prefs.getBool(nvs_keys::ntrip::lockout::kAbandoned);
-      lockout["last_config_hash"] = prefs.getString(nvs_keys::ntrip::lockout::kHash);
-      loadedFromNvs = true;
-    }
-    prefs.end();
-  }
-
-  if (!loadedFromNvs) {
-    doc["error"] = "NTRIP config not found in NVS";
-  } else {
-    if (!prefs.begin(nvs_keys::ntrip::kNamespace, true)) {
-      lockout["failed_attempts"] = 0;
-      lockout["abandoned"] = false;
-      lockout["last_config_hash"] = "";
-    } else {
-      lockout["failed_attempts"] = prefs.isKey(nvs_keys::ntrip::lockout::kAttempts) ? prefs.getInt(nvs_keys::ntrip::lockout::kAttempts) : 0;
-      lockout["abandoned"] = prefs.isKey(nvs_keys::ntrip::lockout::kAbandoned) ? prefs.getBool(nvs_keys::ntrip::lockout::kAbandoned) : false;
-      lockout["last_config_hash"] = prefs.isKey(nvs_keys::ntrip::lockout::kHash) ? prefs.getString(nvs_keys::ntrip::lockout::kHash) : "";
-      prefs.end();
-    }
-  }
-
-  String output;
-  doc.shrinkToFit();
-  serializeJson(doc, output);
-  s_server->sendHeader("Cache-Control", "no-store");
-  s_server->send(200, "application/json", output);
-}
-
-static void handleNtripConfigPost() {
-  markRequestAndGetPrevAgeMs();
-
-  if (!s_server->hasArg("plain")) {
-    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Missing body\"}");
-    return;
-  }
-
-  JsonDocument input;
-  const DeserializationError err = deserializeJson(input, s_server->arg("plain"));
-  if (err) {
-    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Invalid JSON\"}");
-    return;
-  }
-
-  if (!input["ntrip"].is<JsonObject>()) {
-    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"ntrip object is required\"}");
-    return;
-  }
-
-  JsonObject ntripIn = input["ntrip"].as<JsonObject>();
-  if (!ntripIn["enabled"].is<bool>() ||
-      !ntripIn["host"].is<const char*>() ||
-      !ntripIn["port"].is<uint16_t>() ||
-      !ntripIn["mount"].is<const char*>() ||
-      !ntripIn["user"].is<const char*>() ||
-      !ntripIn["pass"].is<const char*>() ||
-      !ntripIn["max_tries"].is<int>() ||
-      !ntripIn["retry_delay_ms"].is<uint32_t>() ||
-      !ntripIn["health_timeout_ms"].is<uint32_t>() ||
-      !ntripIn["passive_sample_ms"].is<uint32_t>() ||
-      !ntripIn["required_valid_frames"].is<uint32_t>() ||
-      !ntripIn["buffer_size"].is<uint32_t>() ||
-      !ntripIn["connect_timeout_ms"].is<uint32_t>()) {
-    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Invalid or missing NTRIP fields\"}");
-    return;
-  }
-
-  const String host = ntripIn["host"].as<String>();
-  const String mount = ntripIn["mount"].as<String>();
-  if (host.isEmpty() || mount.isEmpty()) {
-    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"host and mount are required\"}");
-    return;
-  }
-
-  JsonDocument out;
-  JsonObject ntripOut = out["ntrip"].to<JsonObject>();
-  ntripOut["enabled"] = ntripIn["enabled"].as<bool>();
-  ntripOut["host"] = host;
-  ntripOut["port"] = ntripIn["port"].as<uint16_t>();
-  ntripOut["mount"] = mount;
-  ntripOut["user"] = ntripIn["user"].as<String>();
-  ntripOut["pass"] = ntripIn["pass"].as<String>();
-  ntripOut["max_tries"] = ntripIn["max_tries"].as<int>();
-  ntripOut["retry_delay_ms"] = ntripIn["retry_delay_ms"].as<uint32_t>();
-  ntripOut["health_timeout_ms"] = ntripIn["health_timeout_ms"].as<uint32_t>();
-  ntripOut["passive_sample_ms"] = ntripIn["passive_sample_ms"].as<uint32_t>();
-  ntripOut["required_valid_frames"] = ntripIn["required_valid_frames"].as<uint32_t>();
-  ntripOut["buffer_size"] = ntripIn["buffer_size"].as<uint32_t>();
-  ntripOut["connect_timeout_ms"] = ntripIn["connect_timeout_ms"].as<uint32_t>();
-
-  JsonObject lockoutOut = out["lockout"].to<JsonObject>();
-  lockoutOut["failed_attempts"] = 0;
-  lockoutOut["abandoned"] = false;
-  lockoutOut["last_config_hash"] = "";
-  Preferences prefs;
-
-  if (prefs.begin(nvs_keys::ntrip::kNamespace, true)) {
-    if (prefs.isKey(nvs_keys::ntrip::lockout::kAttempts)) {
-      lockoutOut["failed_attempts"] = prefs.getInt(nvs_keys::ntrip::lockout::kAttempts);
-    }
-    if (prefs.isKey(nvs_keys::ntrip::lockout::kAbandoned)) {
-      lockoutOut["abandoned"] = prefs.getBool(nvs_keys::ntrip::lockout::kAbandoned);
-    }
-    if (prefs.isKey(nvs_keys::ntrip::lockout::kHash)) {
-      lockoutOut["last_config_hash"] = prefs.getString(nvs_keys::ntrip::lockout::kHash);
-    }
-    prefs.end();
-  }
-
-  if (!prefs.begin(nvs_keys::ntrip::kNamespace, false)) {
-    s_server->send(500, "application/json", "{\"ok\":false,\"error\":\"Failed to open NVS\"}");
-    return;
-  }
-  bool ok = true;
-  ok = ok && prefs.putBool(nvs_keys::ntrip::kEnabled, ntripOut["enabled"].as<bool>());
-  ok = ok && prefs.putString(nvs_keys::ntrip::kHost, ntripOut["host"].as<const char*>());
-  ok = ok && prefs.putUInt(nvs_keys::ntrip::kPort, ntripOut["port"].as<uint32_t>());
-  ok = ok && prefs.putString(nvs_keys::ntrip::kMount, ntripOut["mount"].as<const char*>());
-  ok = ok && prefs.putString(nvs_keys::ntrip::kUser, ntripOut["user"].as<const char*>());
-  ok = ok && prefs.putString(nvs_keys::ntrip::kPass, ntripOut["pass"].as<const char*>());
-  ok = ok && prefs.putInt(nvs_keys::ntrip::kMaxTries, ntripOut["max_tries"].as<int>());
-  ok = ok && prefs.putULong(nvs_keys::ntrip::kRetryDelay, ntripOut["retry_delay_ms"].as<uint32_t>());
-  ok = ok && prefs.putULong(nvs_keys::ntrip::kHealthTimeout, ntripOut["health_timeout_ms"].as<uint32_t>());
-  ok = ok && prefs.putULong(nvs_keys::ntrip::kPassiveMs, ntripOut["passive_sample_ms"].as<uint32_t>());
-  ok = ok && prefs.putUInt(nvs_keys::ntrip::kReqValid, ntripOut["required_valid_frames"].as<uint32_t>());
-  ok = ok && prefs.putUInt(nvs_keys::ntrip::kBufferSize, ntripOut["buffer_size"].as<uint32_t>());
-  ok = ok && prefs.putULong(nvs_keys::ntrip::kConnectTimeout, ntripOut["connect_timeout_ms"].as<uint32_t>());
-  ok = ok && prefs.putInt(nvs_keys::ntrip::lockout::kAttempts, lockoutOut["failed_attempts"].as<int>()) > 0;
-  ok = ok && prefs.putBool(nvs_keys::ntrip::lockout::kAbandoned, lockoutOut["abandoned"].as<bool>());
-  ok = ok && prefs.putString(nvs_keys::ntrip::lockout::kHash, lockoutOut["last_config_hash"].as<const char*>()) > 0;
-  prefs.end();
-  if (!ok) {
-    s_server->send(500, "application/json", "{\"ok\":false,\"error\":\"Failed to write NVS\"}");
-    return;
-  }
-
-  JsonDocument resp;
-  resp["ok"] = true;
-  resp["message"] = "NTRIP config saved";
-  resp["config"].set(out["ntrip"]);
-
-  String output;
-  resp.shrinkToFit();
-  serializeJson(resp, output);
-  s_server->sendHeader("Cache-Control", "no-store");
-  s_server->send(200, "application/json", output);
-}
-
 // webui_begin():
 // Called once from main.cpp to register routes and provide dependencies.
 // Parameters:
@@ -902,15 +680,7 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
   server.collectHeaders(headerKeys, 1);
 
   if (!LittleFS.begin()) {
-    LOG_E("WEBUI", "LittleFS mount failed; static assets unavailable");
-  } else {
-    LOG_I("WEBUI", "LittleFS mounted");
-    LOG_I("WEBUI", "Exists /web/index.html: %s", LittleFS.exists("/web/index.html") ? "yes" : "no");
-    LOG_I("WEBUI", "Exists /web/index.html.gz: %s", LittleFS.exists("/web/index.html.gz") ? "yes" : "no");
-    LOG_I("WEBUI", "Exists /web/app.js: %s", LittleFS.exists("/web/app.js") ? "yes" : "no");
-    LOG_I("WEBUI", "Exists /web/app.js.gz: %s", LittleFS.exists("/web/app.js.gz") ? "yes" : "no");
-    LOG_I("WEBUI", "Exists /web/style.css: %s", LittleFS.exists("/web/style.css") ? "yes" : "no");
-    LOG_I("WEBUI", "Exists /web/style.css.gz: %s", LittleFS.exists("/web/style.css.gz") ? "yes" : "no");
+    Serial.println("[WEBUI] LittleFS mount failed; static assets unavailable");
   }
 
   // -------- HTTP UI routes ----------
@@ -949,12 +719,9 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
   server.on("/api/config", HTTP_POST, handleConfigPost);
   server.on("/api/wifi_config", HTTP_GET, handleWifiConfigGet);
   server.on("/api/wifi_config", HTTP_POST, handleWifiConfigPost);
-  server.on("/api/ntrip_config", HTTP_GET, handleNtripConfigGet);
-  server.on("/api/ntrip_config", HTTP_POST, handleNtripConfigPost);
 
   // Restart endpoint (POST)
   server.on("/api/restart", HTTP_POST, handleRestart);
-  LOG_I("WEBUI", "Routes registered");
 
   // Default handler for unknown paths.
   // You currently just count the request and do not respond (send is commented).
