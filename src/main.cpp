@@ -21,6 +21,8 @@
 */
 
 #include <Arduino.h>
+#include <LittleFS.h>
+#include <ArduinoJson.h>
 
 // ---- BLE ----
 // NimBLE-Arduino implements BLE peripheral/server, characteristics, notifications, callbacks, etc.
@@ -735,6 +737,66 @@ static void yieldToTasks() {
 
 #if WIFI_ENABLE
 static void setupWiFi() {
+  auto parseIpField = [](const String& value, IPAddress& out) -> bool {
+    return !value.isEmpty() && out.fromString(value);
+  };
+
+  auto loadWifiConfigFromLittleFs = [&](WifiConfig& cfg, String* error) -> bool {
+    if (!LittleFS.begin(false)) {
+      if (error) *error = "LittleFS mount failed";
+      return false;
+    }
+
+    File file = LittleFS.open("/wifi.json", "r");
+    if (!file) {
+      if (error) *error = "wifi.json not found";
+      return false;
+    }
+
+    JsonDocument doc;
+    const DeserializationError err = deserializeJson(doc, file);
+    file.close();
+    if (err) {
+      if (error) *error = String("wifi.json parse error: ") + err.c_str();
+      return false;
+    }
+
+    if (!doc["ssid"].is<const char*>() || !doc["pass"].is<const char*>() || !doc["dhcp"].is<bool>()) {
+      if (error) *error = "wifi.json missing ssid/pass/dhcp";
+      return false;
+    }
+
+    cfg.ssid = doc["ssid"].as<String>();
+    cfg.pass = doc["pass"].as<String>();
+    cfg.dhcp = doc["dhcp"].as<bool>();
+    if (cfg.ssid.isEmpty()) {
+      if (error) *error = "wifi.json ssid is empty";
+      return false;
+    }
+
+    if (cfg.dhcp) {
+      cfg.ip = IPAddress(0, 0, 0, 0);
+      cfg.gw = IPAddress(0, 0, 0, 0);
+      cfg.subnet = IPAddress(0, 0, 0, 0);
+      cfg.dns = IPAddress(0, 0, 0, 0);
+      return true;
+    }
+
+    const String ip_str = doc["ip"] | "";
+    const String gw_str = doc["gw"] | "";
+    const String subnet_str = doc["subnet"] | "";
+    const String dns_str = doc["dns"] | "";
+    if (!parseIpField(ip_str, cfg.ip) ||
+        !parseIpField(gw_str, cfg.gw) ||
+        !parseIpField(subnet_str, cfg.subnet) ||
+        !parseIpField(dns_str, cfg.dns)) {
+      if (error) *error = "wifi.json contains invalid static IP fields";
+      return false;
+    }
+
+    return true;
+  };
+
   // Station mode: connect to an existing access point / hotspot.
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
@@ -750,9 +812,19 @@ static void setupWiFi() {
     LOG_I("WiFi", "Loaded config from NVS");
   } else {
     LOG_W("WiFi", "NVS config missing/invalid: %s", wifi_error.c_str());
+    if (loadWifiConfigFromLittleFs(file_cfg, &wifi_error)) {
+      use_file_cfg = true;
+      LOG_I("WiFi", "Loaded config from /wifi.json");
+      String save_error;
+      if (!wifi_config_save(file_cfg, &save_error)) {
+        LOG_W("WiFi", "Warning: Failed to sync /wifi.json to NVS: %s", save_error.c_str());
+      }
+    } else {
+      LOG_W("WiFi", "/wifi.json not used: %s", wifi_error.c_str());
+    }
   }
 #else
-  LOG_I("WiFi", "FORCE_WIFI_SECRETS enabled, skipping NVS config");
+  LOG_I("WiFi", "FORCE_WIFI_SECRETS enabled, skipping /wifi.json and NVS config");
 #endif
 
   const char* ssid = use_file_cfg ? file_cfg.ssid.c_str() : STA_SSID;
@@ -763,19 +835,38 @@ static void setupWiFi() {
   const IPAddress subnet = use_file_cfg ? file_cfg.subnet : STA_SUBNET;
   const IPAddress dns = use_file_cfg ? file_cfg.dns : STA_DNS;
 
+  LOG_I("WiFi", "Config source: %s", use_file_cfg ? "NVS" : "compile-time");
+  LOG_I("WiFi", "SSID: '%s' (len=%u)", ssid ? ssid : "", ssid ? (unsigned)strlen(ssid) : 0U);
+  LOG_I("WiFi", "PASS length: %u", pass ? (unsigned)strlen(pass) : 0U);
+  LOG_I("WiFi", "DHCP: %s", use_dhcp ? "true" : "false");
+  if (!use_dhcp) {
+    LOG_I("WiFi", "Static IP: %s", ip.toString().c_str());
+    LOG_I("WiFi", "Gateway : %s", gw.toString().c_str());
+    LOG_I("WiFi", "Subnet  : %s", subnet.toString().c_str());
+    LOG_I("WiFi", "DNS     : %s", dns.toString().c_str());
+  }
+  if (strcmp(ssid, "CHANGE_ME") == 0 || strcmp(pass, "CHANGE_ME") == 0) {
+    LOG_E("WiFi", "Using placeholder credentials (CHANGE_ME). Update NVS, /wifi.json or secrets.");
+  }
+
   // Apply static IP configuration for the STA interface.
   // Order: local IP, gateway, subnet, DNS.
   if (use_dhcp) {
     if (!WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0))) {
       LOG_E("WiFi", "DHCP config failed!");
+    } else {
+      LOG_I("WiFi", "DHCP config applied");
     }
   } else {
     if (!WiFi.config(ip, gw, subnet, dns)) {
       LOG_E("WiFi", "Config failed!");
+    } else {
+      LOG_I("WiFi", "Static config applied");
     }
   }
 
   // Start connection attempt using SSID/PASS.
+  LOG_I("WiFi", "Calling WiFi.begin(...)");
   WiFi.begin(ssid, pass);
 
   // Wait up to 10 seconds for connection with yield to prevent watchdog.
@@ -787,6 +878,10 @@ static void setupWiFi() {
 
   if (WiFi.status() == WL_CONNECTED) {
     LOG_I("WiFi", "Connected: %s", WiFi.localIP().toString().c_str());
+    LOG_I("WiFi", "Gateway: %s", WiFi.gatewayIP().toString().c_str());
+    LOG_I("WiFi", "Subnet : %s", WiFi.subnetMask().toString().c_str());
+    LOG_I("WiFi", "DNS[0] : %s", WiFi.dnsIP(0).toString().c_str());
+    LOG_I("WiFi", "DNS[1] : %s", WiFi.dnsIP(1).toString().c_str());
   } else {
     LOG_W("WiFi", "Connection failed, will retry in loop");
   }

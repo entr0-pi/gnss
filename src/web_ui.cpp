@@ -52,6 +52,7 @@ static uint32_t g_http_last_req_ms = 0;
 
 // Last known internet reachability from /api/status probes.
 static bool g_internet_reachable = false;
+static uint32_t g_internet_probe_ms = 0;
 
 bool webui_get_internet_reachable() {
   return g_internet_reachable;
@@ -82,6 +83,7 @@ static void sendFileFromLittleFs(const char* path,
                                  const char* contentType,
                                  const char* cacheControl,
                                  bool allowGzip = false) {
+  LOG_I("WEBUI", "Request file: %s (gzip=%s)", path, allowGzip ? "on" : "off");
   String selectedPath(path);
   bool usingGzip = false;
 
@@ -98,15 +100,27 @@ static void sendFileFromLittleFs(const char* path,
   }
 
   File file = LittleFS.open(selectedPath, "r");
+  if (!file && allowGzip && !usingGzip) {
+    const String gzPath = selectedPath + ".gz";
+    LOG_W("WEBUI", "Plain missing, trying gzip fallback: %s", gzPath.c_str());
+    file = LittleFS.open(gzPath, "r");
+    if (file) {
+      selectedPath = gzPath;
+      usingGzip = true;
+    }
+  }
   if (!file) {
+    LOG_E("WEBUI", "File not found: %s", selectedPath.c_str());
     s_server->send(404, "text/plain", "404 Not Found");
     return;
   }
 
   s_server->sendHeader("Cache-Control", cacheControl);
   if (usingGzip) {
+    s_server->sendHeader("Content-Encoding", "gzip");
     s_server->sendHeader("Vary", "Accept-Encoding");
   }
+  LOG_I("WEBUI", "Serving file: %s (%s)", selectedPath.c_str(), usingGzip ? "gzip" : "plain");
   s_server->streamFile(file, contentType);
   file.close();
 }
@@ -136,7 +150,7 @@ static bool logInternetHTTP() {
   HTTPClient http;
 
   // Keep this short so /api/status doesn't block too long.
-  http.setTimeout(2500);
+  http.setTimeout(1000);
 
   // Avoid keep-alive reuse (simplifies behavior on embedded).
   http.setReuse(false);
@@ -173,6 +187,16 @@ static bool logInternetHTTP() {
   // Always release resources (closes TCP, frees internal buffers).
   http.end();
   return ok;
+}
+
+static bool getInternetReachabilityCached() {
+  const uint32_t now = millis();
+  const bool mustProbe = (g_internet_probe_ms == 0) || ((now - g_internet_probe_ms) >= 10000);
+  if (mustProbe) {
+    g_internet_reachable = logInternetHTTP();
+    g_internet_probe_ms = now;
+  }
+  return g_internet_reachable;
 }
 
 // ------------- API: /api/status -------------
@@ -215,13 +239,7 @@ static void handleStatus() {
   // --- Internet ---
   // You probe synchronously at each /api/status call.
   // HTML converts boolean -> ✅/❌ icons now.
-  bool internet;
-  if (logInternetHTTP()) {
-    internet  = true;   // "✅" in html now
-  }
-  else {
-    internet  = false;  // "❌" in html now
-  }
+  const bool internet = getInternetReachabilityCached();
   g_internet_reachable = internet;
 
   // --- HTTP ---
@@ -885,6 +903,14 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
 
   if (!LittleFS.begin()) {
     LOG_E("WEBUI", "LittleFS mount failed; static assets unavailable");
+  } else {
+    LOG_I("WEBUI", "LittleFS mounted");
+    LOG_I("WEBUI", "Exists /web/index.html: %s", LittleFS.exists("/web/index.html") ? "yes" : "no");
+    LOG_I("WEBUI", "Exists /web/index.html.gz: %s", LittleFS.exists("/web/index.html.gz") ? "yes" : "no");
+    LOG_I("WEBUI", "Exists /web/app.js: %s", LittleFS.exists("/web/app.js") ? "yes" : "no");
+    LOG_I("WEBUI", "Exists /web/app.js.gz: %s", LittleFS.exists("/web/app.js.gz") ? "yes" : "no");
+    LOG_I("WEBUI", "Exists /web/style.css: %s", LittleFS.exists("/web/style.css") ? "yes" : "no");
+    LOG_I("WEBUI", "Exists /web/style.css.gz: %s", LittleFS.exists("/web/style.css.gz") ? "yes" : "no");
   }
 
   // -------- HTTP UI routes ----------
@@ -928,6 +954,7 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
 
   // Restart endpoint (POST)
   server.on("/api/restart", HTTP_POST, handleRestart);
+  LOG_I("WEBUI", "Routes registered");
 
   // Default handler for unknown paths.
   // You currently just count the request and do not respond (send is commented).
