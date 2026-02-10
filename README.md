@@ -71,6 +71,43 @@ If WiFi is enabled (`WEBUI_ENABLE=1` or `TCP_ENABLE=1`), you have two options:
 
 PlatformIO automatically installs dependencies, builds the firmware, and flashes the board.
 
+### Build with Docker (reproducible CI/local builds)
+
+Use Docker when you want a deterministic build environment without installing PlatformIO on your host.
+
+1. Build the image:
+   ```bash
+   docker build -t gnss-pio:latest .
+   ```
+
+2. Run a full feature build (`env:full`):
+   ```bash
+   docker run --rm -it -v "$PWD":/workspace gnss-pio:latest
+   ```
+
+3. Build a different target environment:
+   ```bash
+   docker run --rm -it -v "$PWD":/workspace gnss-pio:latest pio run -e <env_name>
+   ```
+
+4. Run the build-flag battery from `utils/build-tester`:
+   ```bash
+   docker run --rm -it -v "$PWD":/workspace gnss-pio:latest \
+   python utils/build-tester/build_Tester.py
+   ```
+   Optional subset example:
+   ```bash
+   docker run --rm -it -v "$PWD":/workspace gnss-pio:latest \
+   python utils/build-tester/build_Tester.py --tests 1,3,10,21
+   ```
+
+#### Docker strategy
+- The image runs as a non-root user (`builder`) so generated artifacts in a bind mount are not owned by root.
+- PlatformIO is pinned (`6.1.18`) to keep CI/local behavior consistent.
+- The Dockerfile primes package/toolchain downloads for both `env:full` and the test environment used by `utils/build-tester/platformio.ini.test` (`lolin_c3_mini`) to improve cache hits.
+- Source code is copied in a later layer, keeping rebuilds fast when only firmware files change.
+- In CI, use this image as a reusable build stage for both regular builds and the build tester battery.
+
 
 ---
 

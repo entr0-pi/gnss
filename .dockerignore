@@ -1,0 +1,10 @@
+.git
+.gitignore
+.vscode
+.pio
+platformio.ini.standby
+utils/build-tester/build_test_results.log
+__pycache__
+*.pyc
+*.pyo
+*.swp
