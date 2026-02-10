@@ -1,4 +1,5 @@
 import csv
+import argparse
 import gzip
 import json
 import os
@@ -878,8 +879,49 @@ def check_dependencies():
         sys.exit(1)
 
 
-if __name__ == "__main__":
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="ESP32 LittleFS + NVS uploader")
+    parser.add_argument(
+        "--flash",
+        action="store_true",
+        help="Build LittleFS image (including gzipped web assets) and flash the data partition",
+    )
+    parser.add_argument(
+        "--nvs",
+        action="store_true",
+        help="Flash NVS using CSV data from the saved configuration",
+    )
+    return parser.parse_args(argv)
+
+
+def run_gui():
     check_dependencies()
     root = tk.Tk()
     ESPUploaderGUI(root)
     root.mainloop()
+
+
+def run_cli_flash_or_nvs(*, do_flash=False, do_nvs=False):
+    check_dependencies()
+    root = tk.Tk()
+    root.withdraw()
+    app = ESPUploaderGUI(root)
+    try:
+        if do_flash:
+            app.run_flash()
+        if do_nvs:
+            app.write_nvs_to_device()
+    finally:
+        app.on_close()
+
+
+def main(argv=None):
+    args = parse_args(argv)
+    if args.flash or args.nvs:
+        run_cli_flash_or_nvs(do_flash=args.flash, do_nvs=args.nvs)
+        return
+    run_gui()
+
+
+if __name__ == "__main__":
+    main()
