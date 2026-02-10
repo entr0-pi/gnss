@@ -2,7 +2,6 @@
 #pragma once
 
 #include <Arduino.h>
-#include <Arduino.h>
 #include "app.h"
 
 #if WEBUI_ENABLE
@@ -94,4 +93,17 @@ bool webui_get_tcp_snapshot(WebuiTcpSnapshot& out);
 #endif
 #if NMEA_ENABLE
 bool webui_get_gps_snapshot(WebuiGpsSnapshot& out);
+#endif
+
+#if NTRIP_CLIENT_ENABLE
+struct WebuiNtripSnapshot {
+  bool connected;
+  bool healthy;
+  bool streaming;
+  uint32_t bytesReceived;
+  uint32_t totalFrames;
+  uint16_t lastMessageType;
+  uint32_t lastFrameAgeMs;
+};
+bool webui_get_ntrip_snapshot(WebuiNtripSnapshot& out);
 #endif

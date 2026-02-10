@@ -1,342 +1,246 @@
-// ======================= web_ui.cpp (FINAL - JSON built here) =======================
+// ======================= web_ui.cpp =======================
 
 #include "app.h"
+#define MODULE_LOG 1
+#include "logger.h"
 
 #if WEBUI_ENABLE
-//
-// This module owns the HTTP UI endpoints and the JSON status API.
-//
-// Responsibilities:
-// - Serve static assets stored in LittleFS (/web/index.html, /web/style.css, /web/app.js, /web/favicon.ico)
-// - Expose JSON status at /api/status
-// - Provide a restart endpoint at /api/restart
-// - Optionally probe “internet reachable” (HTTP 204 connectivity check)
-// - Maintain simple HTTP request stats (total count + time since previous request)
-//
-// Design notes:
-// - This uses Arduino WebServer (synchronous, polled via server.handleClient()).
-// - JSON is built here using ArduinoJson (v7 in your comment).
-// - BLE/GPS info are pulled via snapshot getter functions defined elsewhere (main.cpp / nmea module).
-//
+
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <HTTPClient.h>
 #include <LittleFS.h>
+#include <Preferences.h>
 #include <cstring>
 #include <ArduinoJson.h>
 
 #include "gnss_config.h"
+#include "nvs_keys.h"
 #include "wifi_config.h"
 #include "web_ui.h"
 
-// Keep a pointer so helpers/handlers can use the same server instance.
-// We store a pointer rather than a reference so we can set it in webui_begin().
 static WebServer* s_server = nullptr;
-
-// Keep DNS for status.
-// WiFi.dnsIP() isn't always exposed the way you want in Arduino, so you pass it in from main.
 static IPAddress s_sta_dns;
 
-// ---------------- Simple HTTP stats ----------------
-//
-// g_http_req_total:
-//   Count of HTTP requests served (for your dashboard).
-// g_http_last_req_ms:
-//   Timestamp (millis) of the most recent request.
-static uint32_t g_http_req_total = 0;
+static uint32_t g_http_req_total   = 0;
 static uint32_t g_http_last_req_ms = 0;
 
-// Last known internet reachability from /api/status probes.
-static bool g_internet_reachable = false;
+static bool     g_internet_reachable = false;
+static uint32_t g_internet_probe_ms  = 0;
+
+static const char* const kPassMask = "********";
 
 bool webui_get_internet_reachable() {
   return g_internet_reachable;
 }
 
-// markRequestAndGetPrevAgeMs():
-// - Updates request counters
-// - Computes "age since previous request" in ms
-// - Returns that age so it can be included in JSON
 static uint32_t markRequestAndGetPrevAgeMs() {
   const uint32_t now = millis();
   uint32_t age = 0;
-
-  // If there was a previous request, compute time since then.
   if (g_http_last_req_ms != 0) age = now - g_http_last_req_ms;
-
-  // Update last request timestamp and total counter.
   g_http_last_req_ms = now;
   g_http_req_total++;
-
   return age;
 }
 
-// sendFileFromLittleFs():
-// Stream a static asset from LittleFS.
-// If `allowGzip` is true, prefer serving `<path>.gz` and set Content-Encoding: gzip.
+// ---------------- Helpers ----------------
+
+// Send a JSON error response via ArduinoJson (no hand-built strings).
+static void sendJsonError(int code, const char* error) {
+  JsonDocument doc;
+  doc["ok"]    = false;
+  doc["error"] = error;
+  String output;
+  serializeJson(doc, output);
+  s_server->sendHeader("Cache-Control", "no-store");
+  s_server->send(code, "application/json", output);
+}
+
+// Preferences::putString returns strlen(value), which is 0 for empty strings
+// even on success. This wrapper handles that edge case.
+static bool nvsPutString(Preferences& prefs, const char* key, const String& value) {
+  size_t ret = prefs.putString(key, value);
+  return (ret > 0) || value.isEmpty();
+}
+
+// Stream a static asset from LittleFS (always gzip).
 static void sendFileFromLittleFs(const char* path,
                                  const char* contentType,
-                                 const char* cacheControl,
-                                 bool allowGzip = false) {
-  String selectedPath(path);
-  bool usingGzip = false;
+                                 const char* cacheControl) {
+  LOG_D("WEBUI", "Request file: %s", path);
+  String gzPath = String(path) + ".gz";
 
-  if (allowGzip) {
-    const String acceptEncoding = s_server->header("Accept-Encoding");
-    const bool clientAcceptsGzip = acceptEncoding.indexOf("gzip") >= 0;
-    if (clientAcceptsGzip) {
-      const String gzPath = selectedPath + ".gz";
-      if (LittleFS.exists(gzPath)) {
-        selectedPath = gzPath;
-        usingGzip = true;
-      }
-    }
-  }
-
-  File file = LittleFS.open(selectedPath, "r");
+  File file = LittleFS.open(gzPath, "r");
   if (!file) {
+    LOG_E("WEBUI", "File not found: %s", gzPath.c_str());
     s_server->send(404, "text/plain", "404 Not Found");
     return;
   }
 
   s_server->sendHeader("Cache-Control", cacheControl);
-  if (usingGzip) {
-    s_server->sendHeader("Vary", "Accept-Encoding");
+  s_server->sendHeader("Content-Encoding", "gzip");
+  s_server->sendHeader("Vary", "Accept-Encoding");
+  s_server->setContentLength(file.size());
+  s_server->send(200, contentType, "");
+
+  WiFiClient client = s_server->client();
+  uint8_t buffer[1024];
+  while (file.available()) {
+    const size_t n = file.read(buffer, sizeof(buffer));
+    if (n == 0) break;
+    client.write(buffer, n);
   }
-  s_server->streamFile(file, contentType);
   file.close();
 }
 
-// ------------- API: internet reachable -------------
-//
-// logInternetHTTP():
-// Performs a simple "connectivity check" HTTP GET.
-// - Uses Google's generate_204 endpoint which returns HTTP 204 if reachable.
-// - Prints diagnostic messages to Serial.
-// - Returns true if we got HTTP 204, false otherwise.
-//
-// Important:
-// - This is a synchronous/blocking check and will add latency to /api/status.
-// - Timeout is set to 2.5 seconds.
+// ---------------- Internet reachability ----------------
+
 static bool logInternetHTTP() {
-  // If STA is not connected, no point trying HTTP.
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("[NET] WiFi not connected");
+    LOG_W("NET", "WiFi not connected");
     return false;
   }
 
-  // WiFiClient provides the underlying TCP socket.
   WiFiClient client;
-
-  // HTTPClient is the Arduino high-level HTTP wrapper.
   HTTPClient http;
-
-  // Keep this short so /api/status doesn't block too long.
-  http.setTimeout(2500);
-
-  // Avoid keep-alive reuse (simplifies behavior on embedded).
+  http.setTimeout(1000);
   http.setReuse(false);
 
-  // Endpoint commonly used for captive portal / connectivity checks.
-  // Success case: HTTP 204 No Content.
   const char* url = "http://connectivitycheck.gstatic.com/generate_204";
-
-  // Prepare HTTP request (DNS, TCP connect, etc.)
   if (!http.begin(client, url)) {
-    Serial.println("[NET] http.begin() failed");
+    LOG_E("NET", "http.begin() failed");
     return false;
   }
 
-  // Perform the GET request. On error, code is negative.
   int code = http.GET();
-  Serial.print("[NET] HTTP code: ");
-  Serial.println(code);
+  LOG_I("NET", "HTTP code: %d", code);
 
   bool ok = false;
-
-  // Interpret result.
   if (code == 204) {
-    Serial.println("[NET] Internet reachable");
+    LOG_I("NET", "Internet reachable");
     ok = true;
   } else if (code > 0) {
-    Serial.println("[NET] Reached server, but unexpected code");
-    ok = false;
+    LOG_W("NET", "Reached server, but unexpected code");
   } else {
-    // Negative code means transport error (timeout, DNS fail, etc.)
-    Serial.print("[NET] HTTP GET failed, err=");
-    Serial.println(http.errorToString(code)); // code is negative on error
-    ok = false;
+    LOG_W("NET", "HTTP GET failed, err=%s", http.errorToString(code).c_str());
   }
 
-  // Always release resources (closes TCP, frees internal buffers).
   http.end();
   return ok;
 }
 
+static bool getInternetReachabilityCached() {
+  const uint32_t now = millis();
+  if (g_internet_probe_ms == 0 || (now - g_internet_probe_ms) >= 10000) {
+    g_internet_reachable = logInternetHTTP();
+    g_internet_probe_ms = now;
+  }
+  return g_internet_reachable;
+}
+
 // ------------- API: /api/status -------------
-//
-// handleStatus():
-// - Collects current status from ESP/WiFi, plus optional BLE/GPS snapshots
-// - Probes internet reachability (blocking)
-// - Builds a JSON document and returns it to the browser
+
 static void handleStatus() {
-  // Track request stats and compute time since previous request.
   const uint32_t prev_age_ms = markRequestAndGetPrevAgeMs();
   const uint32_t now = millis();
 
-  // --- Device ---
-  // Uptime in ms is simply millis().
-  const uint32_t uptime_ms = now;
+  const bool internet = getInternetReachabilityCached();
 
-  // CPU frequency in MHz (ESP32 API).
-  const uint32_t cpu_mhz   = ESP.getCpuFreqMHz();
-
-  // --- Memory ---
-  // heap_free:      current free heap bytes
-  // heap_min_free:  minimum ever free heap since boot (useful for fragmentation/peaks)
-  // heap_max_alloc: maximum allocatable single block right now (fragmentation indicator)
-  const uint32_t heap_free      = ESP.getFreeHeap();
-  const uint32_t heap_min_free  = ESP.getMinFreeHeap();
-  const uint32_t heap_max_alloc = ESP.getMaxAllocHeap();
-
-  // --- WiFi (STA) ---
-  // SSID can be empty if not connected.
-  const String ssid  = WiFi.SSID();
-  const String ip    = WiFi.localIP().toString();
-  const String gw    = WiFi.gatewayIP().toString();
-  const String dns   = s_sta_dns.toString();          // from main (stored in s_sta_dns)
-  const String mask  = WiFi.subnetMask().toString();
-  const String bcast = WiFi.broadcastIP().toString();
-  const int32_t rssi = WiFi.RSSI();                   // RSSI in dBm (negative value)
-  const String mac   = WiFi.macAddress();
-
-  // --- Internet ---
-  // You probe synchronously at each /api/status call.
-  // HTML converts boolean -> ✅/❌ icons now.
-  bool internet;
-  if (logInternetHTTP()) {
-    internet  = true;   // "✅" in html now
-  }
-  else {
-    internet  = false;  // "❌" in html now
-  }
-  g_internet_reachable = internet;
-
-  // --- HTTP ---
-  // Static HTTP port used by this WebServer instance.
-  const uint16_t http_port = 80;
-
-  // --- App ---
-  // Placeholders for application-level state.
-  // (Could be upgraded later to reflect BLE/TCP/NTRIP etc.)
-  const char* app_state = "idle";
-  const char* app_notes = "ready";
-
-  // --- BLE snapshot (optional) ---
-  // Snapshot getter is implemented elsewhere (main.cpp).
-  // has_ble indicates whether the snapshot was available.
   WebuiBleSnapshot ble{};
   const bool has_ble = webui_get_ble_snapshot(ble);
 
-  // --- GPS snapshot (optional) ---
   #if NMEA_ENABLE
   WebuiGpsSnapshot gps{};
   const bool has_gps = webui_get_gps_snapshot(gps);
   #endif
 
-  // --- JSON ---
-  // ArduinoJson v7
-  // JsonDocument is a dynamic document type (v7); it will allocate as needed.
-  // (You later call shrinkToFit() to reduce memory after building.)
+  #if NTRIP_CLIENT_ENABLE
+  WebuiNtripSnapshot ntrip{};
+  const bool has_ntrip = webui_get_ntrip_snapshot(ntrip);
+  #endif
+
   JsonDocument doc;
 
-  // ---------------- device ----------------
+  // device
   {
-    // Create nested object: doc["device"] = { ... }
     JsonObject device = doc["device"].to<JsonObject>();
-    device["uptime_ms"] = uptime_ms;
-    device["cpu_mhz"]   = cpu_mhz;
-
-    // Build string once (compile-time constants __DATE__ and __TIME__).
-    // Stored as a temporary char buffer copied into JsonDocument.
+    device["uptime_ms"] = now;
+    device["cpu_mhz"]   = ESP.getCpuFreqMHz();
     char build[32];
     snprintf(build, sizeof(build), "%s %s", __DATE__, __TIME__);
     device["build"] = build;
   }
 
-  // ---------------- memory ----------------
+  // memory
   {
     JsonObject mem = doc["memory"].to<JsonObject>();
-    mem["heap_free"]      = heap_free;
-    mem["heap_min_free"]  = heap_min_free;
-    mem["heap_max_alloc"] = heap_max_alloc;
+    mem["heap_free"]      = ESP.getFreeHeap();
+    mem["heap_min_free"]  = ESP.getMinFreeHeap();
+    mem["heap_max_alloc"] = ESP.getMaxAllocHeap();
   }
 
-  // ---------------- wifi ----------------
+  // wifi
   {
     JsonObject wifi = doc["wifi"].to<JsonObject>();
-    wifi["ssid"]      = ssid;
-    wifi["ip"]        = ip;
-    wifi["gw"]        = gw;
-    wifi["dns"]       = dns;
-    wifi["subnet"]    = mask;
-    wifi["broadcast"] = bcast;
-    wifi["rssi_dbm"]  = rssi;
-    wifi["mac"]       = mac;
+    wifi["ssid"]      = WiFi.SSID();
+    wifi["ip"]        = WiFi.localIP().toString();
+    wifi["gw"]        = WiFi.gatewayIP().toString();
+    wifi["dns"]       = s_sta_dns.toString();
+    wifi["subnet"]    = WiFi.subnetMask().toString();
+    wifi["broadcast"] = WiFi.broadcastIP().toString();
+    wifi["rssi_dbm"]  = WiFi.RSSI();
+    wifi["mac"]       = WiFi.macAddress();
   }
 
-  // ---------------- http ----------------
+  // http
   {
     JsonObject http = doc["http"].to<JsonObject>();
-    http["port"]            = http_port;
+    http["port"]            = 80;
     http["req_total"]       = g_http_req_total;
     http["prev_req_age_ms"] = prev_age_ms;
   }
 
-  // ---------------- app ----------------
+  // app
   {
     JsonObject app = doc["app"].to<JsonObject>();
-    app["state"] = app_state;
-    app["notes"] = app_notes;
+    app["state"] = "idle";
+    app["notes"] = "ready";
   }
 
-  // ---------------- ble (optional) ----------------
-  // Only include if the snapshot getter succeeded.
+  // ble
   if (has_ble) {
     JsonObject bleObj = doc["ble"].to<JsonObject>();
-
-    bleObj["connected"] = ble.connected; // Boolean;
-    bleObj["mtu"]       = ble.mtu;
-    bleObj["txBytes"]       = ble.txBytes;
-    bleObj["rxBytes"]       = ble.rxBytes;
-    bleObj["uart2bleDrops"] = ble.uart2bleDrops;
-    bleObj["ble2uartDrops"] = ble.ble2uartDrops;
+    bleObj["connected"]      = ble.connected;
+    bleObj["mtu"]            = ble.mtu;
+    bleObj["txBytes"]        = ble.txBytes;
+    bleObj["rxBytes"]        = ble.rxBytes;
+    bleObj["uart2bleDrops"]  = ble.uart2bleDrops;
+    bleObj["ble2uartDrops"]  = ble.ble2uartDrops;
   }
 
-  // ---------------- tcp (optional) ----------------
+  // tcp
   #if TCP_ENABLE
-  WebuiTcpSnapshot tcp{};
-  const bool has_tcp = webui_get_tcp_snapshot(tcp);
-  if (has_tcp) {
-    JsonObject tcpObj = doc["tcp"].to<JsonObject>();
-    tcpObj["connected"]    = tcp.connected;
-    tcpObj["txBytes"]      = tcp.txBytes;
-    tcpObj["rxBytes"]      = tcp.rxBytes;
-    tcpObj["uart2tcpDrops"] = tcp.uart2tcpDrops;
-    tcpObj["tcp2uartDrops"] = tcp.tcp2uartDrops;
+  {
+    WebuiTcpSnapshot tcp{};
+    if (webui_get_tcp_snapshot(tcp)) {
+      JsonObject tcpObj = doc["tcp"].to<JsonObject>();
+      tcpObj["connected"]      = tcp.connected;
+      tcpObj["txBytes"]        = tcp.txBytes;
+      tcpObj["rxBytes"]        = tcp.rxBytes;
+      tcpObj["uart2tcpDrops"]  = tcp.uart2tcpDrops;
+      tcpObj["tcp2uartDrops"]  = tcp.tcp2uartDrops;
+    }
   }
   #endif
 
-  // ---------------- gps (optional) ----------------
+  // gps
   #if NMEA_ENABLE
   if (has_gps) {
-    // Human-readable fix type string.
     const char* fixTypeStr = "—";
     if      (gps.fixType == 1) fixTypeStr = "No";
     else if (gps.fixType == 2) fixTypeStr = "2D";
     else if (gps.fixType == 3) fixTypeStr = "3D";
 
-    // Human-readable fix quality string (GGA fix quality mapping).
     const char* fixQualStr = "—";
     switch (gps.fixQuality) {
       case 0: fixQualStr = "Invalid"; break;
@@ -347,110 +251,95 @@ static void handleStatus() {
       default: fixQualStr = "Other";  break;
     }
 
-    // Human-readable accuracy source.
     const char* accSrcStr = "—";
     if      (gps.accSource == 1) accSrcStr = "GST";
     else if (gps.accSource == 2) accSrcStr = "HDOP-est";
 
-    // Format UTC time as HH:MM:SS or "—".
     char tbuf[16];
     if (gps.timeValid) snprintf(tbuf, sizeof(tbuf), "%02u:%02u:%02u", gps.hour, gps.minute, gps.second);
     else               snprintf(tbuf, sizeof(tbuf), "—");
 
-    // Format UTC date as YYYY-MM-DD or "—".
     char dbuf[16];
     if (gps.year && gps.month && gps.day) snprintf(dbuf, sizeof(dbuf), "%04u-%02u-%02u", gps.year, gps.month, gps.day);
     else                                  snprintf(dbuf, sizeof(dbuf), "—");
 
-    // Create nested object doc["gps"].
     JsonObject gpsObj = doc["gps"].to<JsonObject>();
-
-    // Validity rule:
-    // You want "valid" to be true either when:
-    // - gps.valid is true, OR
-    // - fixQuality indicates RTK Fix (4) or RTK Float (5)
-    gpsObj["valid"] = gps.valid || (gps.fixQuality == 4) || (gps.fixQuality == 5);
-    gpsObj["age_ms"]           = gps.ageMs;
-    gpsObj["lat"]              = gps.lat;
-    gpsObj["lon"]              = gps.lon;
-    gpsObj["speed_kmh"]        = gps.speedKmh;
-    gpsObj["sats_used"]        = gps.satsUsed;
-    gpsObj["hdop"]             = gps.hdop;
-    gpsObj["hacc_m"]           = gps.hAcc_m;
-    gpsObj["vacc_m"]           = gps.vAcc_m;
-    gpsObj["acc_source"]       = accSrcStr;
-    gpsObj["acc_source_code"]  = gps.accSource;
-    gpsObj["fix_type"]         = fixTypeStr;
-    gpsObj["fix_quality"]      = fixQualStr;
-    gpsObj["fix_type_code"]    = gps.fixType;
-    gpsObj["fix_quality_code"] = gps.fixQuality;
-    gpsObj["time_utc"]         = tbuf;
-    gpsObj["date_utc"]         = dbuf;
-
-    // Satellite details for skyplot (from GSV sentences).
+    gpsObj["valid"]              = gps.valid || (gps.fixQuality == 4) || (gps.fixQuality == 5);
+    gpsObj["age_ms"]             = gps.ageMs;
+    gpsObj["lat"]                = gps.lat;
+    gpsObj["lon"]                = gps.lon;
+    gpsObj["speed_kmh"]          = gps.speedKmh;
+    gpsObj["sats_used"]          = gps.satsUsed;
+    gpsObj["hdop"]               = gps.hdop;
+    gpsObj["hacc_m"]             = gps.hAcc_m;
+    gpsObj["vacc_m"]             = gps.vAcc_m;
+    gpsObj["acc_source"]         = accSrcStr;
+    gpsObj["acc_source_code"]    = gps.accSource;
+    gpsObj["fix_type"]           = fixTypeStr;
+    gpsObj["fix_quality"]        = fixQualStr;
+    gpsObj["fix_type_code"]      = gps.fixType;
+    gpsObj["fix_quality_code"]   = gps.fixQuality;
+    gpsObj["time_utc"]           = tbuf;
+    gpsObj["date_utc"]           = dbuf;
     gpsObj["satellites_in_view"] = gps.satCount;
 
     if (gps.satCount > 0) {
-      // Constellation index → string expected by the web UI's renderSkyplot().
       static const char* const consNames[] = {
         "GPS", "GLONASS", "Galileo", "BeiDou", "Other"
       };
-
       JsonArray satsArr = gpsObj["satellites"].to<JsonArray>();
       for (uint8_t i = 0; i < gps.satCount; i++) {
         JsonObject sat = satsArr.add<JsonObject>();
         sat["constellation"] = consNames[
             (gps.sats[i].constellation <= 4) ? gps.sats[i].constellation : 4];
-        sat["nr"]            = gps.sats[i].nr;
-        sat["elevation"]     = gps.sats[i].elevation;
-        sat["azimuth"]       = gps.sats[i].azimuth;
-        sat["signal_power"]  = gps.sats[i].snr;
+        sat["nr"]           = gps.sats[i].nr;
+        sat["elevation"]    = gps.sats[i].elevation;
+        sat["azimuth"]      = gps.sats[i].azimuth;
+        sat["signal_power"] = gps.sats[i].snr;
       }
     }
   }
   #endif
 
-  // ---------------- internet ----------------
+  // ntrip
+  #if NTRIP_CLIENT_ENABLE
+  if (has_ntrip) {
+    JsonObject ntripObj = doc["ntrip"].to<JsonObject>();
+    ntripObj["connected"]         = ntrip.connected;
+    ntripObj["healthy"]           = ntrip.healthy;
+    ntripObj["streaming"]         = ntrip.streaming;
+    ntripObj["bytes_received"]    = ntrip.bytesReceived;
+    ntripObj["total_frames"]      = ntrip.totalFrames;
+    ntripObj["last_msg_type"]     = ntrip.lastMessageType;
+    ntripObj["last_frame_age_ms"] = ntrip.lastFrameAgeMs;
+  }
+  #endif
+
+  // internet
   {
     JsonObject net = doc["internet"].to<JsonObject>();
     net["reach"] = internet;
   }
 
-  // Serialize JSON and send it to the client.
-  // - shrinkToFit() reduces internal capacity (may reduce RAM footprint after building).
-  // - serializeJson() writes into a String (heap allocation).
-  // - Cache-Control no-store ensures browser always fetches fresh status.
   String output;
   doc.shrinkToFit();
   serializeJson(doc, output);
-
   s_server->sendHeader("Cache-Control", "no-store");
   s_server->send(200, "application/json", output);
 }
 
 // ------------- API: /api/restart -------------
-//
-// handleRestart():
-// - Responds with HTTP 204 (No Content) to acknowledge the action
-// - Delays briefly so the response can be transmitted
-// - Calls ESP.restart() to reboot the MCU
+
 static void handleRestart() {
   markRequestAndGetPrevAgeMs();
-
-  // no-store to avoid caching the restart call
   s_server->sendHeader("Cache-Control", "no-store");
-
-  // 204 indicates success with no response body.
   s_server->send(204, "text/plain", "");
-
-  // Small delay to allow TCP stack to flush the response.
   delay(150);
-
-  // Reboot the ESP32.
   ESP.restart();
 }
 
 // ------------- API: /api/config -------------
+
 static void handleConfigGet() {
   markRequestAndGetPrevAgeMs();
 
@@ -460,9 +349,8 @@ static void handleConfigGet() {
   JsonDocument doc;
   doc["rx_pin"] = cfg.rx_pin;
   doc["tx_pin"] = cfg.tx_pin;
-  doc["baud"] = cfg.baud;
+  doc["baud"]   = cfg.baud;
 
-  // Check if config is locked via build flags
   #ifdef FORCE_HARDCODED_UART
     doc["locked"] = true;
   #else
@@ -472,12 +360,11 @@ static void handleConfigGet() {
   JsonObject defObj = doc["defaults"].to<JsonObject>();
   defObj["rx_pin"] = defaults.rx_pin;
   defObj["tx_pin"] = defaults.tx_pin;
-  defObj["baud"] = defaults.baud;
+  defObj["baud"]   = defaults.baud;
 
   String output;
   doc.shrinkToFit();
   serializeJson(doc, output);
-
   s_server->sendHeader("Cache-Control", "no-store");
   s_server->send(200, "application/json", output);
 }
@@ -485,48 +372,45 @@ static void handleConfigGet() {
 static void handleConfigPost() {
   markRequestAndGetPrevAgeMs();
 
-  // Check if config is locked via build flags
   #ifdef FORCE_HARDCODED_UART
-    s_server->send(403, "application/json", "{\"ok\":false,\"error\":\"UART config is locked via build flags\"}");
+    sendJsonError(403, "UART config is locked via build flags");
     return;
   #endif
 
   if (!s_server->hasArg("plain")) {
-    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Missing body\"}");
+    sendJsonError(400, "Missing body");
     return;
   }
 
   JsonDocument doc;
-  const DeserializationError err = deserializeJson(doc, s_server->arg("plain"));
-  if (err) {
-    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Invalid JSON\"}");
+  if (deserializeJson(doc, s_server->arg("plain"))) {
+    sendJsonError(400, "Invalid JSON");
     return;
   }
 
   if (!doc["rx_pin"].is<int>() || !doc["tx_pin"].is<int>() || !doc["baud"].is<uint32_t>()) {
-    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"rx_pin, tx_pin, and baud are required\"}");
+    sendJsonError(400, "rx_pin, tx_pin, and baud are required");
     return;
   }
 
   GnssConfig cfg = gnss_config_get();
   cfg.rx_pin = doc["rx_pin"].as<int>();
   cfg.tx_pin = doc["tx_pin"].as<int>();
-  cfg.baud = doc["baud"].as<uint32_t>();
+  cfg.baud   = doc["baud"].as<uint32_t>();
 
   String error;
   if (!gnss_apply_runtime_config(cfg, &error)) {
-    String response = String("{\"ok\":false,\"error\":\"") + error + "\"}";
-    s_server->send(400, "application/json", response);
+    sendJsonError(400, error.c_str());
     return;
   }
 
   JsonDocument resp;
-  resp["ok"] = true;
+  resp["ok"]      = true;
   resp["message"] = "Config saved";
   JsonObject cfgObj = resp["config"].to<JsonObject>();
   cfgObj["rx_pin"] = cfg.rx_pin;
   cfgObj["tx_pin"] = cfg.tx_pin;
-  cfgObj["baud"] = cfg.baud;
+  cfgObj["baud"]   = cfg.baud;
 
   String output;
   resp.shrinkToFit();
@@ -536,6 +420,7 @@ static void handleConfigPost() {
 }
 
 // ------------- API: /api/wifi_config -------------
+
 static void handleWifiConfigGet() {
   markRequestAndGetPrevAgeMs();
 
@@ -545,40 +430,35 @@ static void handleWifiConfigGet() {
 
   JsonDocument doc;
   doc["loaded"] = loaded;
-  if (!loaded) {
-    doc["error"] = error;
-  }
+  if (!loaded) doc["error"] = error;
 
-  // Check if config is locked via build flags
   #if FORCE_WIFI_SECRETS
     doc["locked"] = true;
   #else
     doc["locked"] = false;
   #endif
 
-  // If file missing, fall back to compile-time values.
   if (!loaded) {
-    cfg.ssid = STA_SSID;
-    cfg.pass = STA_PASS;
-    cfg.dhcp = false;
-    cfg.ip = STA_IP;
-    cfg.gw = STA_GW;
+    cfg.ssid   = STA_SSID;
+    cfg.pass   = STA_PASS;
+    cfg.dhcp   = false;
+    cfg.ip     = STA_IP;
+    cfg.gw     = STA_GW;
     cfg.subnet = STA_SUBNET;
-    cfg.dns = STA_DNS;
+    cfg.dns    = STA_DNS;
   }
 
-  doc["ssid"] = cfg.ssid;
-  doc["pass"] = cfg.pass;
-  doc["dhcp"] = cfg.dhcp;
-  doc["ip"] = cfg.ip.toString();
-  doc["gw"] = cfg.gw.toString();
+  doc["ssid"]   = cfg.ssid;
+  doc["pass"]   = kPassMask;
+  doc["dhcp"]   = cfg.dhcp;
+  doc["ip"]     = cfg.ip.toString();
+  doc["gw"]     = cfg.gw.toString();
   doc["subnet"] = cfg.subnet.toString();
-  doc["dns"] = cfg.dns.toString();
+  doc["dns"]    = cfg.dns.toString();
 
   String output;
   doc.shrinkToFit();
   serializeJson(doc, output);
-
   s_server->sendHeader("Cache-Control", "no-store");
   s_server->send(200, "application/json", output);
 }
@@ -587,24 +467,23 @@ static void handleWifiConfigPost() {
   markRequestAndGetPrevAgeMs();
 
   #if FORCE_WIFI_SECRETS
-    s_server->send(403, "application/json", "{\"ok\":false,\"error\":\"WiFi config is locked via build flags\"}");
+    sendJsonError(403, "WiFi config is locked via build flags");
     return;
   #endif
 
   if (!s_server->hasArg("plain")) {
-    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Missing body\"}");
+    sendJsonError(400, "Missing body");
     return;
   }
 
   JsonDocument doc;
-  const DeserializationError err = deserializeJson(doc, s_server->arg("plain"));
-  if (err) {
-    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Invalid JSON\"}");
+  if (deserializeJson(doc, s_server->arg("plain"))) {
+    sendJsonError(400, "Invalid JSON");
     return;
   }
 
   if (!doc["ssid"].is<const char*>() || !doc["pass"].is<const char*>() || !doc["dhcp"].is<bool>()) {
-    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"ssid, pass, and dhcp are required\"}");
+    sendJsonError(400, "ssid, pass, and dhcp are required");
     return;
   }
 
@@ -613,15 +492,25 @@ static void handleWifiConfigPost() {
   cfg.pass = doc["pass"].as<String>();
   cfg.dhcp = doc["dhcp"].as<bool>();
 
+  // If the password was not changed (masked sentinel), preserve existing.
+  if (cfg.pass == kPassMask) {
+    WifiConfig existing{};
+    String loadErr;
+    if (wifi_config_load(existing, &loadErr)) {
+      cfg.pass = existing.pass;
+    }
+    // else: keeps mask value — user should enter a real password on first setup
+  }
+
   if (cfg.ssid.isEmpty()) {
-    s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"ssid is empty\"}");
+    sendJsonError(400, "ssid is empty");
     return;
   }
 
   if (!cfg.dhcp) {
     if (!doc["ip"].is<const char*>() || !doc["gw"].is<const char*>() ||
         !doc["subnet"].is<const char*>() || !doc["dns"].is<const char*>()) {
-      s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"ip, gw, subnet, and dns are required when dhcp is false\"}");
+      sendJsonError(400, "ip, gw, subnet, and dns are required when dhcp is false");
       return;
     }
 
@@ -629,34 +518,33 @@ static void handleWifiConfigPost() {
         !cfg.gw.fromString(doc["gw"].as<String>()) ||
         !cfg.subnet.fromString(doc["subnet"].as<String>()) ||
         !cfg.dns.fromString(doc["dns"].as<String>())) {
-      s_server->send(400, "application/json", "{\"ok\":false,\"error\":\"Invalid IP fields\"}");
+      sendJsonError(400, "Invalid IP fields");
       return;
     }
   } else {
-    cfg.ip = IPAddress(0, 0, 0, 0);
-    cfg.gw = IPAddress(0, 0, 0, 0);
+    cfg.ip     = IPAddress(0, 0, 0, 0);
+    cfg.gw     = IPAddress(0, 0, 0, 0);
     cfg.subnet = IPAddress(0, 0, 0, 0);
-    cfg.dns = IPAddress(0, 0, 0, 0);
+    cfg.dns    = IPAddress(0, 0, 0, 0);
   }
 
   String error;
   if (!wifi_config_save(cfg, &error)) {
-    String response = String("{\"ok\":false,\"error\":\"") + error + "\"}";
-    s_server->send(400, "application/json", response);
+    sendJsonError(400, error.c_str());
     return;
   }
 
   JsonDocument resp;
-  resp["ok"] = true;
+  resp["ok"]      = true;
   resp["message"] = "WiFi config saved";
   JsonObject cfgObj = resp["config"].to<JsonObject>();
-  cfgObj["ssid"] = cfg.ssid;
-  cfgObj["pass"] = cfg.pass;
-  cfgObj["dhcp"] = cfg.dhcp;
-  cfgObj["ip"] = cfg.ip.toString();
-  cfgObj["gw"] = cfg.gw.toString();
+  cfgObj["ssid"]   = cfg.ssid;
+  cfgObj["pass"]   = kPassMask;
+  cfgObj["dhcp"]   = cfg.dhcp;
+  cfgObj["ip"]     = cfg.ip.toString();
+  cfgObj["gw"]     = cfg.gw.toString();
   cfgObj["subnet"] = cfg.subnet.toString();
-  cfgObj["dns"] = cfg.dns.toString();
+  cfgObj["dns"]    = cfg.dns.toString();
 
   String output;
   resp.shrinkToFit();
@@ -665,69 +553,235 @@ static void handleWifiConfigPost() {
   s_server->send(200, "application/json", output);
 }
 
-// webui_begin():
-// Called once from main.cpp to register routes and provide dependencies.
-// Parameters:
-// - server:  reference to the WebServer instance used in loop()
-// - sta_dns: the DNS IP you want to display in status
-void webui_begin(WebServer& server, const IPAddress& sta_dns) {
-  // Store pointers/globals so handlers can access the server and DNS info.
-  s_server = &server;
-  s_sta_dns = sta_dns;
+// ------------- API: /api/ntrip_config -------------
 
-  // Allow reading the request header used for gzip capability detection.
-  const char* headerKeys[] = {"Accept-Encoding"};
-  server.collectHeaders(headerKeys, 1);
+static void handleNtripConfigGet() {
+  markRequestAndGetPrevAgeMs();
 
-  if (!LittleFS.begin()) {
-    Serial.println("[WEBUI] LittleFS mount failed; static assets unavailable");
+  JsonDocument doc;
+  doc["locked"] = false;
+  JsonObject ntrip   = doc["ntrip"].to<JsonObject>();
+  JsonObject lockout = doc["lockout"].to<JsonObject>();
+
+  bool loadedFromNvs = false;
+  Preferences prefs;
+  if (prefs.begin(nvs_keys::ntrip::kNamespace, true)) {
+    const bool hasRequired =
+        prefs.isKey(nvs_keys::ntrip::kEnabled) && prefs.isKey(nvs_keys::ntrip::kHost) &&
+        prefs.isKey(nvs_keys::ntrip::kPort) && prefs.isKey(nvs_keys::ntrip::kMount) &&
+        prefs.isKey(nvs_keys::ntrip::kUser) && prefs.isKey(nvs_keys::ntrip::kPass) &&
+        prefs.isKey(nvs_keys::ntrip::kMaxTries) && prefs.isKey(nvs_keys::ntrip::kRetryDelay) &&
+        prefs.isKey(nvs_keys::ntrip::kHealthTimeout) && prefs.isKey(nvs_keys::ntrip::kPassiveMs) &&
+        prefs.isKey(nvs_keys::ntrip::kReqValid) && prefs.isKey(nvs_keys::ntrip::kBufferSize) &&
+        prefs.isKey(nvs_keys::ntrip::kConnectTimeout);
+    if (hasRequired) {
+      ntrip["enabled"]               = prefs.getBool(nvs_keys::ntrip::kEnabled);
+      ntrip["host"]                  = prefs.getString(nvs_keys::ntrip::kHost);
+      ntrip["port"]                  = prefs.getUInt(nvs_keys::ntrip::kPort);
+      ntrip["mount"]                 = prefs.getString(nvs_keys::ntrip::kMount);
+      ntrip["user"]                  = prefs.getString(nvs_keys::ntrip::kUser);
+      ntrip["pass"]                  = prefs.getString(nvs_keys::ntrip::kPass);
+      ntrip["max_tries"]             = prefs.getInt(nvs_keys::ntrip::kMaxTries);
+      ntrip["retry_delay_ms"]        = prefs.getULong(nvs_keys::ntrip::kRetryDelay);
+      ntrip["health_timeout_ms"]     = prefs.getULong(nvs_keys::ntrip::kHealthTimeout);
+      ntrip["passive_sample_ms"]     = prefs.getULong(nvs_keys::ntrip::kPassiveMs);
+      ntrip["required_valid_frames"] = prefs.getUInt(nvs_keys::ntrip::kReqValid);
+      ntrip["buffer_size"]           = prefs.getUInt(nvs_keys::ntrip::kBufferSize);
+      ntrip["connect_timeout_ms"]    = prefs.getULong(nvs_keys::ntrip::kConnectTimeout);
+      lockout["failed_attempts"]     = prefs.getInt(nvs_keys::ntrip::lockout::kAttempts, 0);
+      lockout["abandoned"]           = prefs.getBool(nvs_keys::ntrip::lockout::kAbandoned, false);
+      lockout["last_config_hash"]    = prefs.getString(nvs_keys::ntrip::lockout::kHash, "");
+      loadedFromNvs = true;
+    }
+    prefs.end();
   }
 
-  // -------- HTTP UI routes ----------
-  // Serve HTML at "/"
+  if (!loadedFromNvs) {
+    doc["error"] = "NTRIP config not found in NVS";
+  }
+
+  String output;
+  doc.shrinkToFit();
+  serializeJson(doc, output);
+  s_server->sendHeader("Cache-Control", "no-store");
+  s_server->send(200, "application/json", output);
+}
+
+static void handleNtripConfigPost() {
+  markRequestAndGetPrevAgeMs();
+
+  if (!s_server->hasArg("plain")) {
+    sendJsonError(400, "Missing body");
+    return;
+  }
+
+  JsonDocument input;
+  if (deserializeJson(input, s_server->arg("plain"))) {
+    sendJsonError(400, "Invalid JSON");
+    return;
+  }
+
+  if (!input["ntrip"].is<JsonObject>()) {
+    sendJsonError(400, "ntrip object is required");
+    return;
+  }
+
+  JsonObject ntripIn = input["ntrip"].as<JsonObject>();
+  if (!ntripIn["enabled"].is<bool>() ||
+      !ntripIn["host"].is<const char*>() ||
+      !ntripIn["port"].is<uint16_t>() ||
+      !ntripIn["mount"].is<const char*>() ||
+      !ntripIn["user"].is<const char*>() ||
+      !ntripIn["pass"].is<const char*>() ||
+      !ntripIn["max_tries"].is<int>() ||
+      !ntripIn["retry_delay_ms"].is<uint32_t>() ||
+      !ntripIn["health_timeout_ms"].is<uint32_t>() ||
+      !ntripIn["passive_sample_ms"].is<uint32_t>() ||
+      !ntripIn["required_valid_frames"].is<uint32_t>() ||
+      !ntripIn["buffer_size"].is<uint32_t>() ||
+      !ntripIn["connect_timeout_ms"].is<uint32_t>()) {
+    sendJsonError(400, "Invalid or missing NTRIP fields");
+    return;
+  }
+
+  const bool     enabled        = ntripIn["enabled"].as<bool>();
+  const String   host           = ntripIn["host"].as<String>();
+  const uint16_t port           = ntripIn["port"].as<uint16_t>();
+  const String   mount          = ntripIn["mount"].as<String>();
+  const String   user           = ntripIn["user"].as<String>();
+  const String   pass           = ntripIn["pass"].as<String>();
+  const int      maxTries       = ntripIn["max_tries"].as<int>();
+  const uint32_t retryDelay     = ntripIn["retry_delay_ms"].as<uint32_t>();
+  const uint32_t healthTimeout  = ntripIn["health_timeout_ms"].as<uint32_t>();
+  const uint32_t passiveMs      = ntripIn["passive_sample_ms"].as<uint32_t>();
+  const uint32_t reqValid       = ntripIn["required_valid_frames"].as<uint32_t>();
+  const uint32_t bufferSize     = ntripIn["buffer_size"].as<uint32_t>();
+  const uint32_t connectTimeout = ntripIn["connect_timeout_ms"].as<uint32_t>();
+
+  if (host.isEmpty() || mount.isEmpty()) {
+    sendJsonError(400, "host and mount are required");
+    return;
+  }
+
+  // Preserve existing lockout state across config saves.
+  int    lockFailures  = 0;
+  bool   lockAbandoned = false;
+  String lockHash;
+  {
+    Preferences rPrefs;
+    if (rPrefs.begin(nvs_keys::ntrip::kNamespace, true)) {
+      lockFailures  = rPrefs.getInt(nvs_keys::ntrip::lockout::kAttempts, 0);
+      lockAbandoned = rPrefs.getBool(nvs_keys::ntrip::lockout::kAbandoned, false);
+      lockHash      = rPrefs.getString(nvs_keys::ntrip::lockout::kHash, "");
+      rPrefs.end();
+    }
+  }
+
+  // Write config + preserved lockout to NVS.
+  Preferences prefs;
+  if (!prefs.begin(nvs_keys::ntrip::kNamespace, false)) {
+    sendJsonError(500, "Failed to open NVS");
+    return;
+  }
+
+  bool ok = true;
+  ok = ok && prefs.putBool(nvs_keys::ntrip::kEnabled, enabled);
+  ok = ok && nvsPutString(prefs, nvs_keys::ntrip::kHost, host);
+  ok = ok && prefs.putUInt(nvs_keys::ntrip::kPort, port);
+  ok = ok && nvsPutString(prefs, nvs_keys::ntrip::kMount, mount);
+  ok = ok && nvsPutString(prefs, nvs_keys::ntrip::kUser, user);
+  ok = ok && nvsPutString(prefs, nvs_keys::ntrip::kPass, pass);
+  ok = ok && prefs.putInt(nvs_keys::ntrip::kMaxTries, maxTries);
+  ok = ok && prefs.putULong(nvs_keys::ntrip::kRetryDelay, retryDelay);
+  ok = ok && prefs.putULong(nvs_keys::ntrip::kHealthTimeout, healthTimeout);
+  ok = ok && prefs.putULong(nvs_keys::ntrip::kPassiveMs, passiveMs);
+  ok = ok && prefs.putUInt(nvs_keys::ntrip::kReqValid, reqValid);
+  ok = ok && prefs.putUInt(nvs_keys::ntrip::kBufferSize, bufferSize);
+  ok = ok && prefs.putULong(nvs_keys::ntrip::kConnectTimeout, connectTimeout);
+  ok = ok && prefs.putInt(nvs_keys::ntrip::lockout::kAttempts, lockFailures);
+  ok = ok && prefs.putBool(nvs_keys::ntrip::lockout::kAbandoned, lockAbandoned);
+  ok = ok && nvsPutString(prefs, nvs_keys::ntrip::lockout::kHash, lockHash);
+  prefs.end();
+
+  if (!ok) {
+    sendJsonError(500, "Failed to write NVS");
+    return;
+  }
+
+  JsonDocument resp;
+  resp["ok"]      = true;
+  resp["message"] = "NTRIP config saved";
+  JsonObject cfgObj = resp["config"].to<JsonObject>();
+  cfgObj["enabled"]               = enabled;
+  cfgObj["host"]                  = host;
+  cfgObj["port"]                  = port;
+  cfgObj["mount"]                 = mount;
+  cfgObj["user"]                  = user;
+  cfgObj["pass"]                  = pass;
+  cfgObj["max_tries"]             = maxTries;
+  cfgObj["retry_delay_ms"]        = retryDelay;
+  cfgObj["health_timeout_ms"]     = healthTimeout;
+  cfgObj["passive_sample_ms"]     = passiveMs;
+  cfgObj["required_valid_frames"] = reqValid;
+  cfgObj["buffer_size"]           = bufferSize;
+  cfgObj["connect_timeout_ms"]    = connectTimeout;
+
+  String output;
+  resp.shrinkToFit();
+  serializeJson(resp, output);
+  s_server->sendHeader("Cache-Control", "no-store");
+  s_server->send(200, "application/json", output);
+}
+
+// ------------- Route registration -------------
+
+void webui_begin(WebServer& server, const IPAddress& sta_dns) {
+  s_server  = &server;
+  s_sta_dns = sta_dns;
+
+  if (!LittleFS.begin()) {
+    LOG_E("WEBUI", "LittleFS mount failed");
+  } else {
+    LOG_I("WEBUI", "LittleFS mounted");
+    LOG_D("WEBUI", "index.html.gz: %s", LittleFS.exists("/web/index.html.gz") ? "yes" : "no");
+    LOG_D("WEBUI", "app.js.gz: %s",     LittleFS.exists("/web/app.js.gz") ? "yes" : "no");
+    LOG_D("WEBUI", "style.css.gz: %s",   LittleFS.exists("/web/style.css.gz") ? "yes" : "no");
+  }
+
   server.on("/", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendFileFromLittleFs("/web/index.html", "text/html; charset=utf-8", "no-store", true);
+    sendFileFromLittleFs("/web/index.html", "text/html; charset=utf-8", "no-store");
   });
 
-  // Serve CSS at "/style.css"
-  // Cache it for 1 day to reduce repeated transfers.
   server.on("/style.css", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendFileFromLittleFs("/web/style.css", "text/css; charset=utf-8", "public, max-age=86400", true);
+    sendFileFromLittleFs("/web/style.css", "text/css; charset=utf-8", "no-store");
   });
 
-  // Serve JS at "/app.js"
-  // No-store to avoid stale UI behavior after firmware updates.
   server.on("/app.js", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendFileFromLittleFs("/web/app.js", "application/javascript; charset=utf-8", "no-store", true);
+    sendFileFromLittleFs("/web/app.js", "application/javascript; charset=utf-8", "no-store");
   });
 
-  // Serve favicon at "/favicon.ico"
-  // Cache it for 7 days.
   server.on("/favicon.ico", HTTP_GET, []() {
     markRequestAndGetPrevAgeMs();
-    sendFileFromLittleFs("/web/favicon.ico", "image/x-icon", "public, max-age=604800", true);
+    sendFileFromLittleFs("/web/favicon.ico", "image/x-icon", "public, max-age=604800");
   });
 
-  // JSON status endpoint
-  server.on("/api/status", HTTP_GET, handleStatus);
+  server.on("/api/status",       HTTP_GET,  handleStatus);
+  server.on("/api/config",       HTTP_GET,  handleConfigGet);
+  server.on("/api/config",       HTTP_POST, handleConfigPost);
+  server.on("/api/wifi_config",  HTTP_GET,  handleWifiConfigGet);
+  server.on("/api/wifi_config",  HTTP_POST, handleWifiConfigPost);
+  server.on("/api/ntrip_config", HTTP_GET,  handleNtripConfigGet);
+  server.on("/api/ntrip_config", HTTP_POST, handleNtripConfigPost);
+  server.on("/api/restart",      HTTP_POST, handleRestart);
 
-  // Config endpoints
-  server.on("/api/config", HTTP_GET, handleConfigGet);
-  server.on("/api/config", HTTP_POST, handleConfigPost);
-  server.on("/api/wifi_config", HTTP_GET, handleWifiConfigGet);
-  server.on("/api/wifi_config", HTTP_POST, handleWifiConfigPost);
+  LOG_I("WEBUI", "Routes registered");
 
-  // Restart endpoint (POST)
-  server.on("/api/restart", HTTP_POST, handleRestart);
-
-  // Default handler for unknown paths.
-  // You currently just count the request and do not respond (send is commented).
   server.onNotFound([]() {
     markRequestAndGetPrevAgeMs();
-    //server.send(404, "text/plain", "404 Not Found");
+    s_server->send(404, "text/plain", "404 Not Found");
   });
 }
 

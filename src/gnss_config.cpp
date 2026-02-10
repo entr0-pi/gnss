@@ -1,15 +1,13 @@
 #include "gnss_config.h"
 
 #include <Preferences.h>
-#include <LittleFS.h>
-#include <ArduinoJson.h>
 
 #include "app.h"
+#include "nvs_keys.h"
+#define MODULE_LOG 1
+#include "logger.h"
 
 namespace {
-constexpr const char* kGnssNvsNs = "gnss";
-constexpr const char* kGnssJsonPath = "/gnss.json";
-
 bool g_nvs_ready = false;
 GnssConfig g_config{};
 
@@ -17,49 +15,20 @@ bool load_config_nvs(GnssConfig& cfg) {
   if (!g_nvs_ready) return false;
 
   Preferences prefs;
-  if (!prefs.begin(kGnssNvsNs, true)) return false;
+  if (!prefs.begin(nvs_keys::gnss::kNamespace, true)) return false;
 
-  if (!prefs.isKey("rx_pin") || !prefs.isKey("tx_pin") || !prefs.isKey("baud")) {
+  if (!prefs.isKey(nvs_keys::gnss::kRxPin) ||
+      !prefs.isKey(nvs_keys::gnss::kTxPin) ||
+      !prefs.isKey(nvs_keys::gnss::kBaud)) {
     prefs.end();
     return false;
   }
 
-  cfg.rx_pin = prefs.getInt("rx_pin", cfg.rx_pin);
-  cfg.tx_pin = prefs.getInt("tx_pin", cfg.tx_pin);
-  cfg.baud = prefs.getULong("baud", cfg.baud);
+  cfg.rx_pin = prefs.getInt(nvs_keys::gnss::kRxPin);
+  cfg.tx_pin = prefs.getInt(nvs_keys::gnss::kTxPin);
+  cfg.baud = prefs.getULong(nvs_keys::gnss::kBaud);
 
   prefs.end();
-  return true;
-}
-
-bool load_config_littlefs(GnssConfig& cfg, String* error) {
-  if (!LittleFS.begin(false)) {
-    if (error) *error = "LittleFS mount failed";
-    return false;
-  }
-
-  File file = LittleFS.open(kGnssJsonPath, "r");
-  if (!file) {
-    if (error) *error = "gnss.json not found";
-    return false;
-  }
-
-  JsonDocument doc;
-  const DeserializationError err = deserializeJson(doc, file);
-  file.close();
-  if (err) {
-    if (error) *error = String("gnss.json parse error: ") + err.c_str();
-    return false;
-  }
-
-  if (!doc["rx_pin"].is<int>() || !doc["tx_pin"].is<int>() || !doc["baud"].is<uint32_t>()) {
-    if (error) *error = "gnss.json missing rx_pin/tx_pin/baud";
-    return false;
-  }
-
-  cfg.rx_pin = doc["rx_pin"].as<int>();
-  cfg.tx_pin = doc["tx_pin"].as<int>();
-  cfg.baud = doc["baud"].as<uint32_t>();
   return true;
 }
 } // namespace
@@ -93,9 +62,9 @@ bool gnss_config_begin() {
   g_config = gnss_config_defaults();
 
   Preferences prefs;
-  if (!prefs.begin(kGnssNvsNs, false)) {
-    Serial.println("[GNSS] NVS open failed");
-    Serial.println("[GNSS] Using fallback hardcoded config");
+  if (!prefs.begin(nvs_keys::gnss::kNamespace, false)) {
+    LOG_E("GNSS", "NVS open failed");
+    LOG_W("GNSS", "Using fallback hardcoded config");
     g_nvs_ready = false;
     g_config = GnssConfig{FALLBACK_GNSS_RX, FALLBACK_GNSS_TX, FALLBACK_GNSS_BAUD};
     return true;
@@ -103,31 +72,19 @@ bool gnss_config_begin() {
   prefs.end();
 
   g_nvs_ready = true;
-  Serial.println("[GNSS] NVS ready");
+  LOG_I("GNSS", "NVS ready");
 
-  // Precedence: NVS first. Use /gnss.json only when NVS is empty/invalid.
+  // NVS only.
   GnssConfig loaded_nvs = g_config;
   if (load_config_nvs(loaded_nvs) && gnss_config_validate(loaded_nvs, nullptr)) {
     g_config = loaded_nvs;
-    Serial.println("[GNSS] Config loaded from NVS");
+    LOG_I("GNSS", "Config loaded from NVS");
   } else {
-    Serial.println("[GNSS] NVS config missing/invalid, trying /gnss.json");
-    GnssConfig loaded_fs = g_config;
-    String fs_error;
-    if (load_config_littlefs(loaded_fs, &fs_error) && gnss_config_validate(loaded_fs, nullptr)) {
-      g_config = loaded_fs;
-      Serial.println("[GNSS] Config loaded from /gnss.json");
-      if (!gnss_config_save(g_config)) {
-        Serial.println("[GNSS] Warning: Failed to sync /gnss.json to NVS");
-      }
+    LOG_W("GNSS", "NVS config missing/invalid, using defaults");
+    if (gnss_config_save(g_config)) {
+      LOG_I("GNSS", "Default config saved successfully");
     } else {
-      Serial.println(String("[GNSS] /gnss.json not used: ") + fs_error);
-      Serial.println("[GNSS] Creating NVS config with defaults");
-      if (gnss_config_save(g_config)) {
-        Serial.println("[GNSS] Default config saved successfully");
-      } else {
-        Serial.println("[GNSS] Warning: Failed to save default config");
-      }
+      LOG_W("GNSS", "Failed to save default config");
     }
   }
 
@@ -142,12 +99,12 @@ bool gnss_config_save(const GnssConfig& cfg) {
   if (!g_nvs_ready) return false;
 
   Preferences prefs;
-  if (!prefs.begin(kGnssNvsNs, false)) return false;
+  if (!prefs.begin(nvs_keys::gnss::kNamespace, false)) return false;
 
   bool ok = true;
-  ok = ok && prefs.putInt("rx_pin", cfg.rx_pin) > 0;
-  ok = ok && prefs.putInt("tx_pin", cfg.tx_pin) > 0;
-  ok = ok && prefs.putULong("baud", cfg.baud) > 0;
+  ok = ok && prefs.putInt(nvs_keys::gnss::kRxPin, cfg.rx_pin) > 0;
+  ok = ok && prefs.putInt(nvs_keys::gnss::kTxPin, cfg.tx_pin) > 0;
+  ok = ok && prefs.putULong(nvs_keys::gnss::kBaud, cfg.baud) > 0;
 
   prefs.end();
 

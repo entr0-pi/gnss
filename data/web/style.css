@@ -286,10 +286,11 @@ body{
   box-shadow: 0 10px 30px rgba(255,59,48,.16);
 }
 
+
 .note{
   flex:1;
   color:var(--muted);
-  font-size:13px;
+  font-size:12px;
 }
 .foot{
   margin-top:12px;

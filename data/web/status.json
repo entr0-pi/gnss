@@ -61,6 +61,15 @@
       { "constellation": "Galileo", "signal_power": 43, "azimuth": 15.0, "elevation": 80.0 }
     ]
   },
+  "ntrip": {
+    "connected": true,
+    "healthy": true,
+    "streaming": true,
+    "bytes_received": 786432,
+    "total_frames": 1542,
+    "last_msg_type": 1077,
+    "last_frame_age_ms": 420
+  },
   "internet": {
     "reach": true
   },

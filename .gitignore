@@ -9,7 +9,8 @@ include/secrets.h
 __pycache__
 app_*.h
 secrets.h
-mklittlefs
+utils/uploader/lib/*
+utils/uploader/lib/*
 wifi.json
 gnss.json
 *.bin
@@ -19,3 +20,5 @@ utils/dist/
 utils/build/
 .claude
 nul
+nvs_keys.csv
+uploaderGUI.json
