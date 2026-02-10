@@ -306,7 +306,13 @@ bool NtripClient::connectCasterWithVersion(const NtripConfig& cfg,
   }
   client.print("Authorization: Basic ");
   client.print(auth);
-  client.print("\r\n\r\n");
+  client.print("\r\n");
+  if (useRev2 && cfg.ggaSentence.length() > 0) {
+    client.print("Ntrip-GGA: ");
+    client.print(cfg.ggaSentence);
+    client.print("\r\n");
+  }
+  client.print("\r\n");
 
   unsigned long start = millis();
   while (!client.available() && millis() - start < cfg.connectTimeoutMs) {
