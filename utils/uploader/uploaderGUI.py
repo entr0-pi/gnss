@@ -45,10 +45,10 @@ class ESPUploaderGUI:
         if not os.path.isdir(self.DATA_DIR):
             self.DATA_DIR = os.path.join(app_dir, "data")
         self.IMAGE_NAME = os.path.join(app_dir, "littlefs.bin")
-        self.WEB_DIR = os.path.join(self.DATA_DIR, "web")
+        self.WEB_DIR = os.path.join(self.DATA_DIR, "to_be_gzip")
         if not os.path.isdir(self.WEB_DIR):
-            local_web = os.path.join(app_dir, "web")
-            project_web = os.path.normpath(os.path.join(app_dir, "..", "..", "web"))
+            local_web = os.path.join(app_dir, "to_be_gzip")
+            project_web = os.path.normpath(os.path.join(app_dir, "..", "..", "to_be_gzip"))
             if os.path.isdir(local_web):
                 self.WEB_DIR = local_web
             elif os.path.isdir(project_web):
@@ -365,7 +365,7 @@ class ESPUploaderGUI:
             "- Optional: enable erase before LittleFS/NVS flashing\n"
             "- Refresh status to validate environment\n\n"
             "2) Flash Operations tab\n"
-            "- Builds LittleFS image from /data (all files) and /web (.ico/.css/.html/.js)\n"
+            "- Builds LittleFS image from /data (all files) and /to_be_gzip (.ico/.css/.html/.js)\n"
             "- Flashes LittleFS at the SPIFFS partition offset from partitions.csv\n\n"
             "3) NVS Editor tab\n"
             "- Import or edit NVS rows in CSV format (key,type,encoding,value)\n"
@@ -511,11 +511,11 @@ class ESPUploaderGUI:
         if checks["web"]:
             web_label = "file" if len(web_files) == 1 else "files"
             self.status_labels["web"].config(
-                text=f"/web: {len(web_files)} {web_label}",
+                text=f"/to_be_gzip: {len(web_files)} {web_label}",
                 foreground=ok_color,
             )
         else:
-            self.status_labels["web"].config(text="/web: Missing", foreground=err_color)
+            self.status_labels["web"].config(text="/to_be_gzip: Missing", foreground=err_color)
         self.status_labels["web_files"].config(text=", ".join(web_files) if web_files else "")
         if not data_dir_exists:
             self.status_labels["data"].config(text="/data: Missing (warning only)", foreground=warn_color)
@@ -605,7 +605,7 @@ class ESPUploaderGUI:
                             with open(src, "rb") as fin, gzip.open(dst, "wb") as fout:
                                 shutil.copyfileobj(fin, fout)
                 else:
-                    self.log("[WARN] web/ folder not found. Building image without web files.")
+                    self.log("[WARN] to_be_gzip/ folder not found. Building image without web files.")
 
                 mkl_cmd = [
                     self.mklittlefs_path_var.get(),
