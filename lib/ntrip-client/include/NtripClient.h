@@ -32,6 +32,7 @@ struct NtripConfig {
   String mount;
   String user;
   String pass;
+  String ggaSentence;                // Optional GGA sent as Ntrip-GGA header (Rev2 only)
   uint8_t maxTries = 5;
   
   // Advanced settings (optional)
