@@ -13,8 +13,14 @@ RUN pio pkg install -g -p "espressif32" && \
 
 WORKDIR /project
 
-# Copy project files needed for a regular build
+# Copy dependency metadata first to maximize layer caching.
+# This avoids re-downloading packages when only source files change.
 COPY platformio.ini ./
+
+# Pre-fetch library dependencies so they are cached in this layer
+RUN pio pkg install -e lolin_c3_mini || true
+
+# Copy the rest of project files needed for firmware build/export
 COPY partitions.csv ./
 COPY src/ src/
 COPY include/ include/
