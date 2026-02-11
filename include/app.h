@@ -55,6 +55,45 @@
 #define WIFI_ENABLE (WEBUI_ENABLE || TCP_ENABLE || NTRIP_CLIENT_ENABLE)
 #endif
 
+// WiFi operating mode:
+// 0 = STA only
+// 1 = dual mode (STA + softAP)
+#ifndef WIFI_DUAL_MODE
+#define WIFI_DUAL_MODE 0
+#endif
+
+// Optional fixed STA channel for quicker association.
+// 0 = automatic channel selection (default)
+#ifndef STA_CHANNEL
+#define STA_CHANNEL 0
+#endif
+
+// SoftAP defaults (used when WIFI_DUAL_MODE=1).
+#ifndef SOFTAP_SSID_VALUE
+#define SOFTAP_SSID_VALUE "GNSS-ESP32-AP"
+#endif
+
+#ifndef SOFTAP_PASS_VALUE
+#define SOFTAP_PASS_VALUE ""
+#endif
+
+#ifndef SOFTAP_CHANNEL
+#define SOFTAP_CHANNEL 6
+#endif
+
+#ifndef SOFTAP_HIDDEN
+#define SOFTAP_HIDDEN 0
+#endif
+
+#ifndef SOFTAP_MAX_CONN
+#define SOFTAP_MAX_CONN 2
+#endif
+
+#if WIFI_ENABLE
+static const char* SOFTAP_SSID = SOFTAP_SSID_VALUE;
+static const char* SOFTAP_PASS = SOFTAP_PASS_VALUE;
+#endif
+
 #ifndef FORCE_WIFI_SECRETS
 #define FORCE_WIFI_SECRETS 0
 #endif

@@ -18,6 +18,7 @@ constexpr const char* kIp = "ip";
 constexpr const char* kGw = "gw";
 constexpr const char* kSubnet = "subnet";
 constexpr const char* kDns = "dns";
+constexpr const char* kAccessPoint = "accesspoint";
 }  // namespace wifi
 
 namespace ntrip {
