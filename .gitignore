@@ -11,8 +11,6 @@ app_*.h
 secrets.h
 utils/uploader/lib/*
 utils/uploader/lib/*
-wifi.json
-gnss.json
 *.bin
 littlefs_uploaderGUI.json
 ntrip_config.json
@@ -22,3 +20,4 @@ utils/build/
 nul
 nvs_keys.csv
 uploaderGUI.json
+build_test_results.log

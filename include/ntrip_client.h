@@ -3,7 +3,6 @@
 #include "app.h"
 #include "freertos/stream_buffer.h"
 
-#if NTRIP_CLIENT_ENABLE
 struct NtripClientSnapshot {
   bool connected;
   bool healthy;
@@ -14,6 +13,7 @@ struct NtripClientSnapshot {
   uint32_t lastFrameAgeMs;
 };
 
+#if NTRIP_CLIENT_ENABLE
 void ntrip_client_setup(StreamBufferHandle_t sb_ntrip2uart);
 void ntrip_client_loop();
 bool ntrip_client_get_snapshot(NtripClientSnapshot& out);

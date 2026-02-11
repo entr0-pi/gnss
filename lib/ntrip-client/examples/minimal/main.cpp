@@ -34,9 +34,11 @@ void setup() {
   cfg.pass = "none";
   
   // Start
-  ntrip.begin(cfg, Serial2);
+  if (!ntrip.begin(cfg, Serial2)) {
+    Serial.println("begin() failed!");
+    return;
+  }
   ntrip.startTask(0);
-  
   Serial.println("NTRIP started!");
 }
 

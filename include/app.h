@@ -27,6 +27,30 @@
 #define TCP_PORT 5000
 #endif
 
+// ---------------- NTRIP library flags ----------------
+// These are consumed by lib/ntrip-client (NtripClient.h).
+// Keep them centralized here so build_flags only need one include point.
+//
+// NTRIP_CLIENT_ENABLE_TASK:
+//   1 = run NTRIP in a background FreeRTOS task (ESP32 default)
+//   0 = taskless mode (manual loop)
+#ifndef NTRIP_CLIENT_ENABLE_TASK
+#define NTRIP_CLIENT_ENABLE_TASK 1
+#endif
+
+// NTRIP_CLIENT_ENABLE_REV1_FALLBACK:
+//   1 = if NTRIP Rev2 handshake fails, retry with Rev1
+//   0 = Rev2 only
+#ifndef NTRIP_CLIENT_ENABLE_REV1_FALLBACK
+#define NTRIP_CLIENT_ENABLE_REV1_FALLBACK 1
+#endif
+
+// NTRIP_CLIENT_PASSIVE_SCAN_BYTES:
+//   Number of bytes scanned during passive health checks for RTCM preamble.
+#ifndef NTRIP_CLIENT_PASSIVE_SCAN_BYTES
+#define NTRIP_CLIENT_PASSIVE_SCAN_BYTES 128
+#endif
+
 #ifndef WIFI_ENABLE
 #define WIFI_ENABLE (WEBUI_ENABLE || TCP_ENABLE || NTRIP_CLIENT_ENABLE)
 #endif

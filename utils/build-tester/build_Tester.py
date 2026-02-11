@@ -6,13 +6,20 @@ Validates that different build configurations compile successfully.
 
 Usage:
     python build_Tester.py                  # Run all tests
+    python build_Tester.py --tier A         # Run only smoke tests
+    python build_Tester.py --tier A,B       # Run smoke + pairwise tests
     python build_Tester.py --tests 4,7,10   # Run tests 4, 7, and 10
     python build_Tester.py --tests 1-5      # Run tests 1 through 5
     python build_Tester.py --list           # List all available tests
 
 Configuration:
-    flags_to_tests.json     Test definitions with IDs, names, and flags
+    flags_to_tests.json     Test definitions with IDs, names, tiers, and flags
     platformio.ini.test     Minimal PlatformIO config (no build_flags)
+
+Tiers:
+    A   Smoke tests (bare default + full production config)
+    B   Pairwise orthogonal combos + parameterization
+    C   Negative/constraint tests (expected compile failures)
 
 How it works:
     1. Swaps platformio.ini with platformio.ini.test
@@ -21,8 +28,8 @@ How it works:
     4. Logs results to build_test_results.log
 
 Exit codes:
-    0 = All tests passed
-    1 = One or more tests failed
+    0 = All tests met expectations
+    1 = One or more tests did not meet expectations
 """
 
 import argparse
@@ -184,15 +191,23 @@ def parse_test_ids(test_arg: str) -> Set[int]:
 
 
 def list_tests(test_flags: List[Dict]) -> None:
-    """Print all available tests."""
+    """Print all available tests grouped by tier."""
     print("\nAvailable tests:")
     print("-" * 60)
+    current_tier = None
     for entry in test_flags:
+        tier = entry.get("tier", "?")
+        if tier != current_tier:
+            current_tier = tier
+            label = {"A": "Smoke", "B": "Pairwise + params", "C": "Negative (expect fail)"}.get(tier, tier)
+            print(f"\n  Tier {tier}: {label}")
         test_id = entry.get("id", "?")
         name = entry["name"]
-        flags = " ".join(entry["flags"])
-        print(f"  {test_id:>2}. {name}")
-        print(f"      Flags: {flags}")
+        expect = entry.get("expect", "pass")
+        flags = " ".join(entry["flags"]) if entry["flags"] else "(none)"
+        expect_tag = " [expect FAIL]" if expect == "fail" else ""
+        print(f"    {test_id:>2}. {name}{expect_tag}")
+        print(f"        Flags: {flags}")
     print()
 
 
@@ -204,6 +219,8 @@ def main() -> int:
         epilog="""
 Examples:
   python build_Tester.py                  # Run all tests
+  python build_Tester.py --tier A         # Run only smoke tests
+  python build_Tester.py --tier A,B       # Run smoke + pairwise
   python build_Tester.py --tests 4,7,10   # Run tests 4, 7, and 10
   python build_Tester.py --tests 1-5      # Run tests 1 through 5
   python build_Tester.py --list           # List all available tests
@@ -213,6 +230,11 @@ Examples:
         "--tests", "-t",
         type=str,
         help="Comma-separated list of test IDs to run (e.g., 4,7,10 or 1-5)"
+    )
+    parser.add_argument(
+        "--tier",
+        type=str,
+        help="Comma-separated tier letters to run (e.g., A or A,B or A,B,C)"
     )
     parser.add_argument(
         "--list", "-l",
@@ -244,7 +266,17 @@ Examples:
         list_tests(all_tests)
         return 0
 
-    # Filter tests by ID if specified
+    # Filter tests by tier and/or ID
+    test_flags = all_tests
+
+    if args.tier:
+        selected_tiers = {t.strip().upper() for t in args.tier.split(",")}
+        test_flags = [t for t in test_flags if t.get("tier", "").upper() in selected_tiers]
+        if not test_flags:
+            print(f"ERROR: No tests found for tier(s): {sorted(selected_tiers)}")
+            print("Use --list to see available tests.")
+            return 1
+
     selected_ids: Optional[Set[int]] = None
     if args.tests:
         # Handle range syntax (e.g., 1-5)
@@ -257,15 +289,11 @@ Examples:
         else:
             selected_ids = parse_test_ids(args.tests)
 
-    # Filter tests
-    if selected_ids:
-        test_flags = [t for t in all_tests if t.get("id") in selected_ids]
+        test_flags = [t for t in test_flags if t.get("id") in selected_ids]
         if not test_flags:
             print(f"ERROR: No tests found with IDs: {selected_ids}")
             print("Use --list to see available tests.")
             return 1
-    else:
-        test_flags = all_tests
 
     # Find PlatformIO executable
     pio_cmd = find_platformio()
@@ -274,9 +302,12 @@ Examples:
     print(f"Environment: {env}")
 
     total_tests = len(test_flags)
+    tiers_in_run = sorted({t.get("tier", "?") for t in test_flags})
+    if args.tier:
+        print(f"Tiers: {', '.join(tiers_in_run)}")
     if selected_ids:
         print(f"Running tests: {sorted(selected_ids)}")
-    logger.info(f"Running {total_tests} build tests for {env}.")
+    logger.info(f"Running {total_tests} build tests for {env} (tiers: {', '.join(tiers_in_run)}).")
     print(f"Total tests: {total_tests}")
     print(f"Config: {config_path}\n")
 
@@ -296,13 +327,21 @@ Examples:
                 test_id = entry.get("id", i)
                 name = entry["name"]
                 flags = entry["flags"]
+                expect = entry.get("expect", "pass")
 
                 result = run_platformio_build(
                     test_id, name, flags, env, i, total_tests, pio_cmd, logger
                 )
-                results.append(result)
+                build_ok = result[2]
 
-                status = "[PASS]" if result[2] else "[FAIL]"
+                if expect == "fail":
+                    met = not build_ok
+                    status = "[XFAIL]" if met else "[UNEX.PASS]"
+                else:
+                    met = build_ok
+                    status = "[PASS]" if met else "[FAIL]"
+
+                results.append((*result, expect, met))
                 print(f"[{i}/{total_tests}] {status} #{test_id} {name}")
 
     except FileNotFoundError as e:
@@ -319,29 +358,33 @@ Examples:
     print("=== Build Test Results Summary ===")
     print(f"{'=' * 50}")
 
-    passed = sum(1 for _, _, success, _ in results if success)
-    failed = total_tests - passed
+    met_count = sum(1 for *_, met in results if met)
+    unmet_count = total_tests - met_count
 
-    print(f"\nPassed: {passed}/{total_tests}")
-    print(f"Failed: {failed}/{total_tests}")
+    print(f"\nMet expectations: {met_count}/{total_tests}")
+    if unmet_count:
+        print(f"Did NOT meet expectations: {unmet_count}/{total_tests}")
 
-    if failed > 0:
-        print("\n--- Failed Tests ---")
-        for test_id, name, success, _ in results:
-            if not success:
-                print(f"  - #{test_id} {name}")
+        print("\n--- Unexpected Results ---")
+        for test_id, name, build_ok, _, expect, met in results:
+            if not met:
+                if expect == "fail":
+                    print(f"  - #{test_id} {name}  (expected compile failure, but it passed)")
+                else:
+                    print(f"  - #{test_id} {name}  (expected pass, but build failed)")
 
         logger.warning(
-            "Some tests failed. Check for:\n"
+            "Some tests did not meet expectations. Check for:\n"
             "- Memory overflow (reduce binary size with -Os or -flto)\n"
             "- Cache issues (add -mfix-esp32-c3-icache-issue)\n"
-            "- Missing dependencies or undefined macros"
+            "- Missing dependencies or undefined macros\n"
+            "- Constraint tests that unexpectedly passed (missing #error guard?)"
         )
 
-    logger.info(f"Summary: {passed}/{total_tests} tests passed.")
+    logger.info(f"Summary: {met_count}/{total_tests} tests met expectations.")
     print(f"\nLog file: {LOG_FILE}")
 
-    return 0 if failed == 0 else 1
+    return 0 if unmet_count == 0 else 1
 
 
 if __name__ == "__main__":

@@ -1,105 +1,119 @@
 # ntrip-client
 
-Embedded NTRIP client for ESP32/Arduino targets.
+Embedded NTRIP client library for ESP32/Arduino targets.
 
-It connects to an NTRIP caster, validates RTCM stream quality, forwards corrections to a `Print` output (typically GNSS UART), and handles reconnect/lockout logic.
+Connects to an NTRIP caster, validates RTCM stream quality, forwards corrections to a `Print` output (typically GNSS UART), and handles reconnect/lockout logic.
 
 ## Features
 
-- NTRIP Rev2 with automatic fallback to Rev1
-- Two-phase stream validation:
-  - strict RTCM frame validation at startup
-  - passive preamble sampling during steady state
-- Zombie stream detection (`healthTimeoutMs`)
-- Lockout after repeated failures (`maxTries`)
-- Runtime stats and error reporting
-- FreeRTOS task loop ready for ESP32
-- Output abstraction via `Print` (UART, stream buffer writer, etc.)
-- Logger abstraction via callback injection (no hard dependency on app logger)
+- NTRIP Rev2 with automatic fallback to Rev1 (compile-time toggle)
+- Two-phase stream validation: strict RTCM parsing at startup, passive preamble sampling at steady state
+- Zombie stream detection
+- Lockout after repeated failures with reset/reconnect API
+- Config validation at `begin()` with actionable error messages
+- Runtime stats with batched updates (low mutex contention)
+- Task lifecycle control: `startTask()` / `stopTask()` with duplicate-spawn protection
+- Output abstraction via `Print`
+- Logger callback injection (silent by default)
+
+## Thread-safety contract
+
+- `begin()`, `startTask()`, `stopTask()` must be called from the same context (typically Arduino setup/loop). Never call `begin()` while the task is running.
+- Query methods — `state()`, `isStreaming()`, `isHealthy()`, `getStats()`, `getLastError()`, `getErrorMessage()` — are safe from any task.
+- Control methods — `stop()`, `reset()`, `reconnect()` — are safe from any task.
+- Scalar state uses `volatile` for lock-free single-writer access. `NtripStats` is protected by mutex.
+
+## Compile-time flags
+
+Override via build_flags (e.g. `-DNTRIP_CLIENT_ENABLE_TASK=0`):
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `NTRIP_CLIENT_ENABLE_TASK` | `1` | Enable FreeRTOS background task. Set to `0` for non-RTOS targets. |
+| `NTRIP_CLIENT_ENABLE_REV1_FALLBACK` | `1` | Automatic Rev2 → Rev1 fallback on connection failure. |
+| `NTRIP_CLIENT_PASSIVE_SCAN_BYTES` | `128` | Bytes scanned for RTCM preamble during passive health checks. |
 
 ## Public API
 
-Main types in `include/NtripClient.h`:
+Types in `include/NtripClient.h`:
 
-- `NtripConfig`: caster and behavior settings
-- `NtripState`: `DISCONNECTED | CONNECTING | STREAMING | LOCKED_OUT`
-- `NtripError`: detailed failure categories
-- `NtripStats`: counters + last error/frame info
-- `NtripClient`: client class
+- `NtripConfig` — caster and behavior settings
+- `NtripState` — `DISCONNECTED | CONNECTING | STREAMING | LOCKED_OUT`
+- `NtripError` — failure categories (includes `INVALID_CONFIG`)
+- `NtripStats` — counters + last error/frame info
+- `NtripClient` — client class
 
-Important methods:
+Methods:
 
-- `begin(const NtripConfig&, Print&)`
-- `startTask(uint8_t core = 0)`
-- `stop()`, `reset()`, `reconnect()`
-- `state()`, `isStreaming()`, `isHealthy()`
-- `getStats()`, `getLastError()`, `getErrorMessage()`
-- `setLogger(NtripLogFn logger)`
+| Method | Description |
+|--------|-------------|
+| `begin(cfg, gnss)` | Initialize with config and output stream. Validates config. |
+| `startTask(core)` | Start FreeRTOS task. Returns `false` if already running. |
+| `stopTask()` | Signal task to stop, wait for clean exit, free resources. |
+| `isTaskRunning()` | Check if background task is active. |
+| `stop()` | Enter lockout state. |
+| `reset()` | Clear lockout, allow reconnection. |
+| `reconnect()` | Force immediate reconnection attempt. |
+| `state()` | Current `NtripState`. |
+| `isStreaming()` | True if actively streaming. |
+| `isHealthy()` | True if validated and receiving data. |
+| `getStats()` | Thread-safe stats snapshot. |
+| `getLastError()` | Last `NtripError` code. |
+| `getErrorMessage()` | Human-readable error string. |
+| `setLogger(fn)` | Inject log callback. Silent if unset. |
+| `validateConfig(cfg, err)` | Static config validation. |
 
-## Logger Abstraction
+## Logger
 
-The library is logger-agnostic.
-
-Define a callback in your app and inject it:
+The library is logger-agnostic. Inject a callback to receive log messages:
 
 ```cpp
 static void ntripLog(NtripLogLevel level, const char* tag, const char* message) {
-  // Route to your logger implementation
+  Serial.printf("[%s] %s\n", tag, message);
 }
 
-NtripClient client;
-client.setLogger(ntripLog);
+ntrip.setLogger(ntripLog);
 ```
 
-If `setLogger()` is not called, library logs are silent.
+If `setLogger()` is not called, the library is silent.
 
-### Callback signature
-
-```cpp
-using NtripLogFn = void (*)(NtripLogLevel level, const char* tag, const char* message);
-```
-
-`NtripLogLevel` values:
-
-- `Error`
-- `Warning`
-- `Info`
-- `Debug`
-
-## Configuration Notes
+## Configuration
 
 `NtripConfig` fields:
 
-- `host`, `port`, `mount`, `user`, `pass`
-- `maxTries`, `retryDelayMs`
-- `healthTimeoutMs`, `passiveSampleMs`
-- `requiredValidFrames`
-- `bufferSize`
-- `connectTimeoutMs`
+| Field | Default | Notes |
+|-------|---------|-------|
+| `host`, `port`, `mount`, `user`, `pass` | — | Required (validated at `begin()`) |
+| `ggaSentence` | `""` | Optional GGA for Rev2 Ntrip-GGA header |
+| `maxTries` | `5` | Attempts before lockout |
+| `retryDelayMs` | `30000` | Lower = faster recovery, more load |
+| `healthTimeoutMs` | `60000` | Lower = faster zombie detection |
+| `passiveSampleMs` | `5000` | Passive health check interval |
+| `requiredValidFrames` | `3` | Higher = safer validation, slower start |
+| `bufferSize` | `1024` | Higher = handles bursts, uses more RAM |
+| `connectTimeoutMs` | `5000` | TCP + HTTP response timeout |
 
-Tuning tradeoffs:
+## Integration pattern
 
-- Lower `retryDelayMs`: faster recovery, more network/caster load
-- Lower `healthTimeoutMs`: faster zombie detection, less tolerance to sparse streams
-- Higher `requiredValidFrames`: safer validation, slower startup
-- Higher `bufferSize`: handles bursts better, uses more RAM
+```cpp
+NtripClient ntrip;
+ntrip.setLogger(myLogCallback);
 
-## Integration Pattern (Project)
+NtripConfig cfg;
+cfg.host = "rtk2go.com";
+cfg.mount = "MY_MOUNT";
+// ... fill remaining fields ...
 
-Typical pattern used in this repository:
+if (!ntrip.begin(cfg, Serial2)) {
+  // handle error
+}
+ntrip.startTask(0);
 
-1. Create a `Print` bridge writer to your StreamBuffer/UART path.
-2. Build/load `NtripConfig`.
-3. Call `client.setLogger(...)` with app logger adapter.
-4. Call `client.begin(config, writer)`.
-5. Start task with `client.startTask(core)`.
-6. Monitor with `state()` / `getStats()`.
+// Monitor from loop:
+// ntrip.state(), ntrip.isHealthy(), ntrip.getStats()
+```
 
 ## Examples
 
-See `examples/` for usage patterns:
-
-- `basic`
-- `advanced`
-- `minimal`
-- `production`
+- `minimal` — bare minimum to get corrections flowing
+- `basic` — self-contained with WiFi, logger, stats, and error recovery

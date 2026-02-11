@@ -403,9 +403,16 @@ void configMonitorTask(void* pvParameters) {
             wasConfigured = true;
 
             if (!g_ntripTaskStarted) {
+#if NTRIP_CLIENT_ENABLE_TASK
               g_ntripClient.startTask(0);
               g_ntripTaskStarted = true;
               LOG_I("NTRIP", "Task started on core 0");
+#else
+              // Task mode disabled at compile time; keep monitor alive but do not
+              // call startTask()/stopTask() APIs that are not compiled in.
+              g_ntripTaskStarted = true;
+              LOG_W("NTRIP", "NtripClient task mode disabled (NTRIP_CLIENT_ENABLE_TASK=0)");
+#endif
             }
           }
         } else if (!shouldBeRunning && wasConfigured) {

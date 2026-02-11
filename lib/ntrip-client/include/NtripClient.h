@@ -1,20 +1,33 @@
 #pragma once
+
+// ─── Compile-time feature flags ─────────────────────────────────────────────
+// Override via build_flags (e.g. -DNTRIP_CLIENT_ENABLE_TASK=0).
+
+#ifndef NTRIP_CLIENT_ENABLE_TASK
+#define NTRIP_CLIENT_ENABLE_TASK 1
+#endif
+
+#ifndef NTRIP_CLIENT_ENABLE_REV1_FALLBACK
+#define NTRIP_CLIENT_ENABLE_REV1_FALLBACK 1
+#endif
+
+#ifndef NTRIP_CLIENT_PASSIVE_SCAN_BYTES
+#define NTRIP_CLIENT_PASSIVE_SCAN_BYTES 128
+#endif
+
+// Platform gate: task mode requires FreeRTOS
+#if NTRIP_CLIENT_ENABLE_TASK
+  #if !defined(ESP_PLATFORM) && !defined(ARDUINO_ARCH_ESP32)
+    #error "NTRIP_CLIENT_ENABLE_TASK=1 requires FreeRTOS (ESP32). Set to 0 for non-RTOS targets."
+  #endif
+#endif
+
 #include <WiFiClient.h>
 #include <Arduino.h>
 
-// NtripClient: lightweight NTRIP (Networked Transport of RTCM via Internet Protocol)
-// client intended for embedded targets. It connects to an NTRIP caster, streams
-// RTCM correction data to a GNSS receiver, and monitors stream health.
-//
-// Tuning notes:
-// - retryDelayMs / maxTries: trade faster recovery vs. network/caster load.
-// - healthTimeoutMs / passiveSampleMs / requiredValidFrames: trade sensitivity
-//   to stalled streams vs. tolerance to intermittent data.
-// - bufferSize: trade RAM vs. ability to read larger bursts without overflow.
-// - connectTimeoutMs: trade faster failover vs. tolerance to slow networks.
+#define NTRIP_CLIENT_VERSION "2.1.0"
 
-// Version information
-#define NTRIP_CLIENT_VERSION "2.0.0"
+// ─── Log levels ─────────────────────────────────────────────────────────────
 
 enum class NtripLogLevel : uint8_t {
   Error = 1,
@@ -25,32 +38,26 @@ enum class NtripLogLevel : uint8_t {
 
 using NtripLogFn = void (*)(NtripLogLevel level, const char* tag, const char* message);
 
-// Configuration structure for connection, validation, and recovery behavior.
+// ─── Configuration ──────────────────────────────────────────────────────────
+
 struct NtripConfig {
   String host;
   uint16_t port = 2101;
   String mount;
   String user;
   String pass;
-  String ggaSentence;                // Optional GGA sent as Ntrip-GGA header (Rev2 only)
-  uint8_t maxTries = 5;
-  
-  // Advanced settings (optional)
-  // retryDelayMs: delay between connection attempts when disconnected.
-  // healthTimeoutMs: time without valid RTCM before declaring "zombie" stream.
-  // passiveSampleMs: how often to scan for RTCM preamble once validated.
-  // requiredValidFrames: number of valid frames required to accept a stream.
-  // bufferSize: read buffer size for TCP data bursts.
-  // connectTimeoutMs: TCP connect and HTTP response timeout.
-  uint32_t retryDelayMs = 30000;      // Time between retry attempts
-  uint32_t healthTimeoutMs = 60000;   // Zombie stream detection timeout
-  uint32_t passiveSampleMs = 5000;    // Passive health check interval
-  uint8_t requiredValidFrames = 3;    // Frames needed for validation
-  uint16_t bufferSize = 1024;         // Read buffer size
-  uint32_t connectTimeoutMs = 5000;   // TCP connection timeout
+  String ggaSentence;                // Optional GGA sent as Ntrip-GGA header (Rev2)
+  uint8_t maxTries = 5;             // Reconnect attempts before lockout
+  uint32_t retryDelayMs = 30000;    // Delay between attempts
+  uint32_t healthTimeoutMs = 60000; // Zombie stream detection timeout
+  uint32_t passiveSampleMs = 5000;  // Passive health check interval
+  uint8_t requiredValidFrames = 3;  // Frames needed for stream validation
+  uint16_t bufferSize = 1024;       // TCP read buffer size
+  uint32_t connectTimeoutMs = 5000; // TCP + HTTP response timeout
 };
 
-// Connection states
+// ─── States and errors ──────────────────────────────────────────────────────
+
 enum class NtripState {
   DISCONNECTED,
   CONNECTING,
@@ -58,9 +65,9 @@ enum class NtripState {
   LOCKED_OUT
 };
 
-// Error codes
 enum class NtripError {
   NONE = 0,
+  INVALID_CONFIG,
   TCP_CONNECT_FAILED,
   HTTP_AUTH_FAILED,
   HTTP_MOUNT_NOT_FOUND,
@@ -71,134 +78,102 @@ enum class NtripError {
   MAX_RETRIES_EXCEEDED
 };
 
-// Statistics structure
+// ─── Statistics ─────────────────────────────────────────────────────────────
+
 struct NtripStats {
-  uint32_t totalFrames = 0;           // Valid RTCM frames received
-  uint32_t crcErrors = 0;             // Failed CRC checks
-  uint32_t bytesReceived = 0;         // Total bytes from caster
-  uint32_t reconnects = 0;            // Number of reconnection attempts
-  uint32_t totalUptime = 0;           // Milliseconds in STREAMING state
-  uint16_t lastMessageType = 0;       // Last RTCM message ID received
-  unsigned long lastFrameTime = 0;    // Timestamp of last valid frame
-  unsigned long connectionStart = 0;  // When current connection started
+  uint32_t totalFrames = 0;
+  uint32_t crcErrors = 0;
+  uint32_t bytesReceived = 0;
+  uint32_t reconnects = 0;
+  uint32_t totalUptime = 0;
+  uint16_t lastMessageType = 0;
+  unsigned long lastFrameTime = 0;
+  unsigned long connectionStart = 0;
   NtripError lastError = NtripError::NONE;
-  String lastErrorMessage;            // Human-readable error
+  String lastErrorMessage;
 };
+
+// ─── NtripClient ────────────────────────────────────────────────────────────
+//
+// Thread-safety contract
+// ~~~~~~~~~~~~~~~~~~~~~~
+// - begin() and startTask()/stopTask() must be called from the same context
+//   (typically Arduino setup/loop). Never call begin() while the task runs.
+// - Query methods — state(), isStreaming(), isHealthy(), getStats(),
+//   getLastError(), getErrorMessage() — are safe from any task.
+// - Control methods — stop(), reset(), reconnect() — are safe from any task.
+// - Scalar runtime state (_state, _healthy) uses volatile for lock-free
+//   single-writer (taskLoop) / multiple-reader access.
+// - NtripStats is protected by statsMutex (snapshot copy on read).
 
 class NtripClient {
 public:
-  /**
-   * Initialize the NTRIP client with configuration
-   * @param cfg Configuration structure
-   * @param gnss Output stream connected to GNSS receiver
-   * @return true if initialization successful
-   */
-  bool begin(const NtripConfig& cfg, Print& gnss);
+  // ── Lifecycle ──────────────────────────────────────────────────────────
+  // Required call order: begin() → startTask() → … → stopTask()
 
-  /**
-   * Initialize the NTRIP client with configuration (HardwareSerial helper)
-   * @param cfg Configuration structure
-   * @param gnss Serial port connected to GNSS receiver
-   * @return true if initialization successful
-   */
+  bool begin(const NtripConfig& cfg, Print& gnss);
   bool begin(const NtripConfig& cfg, HardwareSerial& gnss);
-  
-  /**
-   * Start the NTRIP task on specified core
-   * @param core CPU core (0 or 1)
-   */
-  void startTask(uint8_t core = 0);
-  
-  /**
-   * Check if client is actively streaming data
-   * @return true if connected and streaming
-   */
+
+#if NTRIP_CLIENT_ENABLE_TASK
+  /// Start background FreeRTOS task. Returns false if already running.
+  bool startTask(uint8_t core = 0);
+  /// Signal the task to stop and wait for clean exit.
+  bool stopTask();
+  /// True if the background task is currently active.
+  bool isTaskRunning() const;
+#endif
+
+  // ── State queries (thread-safe, non-blocking) ─────────────────────────
+
   bool isStreaming() const;
-  
-  /**
-   * Check if stream is healthy (receiving valid RTCM)
-   * @return true if healthy
-   */
   bool isHealthy() const;
-  
-  /**
-   * Get current connection state
-   * @return Current NtripState
-   */
   NtripState state() const;
-  
-  /**
-   * Get statistics about NTRIP performance
-   * @return Stats structure
-   */
   NtripStats getStats() const;
-  
-  /**
-   * Get last error information
-   * @return Error code
-   */
   NtripError getLastError() const;
-  
-  /**
-   * Get human-readable error message
-   * @return Error message string
-   */
   String getErrorMessage() const;
-  
-  /**
-   * Stop the client and enter lockout state
-   */
+
+  // ── Control (thread-safe) ─────────────────────────────────────────────
+
   void stop();
-  
-  /**
-   * Reset lockout and allow reconnection
-   */
   void reset();
-  
-  /**
-   * Force immediate reconnection attempt
-   */
   void reconnect();
 
-  /**
-   * Optional logger callback. If unset, the library is silent.
-   */
+  // ── Configuration ─────────────────────────────────────────────────────
+
   void setLogger(NtripLogFn logger);
+  static bool validateConfig(const NtripConfig& cfg, String& errorOut);
 
 private:
-  // Ensure mutexes are created before use.
-  bool ensureMutexes() const;
-  // FreeRTOS task entry point.
   static void taskEntry(void* arg);
-  // Main loop handling connect, stream validation, and health checks.
   void taskLoop();
-  // Establish TCP connection and validate HTTP response.
   bool connectCaster(const NtripConfig& cfg);
-  // Connect using a specific NTRIP protocol revision.
   bool connectCasterWithVersion(const NtripConfig& cfg,
                                 bool useRev2,
                                 NtripError& err,
                                 String& errMsg);
-  // Close socket and move to DISCONNECTED state.
   void disconnect();
-  // Store error code/message in stats (thread-safe).
   void setError(NtripError err, const String& msg);
-  // Format and emit a log message through the injected logger callback.
   void logf(NtripLogLevel level, const char* fmt, ...) const;
-  
+
   WiFiClient client;
   Print* gnssOutput = nullptr;
   NtripConfig config;
-  
-  NtripState _state = NtripState::DISCONNECTED;
-  bool _healthy = false;
+
+  // Volatile scalars — written by taskLoop, readable from any task.
+  volatile NtripState _state = NtripState::DISCONNECTED;
+  volatile bool _healthy = false;
+  volatile bool _running = false;
+  volatile unsigned long lastHealth = 0;
+  volatile unsigned long lastAttempt = 0;
+  volatile uint8_t failures = 0;
+
+  // Aggregate stats — protected by statsMutex.
   NtripStats _stats;
-  
-  unsigned long lastHealth = 0;
-  unsigned long lastAttempt = 0;
-  uint8_t failures = 0;
-  
-  mutable SemaphoreHandle_t statsMutex = nullptr;
-  mutable SemaphoreHandle_t configMutex = nullptr;
+  SemaphoreHandle_t statsMutex = nullptr;
+
+#if NTRIP_CLIENT_ENABLE_TASK
+  TaskHandle_t _taskHandle = nullptr;
+#endif
+
   NtripLogFn logFn = nullptr;
 };
