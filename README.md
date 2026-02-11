@@ -26,9 +26,9 @@ You can either **build from source** or **flash a prebuilt binary** (recommended
      - `utils/data/gnss.json`
      - `utils/data/wifi.json`
 
-4. **Upload**  
+4. **Upload**
    - Run the GUI tool:
-     - `utils/littlefs_uploaderGUI.py`
+     - `utils/uploader/uploaderGUI.py`
    - Select your COM port and upload the generated LittleFS image to the ESP32. Read the instruction for the dependencies
 
 After upload, reboot the device and the Web UI will show the new values.
@@ -133,11 +133,11 @@ Full list: see `include/README.md` and `include/app.h`.
 ## Folder Structure
 ```
 .
+├─ data/           # LittleFS files (to_be_gzip/ for web assets)
 ├─ include/        # Headers, config, generated web assets
 ├─ lib/            # Reusable libraries
-├─ scripts/        # Build & tooling scripts
 ├─ src/            # Firmware source
-├─ web/            # Web UI sources
+├─ utils/          # Build tester, web renderer, uploader
 ├─ platformio.ini  # PlatformIO configuration
 └─ README.md
 ```
@@ -146,8 +146,8 @@ Full list: see `include/README.md` and `include/app.h`.
 
 ## Web UI Assets
 When `WEBUI_ENABLE=1`:
-- `scripts/gzip_web.py` compresses `web/*`
-- Generated headers are embedded in firmware
+- Web UI sources live in `data/to_be_gzip/`
+- Generated PROGMEM headers are embedded in firmware
 
 After editing Web UI files:
 ```bash
@@ -178,8 +178,8 @@ See below for detailed architecture, UART configuration system, BLE/TCP flow, pr
 - **PlatformIO configuration** with a single entry point in `platformio.ini`.
 - **Firmware source layout** under `src/` and `include/` following PlatformIO conventions.
 - **Shared libraries** kept in `lib/` for reusable components.
-- **Web assets** stored in `web/` for any UI or hosted files.
-- **Utility scripts** in `scripts/` for automation or tooling.
+- **Web assets** stored in `data/to_be_gzip/` for UI files.
+- **Utility tools** in `utils/` for build testing, web rendering, and uploading.
 - **TCP server** (single-client) that mirrors the BLE byte stream.
 - **NTRIP client integration** with JSON configuration (`/ntrip_config.json`), task-based lifecycle, and internet-reachability gating.
 - **GNSS skyplot rendering using stereographic projection** for a readable satellite view that preserves angular relationships near the horizon.
@@ -187,7 +187,7 @@ See below for detailed architecture, UART configuration system, BLE/TCP flow, pr
 
 ## Build and Configuration
 ### Build Flags
-- `WEBUI_ENABLE` (default `0`): enables WiFi/WebServer status UI. When `0`, web UI code is excluded and `scripts/gzip_web.py` does not run.
+- `WEBUI_ENABLE` (default `0`): enables WiFi/WebServer status UI. When `0`, web UI code is excluded.
 - `NMEA_ENABLE` (default `0`): enables the optional NMEA parser. When `WEBUI_ENABLE=0`, NMEA is forced off at build time. To get the full WebUI, your GNSS needs to send at minimum: GGA, GSV, GSA, GST and RMC.
 - `TCP_ENABLE` (default `0`): enables the TCP server that mirrors the BLE stream.
 - `NTRIP_CLIENT_ENABLE` (default `0`): enables the NTRIP client and JSON configuration in LittleFS (`/ntrip_config.json`). Requires `WEBUI_ENABLE=1` so the internet-reachability probe is available.
@@ -226,8 +226,8 @@ Full parameter list: see `include/README` and `include/app.h`.
   `Error! Should enable WiFi modem sleep when both WiFi and Bluetooth are enabled!!!!!!`
 
 ### Web UI Assets
-- When `WEBUI_ENABLE=1`, the build runs `scripts/gzip_web.py` to regenerate `include/app_*.h` from `web/*`.
-- After editing `web/index.html`, `web/app.js`, or `web/style.css`, rebuild so the headers are refreshed.
+- When `WEBUI_ENABLE=1`, the build regenerates `include/app_*.h` PROGMEM headers from `data/to_be_gzip/`.
+- After editing `data/to_be_gzip/index.html`, `data/to_be_gzip/app.js`, or `data/to_be_gzip/style.css`, rebuild so the headers are refreshed.
 
 ### Flash From BIN (Espressif Flash Download Tool)
 You can flash prebuilt `.bin` files directly using Espressif's Flash Download Tool (Windows GUI).
@@ -632,23 +632,24 @@ The firmware uses FreeRTOS StreamBuffers (ring buffers) to handle bursty traffic
 ## Folder Structure
 ```
 .
+|- data/           # LittleFS files (to_be_gzip/ for web assets)
 |- include/        # Header files and shared declarations
 |- lib/            # Reusable libraries
-|- scripts/        # Build or development helper scripts
 |- src/            # Firmware source files (main entry points)
-|- web/            # Web UI or static assets. Render locally with scripts/render_web.py (fake data in status.json)
+|- utils/          # Build tester, web renderer, uploader
 |- platformio.ini  # PlatformIO project configuration
 `- README.md       # Project documentation
 ```
 
-## Scripts
-- `scripts/gzip_web.py`: Gzips `web/*` assets and emits `include/app_*.h` PROGMEM headers (skips when `WEBUI_ENABLE=0`).
-- `scripts/render_web.py`: Simple FastAPI dev server to serve `web/` and mock `/api/status` + `/api/restart`.
+## Utils
+- `utils/render-web/render_web.py`: Simple FastAPI dev server to serve `data/to_be_gzip/` and mock `/api/status` + `/api/restart`.
+- `utils/build-tester/`: Build flag matrix tester (Docker or local).
+- `utils/uploader/uploaderGUI.py`: LittleFS image uploader GUI.
 
 ## Additional Information
 - Build and upload with PlatformIO using the standard `pio run` and `pio run -t upload` commands.
 - When adding new code, prefer keeping device logic in `src/` and generic helpers in `lib/`.
-- If you add a frontend, keep assets in `web/` and document any build steps here.
+- If you add a frontend, keep assets in `data/to_be_gzip/` and document any build steps here.
 - Example clients: BLE apps like SW Maps; TCP clients like QField.
 
 ## Web UI Screenshot

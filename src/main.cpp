@@ -62,7 +62,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/stream_buffer.h"
-#include "esp_task_wdt.h"
 
 #if WEBUI_ENABLE
 // ---- Webserver ----

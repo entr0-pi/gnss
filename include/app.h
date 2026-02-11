@@ -149,6 +149,10 @@ static const uint16_t BLE_LOW_RATE_DELAY_MS =
 // Can be overridden at compile time via build_flags in platformio.ini
 
 #ifndef FORCE_HARDCODED_UART
+#define FORCE_HARDCODED_UART 0
+#endif
+
+#if !FORCE_HARDCODED_UART
   // Normal mode: unconfigured defaults, use LittleFS config
   static const int PIN_GNSS_RX = -1;        // Unconfigured
   static const int PIN_GNSS_TX = -1;        // Unconfigured

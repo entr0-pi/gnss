@@ -45,15 +45,20 @@ static uint32_t markRequestAndGetPrevAgeMs() {
 
 // ---------------- Helpers ----------------
 
-// Send a JSON error response via ArduinoJson (no hand-built strings).
+// Serialize a JsonDocument and send it as an HTTP JSON response.
+static void sendJson(int code, JsonDocument& doc) {
+  String output;
+  doc.shrinkToFit();
+  serializeJson(doc, output);
+  s_server->sendHeader("Cache-Control", "no-store");
+  s_server->send(code, "application/json", output);
+}
+
 static void sendJsonError(int code, const char* error) {
   JsonDocument doc;
   doc["ok"]    = false;
   doc["error"] = error;
-  String output;
-  serializeJson(doc, output);
-  s_server->sendHeader("Cache-Control", "no-store");
-  s_server->send(code, "application/json", output);
+  sendJson(code, doc);
 }
 
 // Preferences::putString returns strlen(value), which is 0 for empty strings
@@ -321,11 +326,7 @@ static void handleStatus() {
     net["reach"] = internet;
   }
 
-  String output;
-  doc.shrinkToFit();
-  serializeJson(doc, output);
-  s_server->sendHeader("Cache-Control", "no-store");
-  s_server->send(200, "application/json", output);
+  sendJson(200, doc);
 }
 
 // ------------- API: /api/restart -------------
@@ -351,7 +352,7 @@ static void handleConfigGet() {
   doc["tx_pin"] = cfg.tx_pin;
   doc["baud"]   = cfg.baud;
 
-  #ifdef FORCE_HARDCODED_UART
+  #if FORCE_HARDCODED_UART
     doc["locked"] = true;
   #else
     doc["locked"] = false;
@@ -362,17 +363,13 @@ static void handleConfigGet() {
   defObj["tx_pin"] = defaults.tx_pin;
   defObj["baud"]   = defaults.baud;
 
-  String output;
-  doc.shrinkToFit();
-  serializeJson(doc, output);
-  s_server->sendHeader("Cache-Control", "no-store");
-  s_server->send(200, "application/json", output);
+  sendJson(200, doc);
 }
 
 static void handleConfigPost() {
   markRequestAndGetPrevAgeMs();
 
-  #ifdef FORCE_HARDCODED_UART
+  #if FORCE_HARDCODED_UART
     sendJsonError(403, "UART config is locked via build flags");
     return;
   #endif
@@ -412,11 +409,7 @@ static void handleConfigPost() {
   cfgObj["tx_pin"] = cfg.tx_pin;
   cfgObj["baud"]   = cfg.baud;
 
-  String output;
-  resp.shrinkToFit();
-  serializeJson(resp, output);
-  s_server->sendHeader("Cache-Control", "no-store");
-  s_server->send(200, "application/json", output);
+  sendJson(200, resp);
 }
 
 // ------------- API: /api/wifi_config -------------
@@ -456,11 +449,7 @@ static void handleWifiConfigGet() {
   doc["subnet"] = cfg.subnet.toString();
   doc["dns"]    = cfg.dns.toString();
 
-  String output;
-  doc.shrinkToFit();
-  serializeJson(doc, output);
-  s_server->sendHeader("Cache-Control", "no-store");
-  s_server->send(200, "application/json", output);
+  sendJson(200, doc);
 }
 
 static void handleWifiConfigPost() {
@@ -546,11 +535,7 @@ static void handleWifiConfigPost() {
   cfgObj["subnet"] = cfg.subnet.toString();
   cfgObj["dns"]    = cfg.dns.toString();
 
-  String output;
-  resp.shrinkToFit();
-  serializeJson(resp, output);
-  s_server->sendHeader("Cache-Control", "no-store");
-  s_server->send(200, "application/json", output);
+  sendJson(200, resp);
 }
 
 // ------------- API: /api/ntrip_config -------------
@@ -600,11 +585,7 @@ static void handleNtripConfigGet() {
     doc["error"] = "NTRIP config not found in NVS";
   }
 
-  String output;
-  doc.shrinkToFit();
-  serializeJson(doc, output);
-  s_server->sendHeader("Cache-Control", "no-store");
-  s_server->send(200, "application/json", output);
+  sendJson(200, doc);
 }
 
 static void handleNtripConfigPost() {
@@ -726,11 +707,7 @@ static void handleNtripConfigPost() {
   cfgObj["buffer_size"]           = bufferSize;
   cfgObj["connect_timeout_ms"]    = connectTimeout;
 
-  String output;
-  resp.shrinkToFit();
-  serializeJson(resp, output);
-  s_server->sendHeader("Cache-Control", "no-store");
-  s_server->send(200, "application/json", output);
+  sendJson(200, resp);
 }
 
 // ------------- Route registration -------------
