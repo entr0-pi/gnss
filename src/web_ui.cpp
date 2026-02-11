@@ -10,12 +10,11 @@
 #include <WiFiClient.h>
 #include <HTTPClient.h>
 #include <LittleFS.h>
-#include <Preferences.h>
 #include <cstring>
 #include <ArduinoJson.h>
 
 #include "gnss_config.h"
-#include "nvs_keys.h"
+#include "ntrip_config.h"
 #include "wifi_config.h"
 #include "web_ui.h"
 
@@ -59,13 +58,6 @@ static void sendJsonError(int code, const char* error) {
   doc["ok"]    = false;
   doc["error"] = error;
   sendJson(code, doc);
-}
-
-// Preferences::putString returns strlen(value), which is 0 for empty strings
-// even on success. This wrapper handles that edge case.
-static bool nvsPutString(Preferences& prefs, const char* key, const String& value) {
-  size_t ret = prefs.putString(key, value);
-  return (ret > 0) || value.isEmpty();
 }
 
 // Stream a static asset from LittleFS (always gzip).
@@ -344,7 +336,8 @@ static void handleRestart() {
 static void handleConfigGet() {
   markRequestAndGetPrevAgeMs();
 
-  const GnssConfig& cfg = gnss_config_get();
+  GnssConfig cfg = gnss_config_defaults();
+  gnss_config_load(cfg, nullptr);
   const GnssConfig defaults = gnss_config_defaults();
 
   JsonDocument doc;
@@ -390,7 +383,7 @@ static void handleConfigPost() {
     return;
   }
 
-  GnssConfig cfg = gnss_config_get();
+  GnssConfig cfg{};
   cfg.rx_pin = doc["rx_pin"].as<int>();
   cfg.tx_pin = doc["tx_pin"].as<int>();
   cfg.baud   = doc["baud"].as<uint32_t>();
@@ -543,46 +536,36 @@ static void handleWifiConfigPost() {
 static void handleNtripConfigGet() {
   markRequestAndGetPrevAgeMs();
 
+  NtripConfig cfg{};
+  NtripLockout lockout{};
+  String error;
+  const bool loaded = ntrip_config_load(cfg, &lockout, &error);
+
   JsonDocument doc;
   doc["locked"] = false;
-  JsonObject ntrip   = doc["ntrip"].to<JsonObject>();
-  JsonObject lockout = doc["lockout"].to<JsonObject>();
 
-  bool loadedFromNvs = false;
-  Preferences prefs;
-  if (prefs.begin(nvs_keys::ntrip::kNamespace, true)) {
-    const bool hasRequired =
-        prefs.isKey(nvs_keys::ntrip::kEnabled) && prefs.isKey(nvs_keys::ntrip::kHost) &&
-        prefs.isKey(nvs_keys::ntrip::kPort) && prefs.isKey(nvs_keys::ntrip::kMount) &&
-        prefs.isKey(nvs_keys::ntrip::kUser) && prefs.isKey(nvs_keys::ntrip::kPass) &&
-        prefs.isKey(nvs_keys::ntrip::kMaxTries) && prefs.isKey(nvs_keys::ntrip::kRetryDelay) &&
-        prefs.isKey(nvs_keys::ntrip::kHealthTimeout) && prefs.isKey(nvs_keys::ntrip::kPassiveMs) &&
-        prefs.isKey(nvs_keys::ntrip::kReqValid) && prefs.isKey(nvs_keys::ntrip::kBufferSize) &&
-        prefs.isKey(nvs_keys::ntrip::kConnectTimeout);
-    if (hasRequired) {
-      ntrip["enabled"]               = prefs.getBool(nvs_keys::ntrip::kEnabled);
-      ntrip["host"]                  = prefs.getString(nvs_keys::ntrip::kHost);
-      ntrip["port"]                  = prefs.getUInt(nvs_keys::ntrip::kPort);
-      ntrip["mount"]                 = prefs.getString(nvs_keys::ntrip::kMount);
-      ntrip["user"]                  = prefs.getString(nvs_keys::ntrip::kUser);
-      ntrip["pass"]                  = prefs.getString(nvs_keys::ntrip::kPass);
-      ntrip["max_tries"]             = prefs.getInt(nvs_keys::ntrip::kMaxTries);
-      ntrip["retry_delay_ms"]        = prefs.getULong(nvs_keys::ntrip::kRetryDelay);
-      ntrip["health_timeout_ms"]     = prefs.getULong(nvs_keys::ntrip::kHealthTimeout);
-      ntrip["passive_sample_ms"]     = prefs.getULong(nvs_keys::ntrip::kPassiveMs);
-      ntrip["required_valid_frames"] = prefs.getUInt(nvs_keys::ntrip::kReqValid);
-      ntrip["buffer_size"]           = prefs.getUInt(nvs_keys::ntrip::kBufferSize);
-      ntrip["connect_timeout_ms"]    = prefs.getULong(nvs_keys::ntrip::kConnectTimeout);
-      lockout["failed_attempts"]     = prefs.getInt(nvs_keys::ntrip::lockout::kAttempts, 0);
-      lockout["abandoned"]           = prefs.getBool(nvs_keys::ntrip::lockout::kAbandoned, false);
-      lockout["last_config_hash"]    = prefs.getString(nvs_keys::ntrip::lockout::kHash, "");
-      loadedFromNvs = true;
-    }
-    prefs.end();
-  }
+  if (loaded) {
+    JsonObject ntrip = doc["ntrip"].to<JsonObject>();
+    ntrip["enabled"]               = cfg.enabled;
+    ntrip["host"]                  = cfg.host;
+    ntrip["port"]                  = cfg.port;
+    ntrip["mount"]                 = cfg.mount;
+    ntrip["user"]                  = cfg.user;
+    ntrip["pass"]                  = cfg.pass;
+    ntrip["max_tries"]             = cfg.max_tries;
+    ntrip["retry_delay_ms"]        = cfg.retry_delay_ms;
+    ntrip["health_timeout_ms"]     = cfg.health_timeout_ms;
+    ntrip["passive_sample_ms"]     = cfg.passive_sample_ms;
+    ntrip["required_valid_frames"] = cfg.required_valid_frames;
+    ntrip["buffer_size"]           = cfg.buffer_size;
+    ntrip["connect_timeout_ms"]    = cfg.connect_timeout_ms;
 
-  if (!loadedFromNvs) {
-    doc["error"] = "NTRIP config not found in NVS";
+    JsonObject lockObj = doc["lockout"].to<JsonObject>();
+    lockObj["failed_attempts"]  = lockout.failed_attempts;
+    lockObj["abandoned"]        = lockout.abandoned;
+    lockObj["last_config_hash"] = lockout.last_config_hash;
+  } else {
+    doc["error"] = error;
   }
 
   sendJson(200, doc);
@@ -625,67 +608,35 @@ static void handleNtripConfigPost() {
     return;
   }
 
-  const bool     enabled        = ntripIn["enabled"].as<bool>();
-  const String   host           = ntripIn["host"].as<String>();
-  const uint16_t port           = ntripIn["port"].as<uint16_t>();
-  const String   mount          = ntripIn["mount"].as<String>();
-  const String   user           = ntripIn["user"].as<String>();
-  const String   pass           = ntripIn["pass"].as<String>();
-  const int      maxTries       = ntripIn["max_tries"].as<int>();
-  const uint32_t retryDelay     = ntripIn["retry_delay_ms"].as<uint32_t>();
-  const uint32_t healthTimeout  = ntripIn["health_timeout_ms"].as<uint32_t>();
-  const uint32_t passiveMs      = ntripIn["passive_sample_ms"].as<uint32_t>();
-  const uint32_t reqValid       = ntripIn["required_valid_frames"].as<uint32_t>();
-  const uint32_t bufferSize     = ntripIn["buffer_size"].as<uint32_t>();
-  const uint32_t connectTimeout = ntripIn["connect_timeout_ms"].as<uint32_t>();
+  NtripConfig cfg{};
+  cfg.enabled              = ntripIn["enabled"].as<bool>();
+  cfg.host                 = ntripIn["host"].as<String>();
+  cfg.port                 = ntripIn["port"].as<uint16_t>();
+  cfg.mount                = ntripIn["mount"].as<String>();
+  cfg.user                 = ntripIn["user"].as<String>();
+  cfg.pass                 = ntripIn["pass"].as<String>();
+  cfg.max_tries            = ntripIn["max_tries"].as<int>();
+  cfg.retry_delay_ms       = ntripIn["retry_delay_ms"].as<uint32_t>();
+  cfg.health_timeout_ms    = ntripIn["health_timeout_ms"].as<uint32_t>();
+  cfg.passive_sample_ms    = ntripIn["passive_sample_ms"].as<uint32_t>();
+  cfg.required_valid_frames = ntripIn["required_valid_frames"].as<uint32_t>();
+  cfg.buffer_size          = ntripIn["buffer_size"].as<uint32_t>();
+  cfg.connect_timeout_ms   = ntripIn["connect_timeout_ms"].as<uint32_t>();
 
-  if (host.isEmpty() || mount.isEmpty()) {
-    sendJsonError(400, "host and mount are required");
+  String valError;
+  if (!ntrip_config_validate(cfg, &valError)) {
+    sendJsonError(400, valError.c_str());
     return;
   }
 
   // Preserve existing lockout state across config saves.
-  int    lockFailures  = 0;
-  bool   lockAbandoned = false;
-  String lockHash;
-  {
-    Preferences rPrefs;
-    if (rPrefs.begin(nvs_keys::ntrip::kNamespace, true)) {
-      lockFailures  = rPrefs.getInt(nvs_keys::ntrip::lockout::kAttempts, 0);
-      lockAbandoned = rPrefs.getBool(nvs_keys::ntrip::lockout::kAbandoned, false);
-      lockHash      = rPrefs.getString(nvs_keys::ntrip::lockout::kHash, "");
-      rPrefs.end();
-    }
-  }
+  NtripLockout lockout{};
+  NtripConfig existing{};
+  ntrip_config_load(existing, &lockout, nullptr);
 
-  // Write config + preserved lockout to NVS.
-  Preferences prefs;
-  if (!prefs.begin(nvs_keys::ntrip::kNamespace, false)) {
-    sendJsonError(500, "Failed to open NVS");
-    return;
-  }
-
-  bool ok = true;
-  ok = ok && prefs.putBool(nvs_keys::ntrip::kEnabled, enabled);
-  ok = ok && nvsPutString(prefs, nvs_keys::ntrip::kHost, host);
-  ok = ok && prefs.putUInt(nvs_keys::ntrip::kPort, port);
-  ok = ok && nvsPutString(prefs, nvs_keys::ntrip::kMount, mount);
-  ok = ok && nvsPutString(prefs, nvs_keys::ntrip::kUser, user);
-  ok = ok && nvsPutString(prefs, nvs_keys::ntrip::kPass, pass);
-  ok = ok && prefs.putInt(nvs_keys::ntrip::kMaxTries, maxTries);
-  ok = ok && prefs.putULong(nvs_keys::ntrip::kRetryDelay, retryDelay);
-  ok = ok && prefs.putULong(nvs_keys::ntrip::kHealthTimeout, healthTimeout);
-  ok = ok && prefs.putULong(nvs_keys::ntrip::kPassiveMs, passiveMs);
-  ok = ok && prefs.putUInt(nvs_keys::ntrip::kReqValid, reqValid);
-  ok = ok && prefs.putUInt(nvs_keys::ntrip::kBufferSize, bufferSize);
-  ok = ok && prefs.putULong(nvs_keys::ntrip::kConnectTimeout, connectTimeout);
-  ok = ok && prefs.putInt(nvs_keys::ntrip::lockout::kAttempts, lockFailures);
-  ok = ok && prefs.putBool(nvs_keys::ntrip::lockout::kAbandoned, lockAbandoned);
-  ok = ok && nvsPutString(prefs, nvs_keys::ntrip::lockout::kHash, lockHash);
-  prefs.end();
-
-  if (!ok) {
-    sendJsonError(500, "Failed to write NVS");
+  String saveError;
+  if (!ntrip_config_save(cfg, &lockout, &saveError)) {
+    sendJsonError(500, saveError.c_str());
     return;
   }
 
@@ -693,19 +644,19 @@ static void handleNtripConfigPost() {
   resp["ok"]      = true;
   resp["message"] = "NTRIP config saved";
   JsonObject cfgObj = resp["config"].to<JsonObject>();
-  cfgObj["enabled"]               = enabled;
-  cfgObj["host"]                  = host;
-  cfgObj["port"]                  = port;
-  cfgObj["mount"]                 = mount;
-  cfgObj["user"]                  = user;
-  cfgObj["pass"]                  = pass;
-  cfgObj["max_tries"]             = maxTries;
-  cfgObj["retry_delay_ms"]        = retryDelay;
-  cfgObj["health_timeout_ms"]     = healthTimeout;
-  cfgObj["passive_sample_ms"]     = passiveMs;
-  cfgObj["required_valid_frames"] = reqValid;
-  cfgObj["buffer_size"]           = bufferSize;
-  cfgObj["connect_timeout_ms"]    = connectTimeout;
+  cfgObj["enabled"]               = cfg.enabled;
+  cfgObj["host"]                  = cfg.host;
+  cfgObj["port"]                  = cfg.port;
+  cfgObj["mount"]                 = cfg.mount;
+  cfgObj["user"]                  = cfg.user;
+  cfgObj["pass"]                  = cfg.pass;
+  cfgObj["max_tries"]             = cfg.max_tries;
+  cfgObj["retry_delay_ms"]        = cfg.retry_delay_ms;
+  cfgObj["health_timeout_ms"]     = cfg.health_timeout_ms;
+  cfgObj["passive_sample_ms"]     = cfg.passive_sample_ms;
+  cfgObj["required_valid_frames"] = cfg.required_valid_frames;
+  cfgObj["buffer_size"]           = cfg.buffer_size;
+  cfgObj["connect_timeout_ms"]    = cfg.connect_timeout_ms;
 
   sendJson(200, resp);
 }

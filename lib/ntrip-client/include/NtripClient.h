@@ -40,7 +40,7 @@ using NtripLogFn = void (*)(NtripLogLevel level, const char* tag, const char* me
 
 // ─── Configuration ──────────────────────────────────────────────────────────
 
-struct NtripConfig {
+struct NtripClientConfig {
   String host;
   uint16_t port = 2101;
   String mount;
@@ -111,8 +111,8 @@ public:
   // ── Lifecycle ──────────────────────────────────────────────────────────
   // Required call order: begin() → startTask() → … → stopTask()
 
-  bool begin(const NtripConfig& cfg, Print& gnss);
-  bool begin(const NtripConfig& cfg, HardwareSerial& gnss);
+  bool begin(const NtripClientConfig& cfg, Print& gnss);
+  bool begin(const NtripClientConfig& cfg, HardwareSerial& gnss);
 
 #if NTRIP_CLIENT_ENABLE_TASK
   /// Start background FreeRTOS task. Returns false if already running.
@@ -141,13 +141,13 @@ public:
   // ── Configuration ─────────────────────────────────────────────────────
 
   void setLogger(NtripLogFn logger);
-  static bool validateConfig(const NtripConfig& cfg, String& errorOut);
+  static bool validateConfig(const NtripClientConfig& cfg, String& errorOut);
 
 private:
   static void taskEntry(void* arg);
   void taskLoop();
-  bool connectCaster(const NtripConfig& cfg);
-  bool connectCasterWithVersion(const NtripConfig& cfg,
+  bool connectCaster(const NtripClientConfig& cfg);
+  bool connectCasterWithVersion(const NtripClientConfig& cfg,
                                 bool useRev2,
                                 NtripError& err,
                                 String& errMsg);
@@ -157,7 +157,7 @@ private:
 
   WiFiClient client;
   Print* gnssOutput = nullptr;
-  NtripConfig config;
+  NtripClientConfig config;
 
   // Volatile scalars — written by taskLoop, readable from any task.
   volatile NtripState _state = NtripState::DISCONNECTED;

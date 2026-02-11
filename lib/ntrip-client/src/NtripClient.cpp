@@ -15,7 +15,7 @@ static constexpr unsigned long STATS_FLUSH_MS = 250;
 
 // ─── Config validation ──────────────────────────────────────────────────────
 
-bool NtripClient::validateConfig(const NtripConfig& cfg, String& errorOut) {
+bool NtripClient::validateConfig(const NtripClientConfig& cfg, String& errorOut) {
   if (cfg.host.length() == 0)       { errorOut = "host is empty";            return false; }
   if (cfg.mount.length() == 0)      { errorOut = "mount is empty";           return false; }
   if (cfg.port == 0)                { errorOut = "port is zero";             return false; }
@@ -28,7 +28,7 @@ bool NtripClient::validateConfig(const NtripConfig& cfg, String& errorOut) {
 
 // ─── Lifecycle ──────────────────────────────────────────────────────────────
 
-bool NtripClient::begin(const NtripConfig& cfg, Print& gnss) {
+bool NtripClient::begin(const NtripClientConfig& cfg, Print& gnss) {
   String validationError;
   if (!validateConfig(cfg, validationError)) {
     NTRIP_LOGE("Invalid config: %s", validationError.c_str());
@@ -56,7 +56,7 @@ bool NtripClient::begin(const NtripConfig& cfg, Print& gnss) {
   return true;
 }
 
-bool NtripClient::begin(const NtripConfig& cfg, HardwareSerial& gnss) {
+bool NtripClient::begin(const NtripClientConfig& cfg, HardwareSerial& gnss) {
   return begin(cfg, static_cast<Print&>(gnss));
 }
 
@@ -339,7 +339,7 @@ void NtripClient::taskLoop() {
 
 // ─── Connection ─────────────────────────────────────────────────────────────
 
-bool NtripClient::connectCaster(const NtripConfig& cfg) {
+bool NtripClient::connectCaster(const NtripClientConfig& cfg) {
   NtripError err = NtripError::NONE;
   String errMsg;
 
@@ -358,7 +358,7 @@ bool NtripClient::connectCaster(const NtripConfig& cfg) {
   return false;
 }
 
-bool NtripClient::connectCasterWithVersion(const NtripConfig& cfg,
+bool NtripClient::connectCasterWithVersion(const NtripClientConfig& cfg,
                                            bool useRev2,
                                            NtripError& err,
                                            String& errMsg) {

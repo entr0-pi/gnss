@@ -574,7 +574,8 @@ static void createStreamBuffers() {
  * CRITICAL: Must be called BEFORE WiFi/BLE init to avoid ESP32-C3 hang issues.
  */
 static void setupUartIfConfigured() {
-  const GnssConfig& cfg = gnss_config_get();
+  GnssConfig cfg = gnss_config_defaults();
+  gnss_config_load(cfg, nullptr);
   if (cfg.rx_pin == -1 || cfg.tx_pin == -1 || cfg.baud == 0) {
     LOG_W("SETUP", "UART not configured - configure via web UI");
   } else {
@@ -858,7 +859,8 @@ static void setupBLE() {
 
 // ---------------- Setup UART ----------------
 static void setupUART() {
-  const GnssConfig& cfg = gnss_config_get();
+  GnssConfig cfg = gnss_config_defaults();
+  gnss_config_load(cfg, nullptr);
   LOG_I("UART", "Configuring: RX=%d, TX=%d, Baud=%u", cfg.rx_pin, cfg.tx_pin, cfg.baud);
 
   Serial1.begin(cfg.baud, SERIAL_8N1, cfg.rx_pin, cfg.tx_pin);
@@ -874,8 +876,7 @@ bool gnss_apply_runtime_config(const GnssConfig& cfg, String* error) {
   Serial1.end();
   Serial1.begin(cfg.baud, SERIAL_8N1, cfg.rx_pin, cfg.tx_pin);
 
-  if (!gnss_config_save(cfg)) {
-    if (error) *error = "Failed to persist config to NVS.";
+  if (!gnss_config_save(cfg, error)) {
     return false;
   }
 

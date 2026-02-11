@@ -13,12 +13,7 @@ struct WifiConfig {
   IPAddress dns;
 };
 
-// Loads WiFi configuration from NVS namespace "wifi".
-// Returns true when the config is loaded and valid.
-// On failure, returns false and populates error (if provided).
+WifiConfig wifi_config_defaults();
+bool wifi_config_validate(const WifiConfig& cfg, String* error);
 bool wifi_config_load(WifiConfig& cfg, String* error);
-
-// Saves WiFi configuration to NVS namespace "wifi".
-// Returns true when the config is saved.
-// On failure, returns false and populates error (if provided).
 bool wifi_config_save(const WifiConfig& cfg, String* error);

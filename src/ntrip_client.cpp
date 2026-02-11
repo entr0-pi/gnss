@@ -3,11 +3,9 @@
 #if NTRIP_CLIENT_ENABLE
 
 #include <Arduino.h>
-#include <ArduinoJson.h>
-#include <Preferences.h>
 #include <WiFi.h>
 #include "NtripClient.h"
-#include "nvs_keys.h"
+#include "ntrip_config.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #define MODULE_LOG 1
@@ -19,7 +17,8 @@
 
 namespace {
 NtripClient g_ntripClient;
-JsonDocument g_configDoc;
+NtripConfig g_ntripCfg;
+NtripLockout g_lockout;
 TaskHandle_t g_ntripMonitorHandle = nullptr;
 bool g_ntripTaskStarted = false;
 
@@ -78,73 +77,12 @@ void ntripClientLogAdapter(NtripLogLevel level, const char* tag, const char* mes
   }
 }
 
-bool loadNtripFromNvs(JsonDocument& doc, String* error) {
-  Preferences prefs;
-  if (!prefs.begin(nvs_keys::ntrip::kNamespace, true)) {
-    if (error) *error = "NVS open failed";
-    return false;
-  }
-
-  const bool hasRequired =
-      prefs.isKey(nvs_keys::ntrip::kEnabled) && prefs.isKey(nvs_keys::ntrip::kHost) &&
-      prefs.isKey(nvs_keys::ntrip::kPort) && prefs.isKey(nvs_keys::ntrip::kMount) &&
-      prefs.isKey(nvs_keys::ntrip::kUser) && prefs.isKey(nvs_keys::ntrip::kPass) &&
-      prefs.isKey(nvs_keys::ntrip::kMaxTries) && prefs.isKey(nvs_keys::ntrip::kRetryDelay) &&
-      prefs.isKey(nvs_keys::ntrip::kHealthTimeout) && prefs.isKey(nvs_keys::ntrip::kPassiveMs) &&
-      prefs.isKey(nvs_keys::ntrip::kReqValid) && prefs.isKey(nvs_keys::ntrip::kBufferSize) &&
-      prefs.isKey(nvs_keys::ntrip::kConnectTimeout);
-
-  if (!hasRequired) {
-    prefs.end();
-    if (error) *error = "NTRIP config not found in NVS";
-    return false;
-  }
-
-  JsonObject ntrip = doc["ntrip"].to<JsonObject>();
-  ntrip["enabled"] = prefs.getBool(nvs_keys::ntrip::kEnabled);
-  ntrip["host"] = prefs.getString(nvs_keys::ntrip::kHost);
-  ntrip["port"] = prefs.getUInt(nvs_keys::ntrip::kPort);
-  ntrip["mount"] = prefs.getString(nvs_keys::ntrip::kMount);
-  ntrip["user"] = prefs.getString(nvs_keys::ntrip::kUser);
-  ntrip["pass"] = prefs.getString(nvs_keys::ntrip::kPass);
-  ntrip["max_tries"] = prefs.getInt(nvs_keys::ntrip::kMaxTries);
-  ntrip["retry_delay_ms"] = prefs.getULong(nvs_keys::ntrip::kRetryDelay);
-  ntrip["health_timeout_ms"] = prefs.getULong(nvs_keys::ntrip::kHealthTimeout);
-  ntrip["passive_sample_ms"] = prefs.getULong(nvs_keys::ntrip::kPassiveMs);
-  ntrip["required_valid_frames"] = prefs.getUInt(nvs_keys::ntrip::kReqValid);
-  ntrip["buffer_size"] = prefs.getUInt(nvs_keys::ntrip::kBufferSize);
-  ntrip["connect_timeout_ms"] = prefs.getULong(nvs_keys::ntrip::kConnectTimeout);
-  prefs.end();
-  return true;
-}
-
-bool loadLockoutFromNvs(JsonDocument& doc) {
-  Preferences prefs;
-  if (!prefs.begin(nvs_keys::ntrip::kNamespace, true)) return false;
-  if (!prefs.isKey(nvs_keys::ntrip::lockout::kAttempts) ||
-      !prefs.isKey(nvs_keys::ntrip::lockout::kAbandoned) ||
-      !prefs.isKey(nvs_keys::ntrip::lockout::kHash)) {
-    prefs.end();
-    return false;
-  }
-
-  JsonObject lockout = doc["lockout"].to<JsonObject>();
-  lockout["failed_attempts"] = prefs.getInt(nvs_keys::ntrip::lockout::kAttempts);
-  lockout["abandoned"] = prefs.getBool(nvs_keys::ntrip::lockout::kAbandoned);
-  lockout["last_config_hash"] = prefs.getString(nvs_keys::ntrip::lockout::kHash);
-  prefs.end();
-  return true;
-}
-
-bool saveLockoutToNvs(int attempts, bool abandoned, const String& currentHash) {
-  Preferences prefs;
-  if (!prefs.begin(nvs_keys::ntrip::kNamespace, false)) return false;
-  bool ok = true;
-  ok = ok && prefs.putInt(nvs_keys::ntrip::lockout::kAttempts, attempts) > 0;
-  ok = ok && prefs.putBool(nvs_keys::ntrip::lockout::kAbandoned, abandoned);
-  ok = ok && prefs.putString(nvs_keys::ntrip::lockout::kHash, currentHash) > 0;
-  prefs.end();
-  return ok;
+String configHash(const NtripConfig& cfg) {
+  return cfg.host + ":" + String(cfg.port) + "/" + cfg.mount + "@" + cfg.user
+       + ":" + cfg.pass + "|" + String(cfg.max_tries) + "|" + String(cfg.retry_delay_ms)
+       + "|" + String(cfg.health_timeout_ms) + "|" + String(cfg.passive_sample_ms)
+       + "|" + String(cfg.required_valid_frames) + "|" + String(cfg.buffer_size)
+       + "|" + String(cfg.connect_timeout_ms);
 }
 
 bool isInternetReachable() {
@@ -158,96 +96,69 @@ bool isInternetReachable() {
 #endif
 }
 
-void updateJsonState(int attempts, bool abandoned, const String& currentHash) {
-  if (g_configDoc["lockout"]["failed_attempts"] == attempts &&
-      g_configDoc["lockout"]["abandoned"] == abandoned &&
-      g_configDoc["lockout"]["last_config_hash"] == currentHash) {
+void saveLockout(int attempts, bool abandoned, const String& hash) {
+  if (g_lockout.failed_attempts == attempts &&
+      g_lockout.abandoned == abandoned &&
+      g_lockout.last_config_hash == hash) {
     return;
   }
 
-  g_configDoc["lockout"]["failed_attempts"] = attempts;
-  g_configDoc["lockout"]["abandoned"] = abandoned;
-  g_configDoc["lockout"]["last_config_hash"] = currentHash;
-  saveLockoutToNvs(attempts, abandoned, currentHash);
+  g_lockout.failed_attempts = attempts;
+  g_lockout.abandoned = abandoned;
+  g_lockout.last_config_hash = hash;
+  ntrip_config_save(g_ntripCfg, &g_lockout, nullptr);
 }
 
-bool loadAndValidateConfig(NtripConfig& config) {
-  g_configDoc.clear();
-
+bool loadAndValidateConfig(NtripClientConfig& config) {
   String nvsError;
-  if (loadNtripFromNvs(g_configDoc, &nvsError)) {
-    LOG_I("NTRIP", "Loaded config from NVS");
-    if (!loadLockoutFromNvs(g_configDoc)) {
-      const int attempts = 0;
-      const bool abandoned = false;
-      const String hash = "";
-      g_configDoc["lockout"]["failed_attempts"] = attempts;
-      g_configDoc["lockout"]["abandoned"] = abandoned;
-      g_configDoc["lockout"]["last_config_hash"] = hash;
-      saveLockoutToNvs(attempts, abandoned, hash);
-    }
-  } else {
+  if (!ntrip_config_load(g_ntripCfg, &g_lockout, &nvsError)) {
     LOG_W("NTRIP", "NVS config missing/invalid: %s", nvsError.c_str());
     return false;
   }
+  LOG_I("NTRIP", "Loaded config from NVS");
 
-  const bool isEnabled = g_configDoc["ntrip"]["enabled"] | false;
-  if (!isEnabled) {
+  if (!g_ntripCfg.enabled) {
     return false;
   }
 
-  String currentSettings;
-  serializeJson(g_configDoc["ntrip"], currentSettings);
-  const String oldHash = g_configDoc["lockout"]["last_config_hash"] | "";
-  bool abandoned = g_configDoc["lockout"]["abandoned"] | false;
-  int attempts = g_configDoc["lockout"]["failed_attempts"] | 0;
-  const int maxTries = g_configDoc["ntrip"]["max_tries"] | 5;
-
-  if (currentSettings != oldHash) {
+  const String currentHash_ = configHash(g_ntripCfg);
+  if (currentHash_ != g_lockout.last_config_hash) {
     LOG_I("NTRIP", "New config detected. Resetting lockout.");
-    attempts = 0;
-    abandoned = false;
-    updateJsonState(attempts, abandoned, currentSettings);
+    saveLockout(0, false, currentHash_);
   }
 
-  if (abandoned) {
+  if (g_lockout.abandoned) {
     LOG_W("NTRIP", "Locked out due to repeated failures");
     return false;
   }
 
-  config.host = g_configDoc["ntrip"]["host"] | "rtk2go.com";
-  config.port = g_configDoc["ntrip"]["port"] | 2101;
-  config.mount = g_configDoc["ntrip"]["mount"] | "MOUNT";
-  config.user = g_configDoc["ntrip"]["user"] | "user";
-  config.pass = g_configDoc["ntrip"]["pass"] | "pass";
-  config.maxTries = maxTries;
-
-  config.retryDelayMs = g_configDoc["ntrip"]["retry_delay_ms"] | 30000;
-  config.healthTimeoutMs = g_configDoc["ntrip"]["health_timeout_ms"] | 60000;
-  config.passiveSampleMs = g_configDoc["ntrip"]["passive_sample_ms"] | 5000;
-  config.requiredValidFrames = g_configDoc["ntrip"]["required_valid_frames"] | 3;
-  config.bufferSize = g_configDoc["ntrip"]["buffer_size"] | 1024;
-  config.connectTimeoutMs = g_configDoc["ntrip"]["connect_timeout_ms"] | 5000;
+  config.host               = g_ntripCfg.host;
+  config.port               = g_ntripCfg.port;
+  config.mount              = g_ntripCfg.mount;
+  config.user               = g_ntripCfg.user;
+  config.pass               = g_ntripCfg.pass;
+  config.maxTries            = g_ntripCfg.max_tries;
+  config.retryDelayMs        = g_ntripCfg.retry_delay_ms;
+  config.healthTimeoutMs     = g_ntripCfg.health_timeout_ms;
+  config.passiveSampleMs     = g_ntripCfg.passive_sample_ms;
+  config.requiredValidFrames = g_ntripCfg.required_valid_frames;
+  config.bufferSize          = g_ntripCfg.buffer_size;
+  config.connectTimeoutMs    = g_ntripCfg.connect_timeout_ms;
 
   return true;
 }
 
-void syncJsonWithClientState() {
+void syncLockoutWithClientState() {
   const NtripState state = g_ntripClient.state();
-  String currentSettings;
-  serializeJson(g_configDoc["ntrip"], currentSettings);
-
-  const int attempts = g_configDoc["lockout"]["failed_attempts"] | 0;
-  const bool abandoned = g_configDoc["lockout"]["abandoned"] | false;
-  const int maxTries = g_configDoc["ntrip"]["max_tries"] | 5;
+  const String hash = configHash(g_ntripCfg);
 
   if (state == NtripState::STREAMING && g_ntripClient.isHealthy()) {
-    if (attempts != 0 || abandoned != false) {
-      updateJsonState(0, false, currentSettings);
+    if (g_lockout.failed_attempts != 0 || g_lockout.abandoned) {
+      saveLockout(0, false, hash);
     }
   } else if (state == NtripState::LOCKED_OUT) {
-    if (!abandoned) {
-      updateJsonState(maxTries, true, currentSettings);
+    if (!g_lockout.abandoned) {
+      saveLockout(g_ntripCfg.max_tries, true, hash);
     }
   }
 }
@@ -342,10 +253,7 @@ void handleLockout() {
   if (millis() - lockoutStart > 120000) {
     LOG_I("NTRIP", "Auto-resetting lockout...");
     g_ntripClient.reset();
-
-    String currentSettings;
-    serializeJson(g_configDoc["ntrip"], currentSettings);
-    updateJsonState(0, false, currentSettings);
+    saveLockout(0, false, configHash(g_ntripCfg));
 
     lockoutLogged = false;
   }
@@ -354,7 +262,7 @@ void handleLockout() {
 void configMonitorTask(void* pvParameters) {
   (void)pvParameters;
 
-  NtripConfig currentConfig;
+  NtripClientConfig currentConfig;
   bool wasInternetReachable = false;
   bool wasConfigured = false;
   unsigned long lastStatsDisplay = 0;
@@ -377,7 +285,7 @@ void configMonitorTask(void* pvParameters) {
       g_lastConfigCheck = millis();
 
       if (internetReachable) {
-        NtripConfig newConfig;
+        NtripClientConfig newConfig;
         const bool shouldBeRunning = loadAndValidateConfig(newConfig);
 
         const bool configChanged =
@@ -422,7 +330,7 @@ void configMonitorTask(void* pvParameters) {
         }
 
         if (wasConfigured) {
-          syncJsonWithClientState();
+          syncLockoutWithClientState();
         }
       }
     }

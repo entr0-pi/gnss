@@ -9,10 +9,10 @@ struct GnssConfig {
 };
 
 bool gnss_config_begin();
-const GnssConfig& gnss_config_get();
 GnssConfig gnss_config_defaults();
 bool gnss_config_validate(const GnssConfig& cfg, String* error);
-bool gnss_config_save(const GnssConfig& cfg);
+bool gnss_config_load(GnssConfig& out, String* error);
+bool gnss_config_save(const GnssConfig& cfg, String* error);
 
 // Applies the config to the UART and persists it (implemented in main.cpp).
 bool gnss_apply_runtime_config(const GnssConfig& cfg, String* error);

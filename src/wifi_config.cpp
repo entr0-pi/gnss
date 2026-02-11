@@ -23,6 +23,25 @@ bool parse_ip_field(const String& value, const char* field, IPAddress& out, Stri
 }
 } // namespace
 
+WifiConfig wifi_config_defaults() {
+  return WifiConfig{"", "", false, IPAddress(), IPAddress(), IPAddress(), IPAddress()};
+}
+
+bool wifi_config_validate(const WifiConfig& cfg, String* error) {
+  if (cfg.ssid.isEmpty()) {
+    if (error) *error = "ssid is empty";
+    return false;
+  }
+  if (!cfg.dhcp) {
+    if (cfg.ip == IPAddress(0, 0, 0, 0) || cfg.gw == IPAddress(0, 0, 0, 0) ||
+        cfg.subnet == IPAddress(0, 0, 0, 0) || cfg.dns == IPAddress(0, 0, 0, 0)) {
+      if (error) *error = "ip, gw, subnet, and dns are required when dhcp is false";
+      return false;
+    }
+  }
+  return true;
+}
+
 bool wifi_config_load(WifiConfig& cfg, String* error) {
   Preferences prefs;
   if (!prefs.begin(nvs_keys::wifi::kNamespace, true)) {

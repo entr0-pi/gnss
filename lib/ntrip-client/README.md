@@ -37,7 +37,7 @@ Override via build_flags (e.g. `-DNTRIP_CLIENT_ENABLE_TASK=0`):
 
 Types in `include/NtripClient.h`:
 
-- `NtripConfig` — caster and behavior settings
+- `NtripClientConfig` — caster and behavior settings
 - `NtripState` — `DISCONNECTED | CONNECTING | STREAMING | LOCKED_OUT`
 - `NtripError` — failure categories (includes `INVALID_CONFIG`)
 - `NtripStats` — counters + last error/frame info
@@ -79,7 +79,7 @@ If `setLogger()` is not called, the library is silent.
 
 ## Configuration
 
-`NtripConfig` fields:
+`NtripClientConfig` fields:
 
 | Field | Default | Notes |
 |-------|---------|-------|
@@ -99,7 +99,7 @@ If `setLogger()` is not called, the library is silent.
 NtripClient ntrip;
 ntrip.setLogger(myLogCallback);
 
-NtripConfig cfg;
+NtripClientConfig cfg;
 cfg.host = "rtk2go.com";
 cfg.mount = "MY_MOUNT";
 // ... fill remaining fields ...

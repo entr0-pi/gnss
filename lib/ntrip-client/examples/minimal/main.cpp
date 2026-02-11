@@ -26,7 +26,7 @@ void setup() {
   Serial.println("\nWiFi OK");
   
   // Configure NTRIP
-  NtripConfig cfg;
+  NtripClientConfig cfg;
   cfg.host = "rtk2go.com";
   cfg.port = 2101;
   cfg.mount = "YOUR_MOUNT_POINT";

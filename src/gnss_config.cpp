@@ -9,28 +9,6 @@
 
 namespace {
 bool g_nvs_ready = false;
-GnssConfig g_config{};
-
-bool load_config_nvs(GnssConfig& cfg) {
-  if (!g_nvs_ready) return false;
-
-  Preferences prefs;
-  if (!prefs.begin(nvs_keys::gnss::kNamespace, true)) return false;
-
-  if (!prefs.isKey(nvs_keys::gnss::kRxPin) ||
-      !prefs.isKey(nvs_keys::gnss::kTxPin) ||
-      !prefs.isKey(nvs_keys::gnss::kBaud)) {
-    prefs.end();
-    return false;
-  }
-
-  cfg.rx_pin = prefs.getInt(nvs_keys::gnss::kRxPin);
-  cfg.tx_pin = prefs.getInt(nvs_keys::gnss::kTxPin);
-  cfg.baud = prefs.getULong(nvs_keys::gnss::kBaud);
-
-  prefs.end();
-  return true;
-}
 } // namespace
 
 GnssConfig gnss_config_defaults() {
@@ -58,48 +36,45 @@ bool gnss_config_validate(const GnssConfig& cfg, String* error) {
   return true;
 }
 
-bool gnss_config_begin() {
-  g_config = gnss_config_defaults();
+bool gnss_config_load(GnssConfig& out, String* error) {
+  if (!g_nvs_ready) {
+    if (error) *error = "NVS not ready";
+    return false;
+  }
 
   Preferences prefs;
-  if (!prefs.begin(nvs_keys::gnss::kNamespace, false)) {
-    LOG_E("GNSS", "NVS open failed");
-    LOG_W("GNSS", "Using fallback hardcoded config");
-    g_nvs_ready = false;
-    g_config = GnssConfig{FALLBACK_GNSS_RX, FALLBACK_GNSS_TX, FALLBACK_GNSS_BAUD};
-    return true;
+  if (!prefs.begin(nvs_keys::gnss::kNamespace, true)) {
+    if (error) *error = "NVS open failed";
+    return false;
   }
+
+  if (!prefs.isKey(nvs_keys::gnss::kRxPin) ||
+      !prefs.isKey(nvs_keys::gnss::kTxPin) ||
+      !prefs.isKey(nvs_keys::gnss::kBaud)) {
+    prefs.end();
+    if (error) *error = "GNSS config not found in NVS";
+    return false;
+  }
+
+  out.rx_pin = prefs.getInt(nvs_keys::gnss::kRxPin);
+  out.tx_pin = prefs.getInt(nvs_keys::gnss::kTxPin);
+  out.baud = prefs.getULong(nvs_keys::gnss::kBaud);
+
   prefs.end();
-
-  g_nvs_ready = true;
-  LOG_I("GNSS", "NVS ready");
-
-  // NVS only.
-  GnssConfig loaded_nvs = g_config;
-  if (load_config_nvs(loaded_nvs) && gnss_config_validate(loaded_nvs, nullptr)) {
-    g_config = loaded_nvs;
-    LOG_I("GNSS", "Config loaded from NVS");
-  } else {
-    LOG_W("GNSS", "NVS config missing/invalid, using defaults");
-    if (gnss_config_save(g_config)) {
-      LOG_I("GNSS", "Default config saved successfully");
-    } else {
-      LOG_W("GNSS", "Failed to save default config");
-    }
-  }
-
   return true;
 }
 
-const GnssConfig& gnss_config_get() {
-  return g_config;
-}
-
-bool gnss_config_save(const GnssConfig& cfg) {
-  if (!g_nvs_ready) return false;
+bool gnss_config_save(const GnssConfig& cfg, String* error) {
+  if (!g_nvs_ready) {
+    if (error) *error = "NVS not ready";
+    return false;
+  }
 
   Preferences prefs;
-  if (!prefs.begin(nvs_keys::gnss::kNamespace, false)) return false;
+  if (!prefs.begin(nvs_keys::gnss::kNamespace, false)) {
+    if (error) *error = "NVS open failed";
+    return false;
+  }
 
   bool ok = true;
   ok = ok && prefs.putInt(nvs_keys::gnss::kRxPin, cfg.rx_pin) > 0;
@@ -108,8 +83,40 @@ bool gnss_config_save(const GnssConfig& cfg) {
 
   prefs.end();
 
-  if (!ok) return false;
+  if (!ok) {
+    if (error) *error = "Failed to write NVS";
+    return false;
+  }
 
-  g_config = cfg;
+  return true;
+}
+
+bool gnss_config_begin() {
+  Preferences prefs;
+  if (!prefs.begin(nvs_keys::gnss::kNamespace, false)) {
+    LOG_E("GNSS", "NVS open failed");
+    LOG_W("GNSS", "Using fallback hardcoded config");
+    g_nvs_ready = false;
+    return true;
+  }
+  prefs.end();
+
+  g_nvs_ready = true;
+  LOG_I("GNSS", "NVS ready");
+
+  GnssConfig loaded{};
+  String err;
+  if (gnss_config_load(loaded, &err) && gnss_config_validate(loaded, nullptr)) {
+    LOG_I("GNSS", "Config loaded from NVS");
+  } else {
+    LOG_W("GNSS", "NVS config missing/invalid, saving defaults");
+    GnssConfig defaults = gnss_config_defaults();
+    if (gnss_config_save(defaults, nullptr)) {
+      LOG_I("GNSS", "Default config saved successfully");
+    } else {
+      LOG_W("GNSS", "Failed to save default config");
+    }
+  }
+
   return true;
 }
