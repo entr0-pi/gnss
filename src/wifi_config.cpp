@@ -24,7 +24,15 @@ bool parse_ip_field(const String& value, const char* field, IPAddress& out, Stri
 } // namespace
 
 WifiConfig wifi_config_defaults() {
-  return WifiConfig{"", "", false, IPAddress(), IPAddress(), IPAddress(), IPAddress()};
+  WifiConfig cfg;
+  cfg.ssid = "";
+  cfg.pass = "";
+  cfg.dhcp = false;
+  cfg.ip = IPAddress();
+  cfg.gw = IPAddress();
+  cfg.subnet = IPAddress();
+  cfg.dns = IPAddress();
+  return cfg;
 }
 
 bool wifi_config_validate(const WifiConfig& cfg, String* error) {
