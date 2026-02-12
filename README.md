@@ -71,6 +71,39 @@ If WiFi is enabled (`WEBUI_ENABLE=1` or `TCP_ENABLE=1`), you have two options:
 
 PlatformIO automatically installs dependencies, builds the firmware, and flashes the board.
 
+### Build in Docker and extract the 3 flash bins
+
+If you prefer a reproducible Docker build, use the uploader Docker image to export
+`bootloader.bin`, `partitions.bin`, and `firmware.bin` into a host `build/` folder.
+The container also generates host flash helpers: `flash.sh`, `flash.ps1`, and `flash.cmd`.
+
+**Linux/macOS host**
+```bash
+docker build -t gnss-bin-export -f utils/uploader/Dockerfile .
+mkdir -p build
+docker run --rm -v "$(pwd)/build:/project/build" gnss-bin-export
+cd build
+./flash.sh /dev/ttyUSB0
+```
+
+**Windows PowerShell host**
+```powershell
+docker build -t gnss-bin-export -f utils/uploader/Dockerfile .
+New-Item -ItemType Directory -Force -Path build | Out-Null
+docker run --rm -v "${PWD}/build:/project/build" gnss-bin-export
+Set-Location build
+./flash.ps1 -Port COM3
+```
+
+**Windows CMD host**
+```bat
+docker build -t gnss-bin-export -f utils/uploader/Dockerfile .
+if not exist build mkdir build
+docker run --rm -v "%cd%/build:/project/build" gnss-bin-export
+cd build
+flash.cmd COM3
+```
+
 
 ---
 
