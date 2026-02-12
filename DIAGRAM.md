@@ -82,16 +82,16 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-  GNSS["GNSS Module\n(Serial1)"]
+  GNSS["GNSS Module<br>(Serial1)"]
   PHONE["BLE Phone"]
   TCPC["TCP Client"]
   CASTER["NTRIP Caster"]
 
-  URX["task_uart_rx\npri 3"]
-  UTX["task_uart_tx\npri 3"]
-  BTX["task_ble_tx\npri 2"]
-  TIO["task_tcp_io\npri 2"]
-  NMEA["nmea_gps\nparser"]
+  URX["task_uart_rx<br>pri 3"]
+  UTX["task_uart_tx<br>pri 3"]
+  BTX["task_ble_tx<br>pri 2"]
+  TIO["task_tcp_io<br>pri 2"]
+  NMEA["nmea_gps<br>parser"]
 
   U2B(("uart→ble"))
   B2U(("ble→uart"))
@@ -112,24 +112,24 @@ flowchart LR
 ```mermaid
 flowchart TD
   subgraph setup["setup()"]
-    S1["Serial.begin()\ngnss_config_begin()"]
-    S2["Create StreamBuffers\nuart↔ble, uart↔tcp, ntrip→uart"]
-    S3["Setup UART (Serial1)\nif pins/baud configured"]
-    S4["Setup BLE (NUS service)\nstart advertising"]
-    S5["Register WebUI routes\nmount LittleFS"]
-    S6["Connect WiFi (STA)\nfrom NVS or compile-time"]
+    S1["Serial.begin()<br>gnss_config_begin()"]
+    S2["Create StreamBuffers<br>uart↔ble, uart↔tcp, ntrip→uart"]
+    S3["Setup UART (Serial1)<br>if pins/baud configured"]
+    S4["Setup BLE (NUS service)<br>start advertising"]
+    S5["Register WebUI routes<br>mount LittleFS"]
+    S6["Connect WiFi (STA)<br>from NVS or compile-time"]
     S7["Start HTTP server :80"]
     S8["Init NMEA parser"]
-    S9["ntrip_client_setup()\nspawns NtripMonitor task"]
-    S10["Create worker tasks\nuart_rx, uart_tx, ble_tx, tcp_io"]
+    S9["ntrip_client_setup()<br>spawns NtripMonitor task"]
+    S10["Create worker tasks<br>uart_rx, uart_tx, ble_tx, tcp_io"]
 
     S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7 --> S8 --> S9 --> S10
   end
 
   subgraph loop["loop() — every 2 ms"]
-    L1["maybeReconnectWiFi\n(throttled 5 s)"]
+    L1["maybeReconnectWiFi<br>(throttled 5 s)"]
     L2["server.handleClient()"]
-    L3["ntrip_client_loop()\n(status logging)"]
+    L3["ntrip_client_loop()<br>(status logging)"]
     L4["delay(2)"]
 
     L1 --> L2 --> L3 --> L4
@@ -145,10 +145,10 @@ flowchart TD
 ```mermaid
 flowchart TD
   subgraph static["Static Assets (LittleFS)"]
-    R1["GET /\nindex.html.gz"]
-    R2["GET /style.css\nstyle.css.gz"]
-    R3["GET /app.js\napp.js.gz"]
-    R4["GET /favicon.ico\nfavicon.ico.gz"]
+    R1["GET /<br>index.html.gz"]
+    R2["GET /style.css<br>style.css.gz"]
+    R3["GET /app.js<br>app.js.gz"]
+    R4["GET /favicon.ico<br>favicon.ico.gz"]
   end
 
   subgraph api["JSON API Endpoints"]
@@ -162,7 +162,7 @@ flowchart TD
     RESTART["POST /api/restart"]
   end
 
-  subgraph snapshots["Snapshot Providers\n(defined in main.cpp)"]
+  subgraph snapshots["Snapshot Providers<br>(defined in main.cpp)"]
     BLE_S["webui_get_ble_snapshot"]
     GPS_S["webui_get_gps_snapshot"]
     TCP_S["webui_get_tcp_snapshot"]
@@ -170,12 +170,12 @@ flowchart TD
   end
 
   subgraph config["Config Modules"]
-    GNSS_C["gnss_config\nload / save"]
-    WIFI_C["wifi_config\nload / save"]
-    NTRIP_C["ntrip_config\nload / save"]
+    GNSS_C["gnss_config<br>load / save"]
+    WIFI_C["wifi_config<br>load / save"]
+    NTRIP_C["ntrip_config<br>load / save"]
   end
 
-  INET["Internet probe\n(HTTP 204 check, cached 10 s)"]
+  INET["Internet probe<br>(HTTP 204 check, cached 10 s)"]
 
   STATUS --> BLE_S & GPS_S & TCP_S & NTRIP_S & INET
   CFG_G & CFG_P --> GNSS_C
@@ -189,19 +189,19 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  START(["configMonitorTask\n(FreeRTOS, core 1, 1 s loop)"])
+  START(["configMonitorTask<br>(FreeRTOS, core 1, 1 s loop)"])
 
-  CHECK_NET{"Internet\nreachable?"}
+  CHECK_NET{"Internet<br>reachable?"}
   NET_LOST["Stop NtripClient"]
-  LOAD["ntrip_config_load()\n→ NtripConfig + NtripLockout"]
-  ENABLED{"enabled &\nnot locked out?"}
-  HASH{"Config hash\nchanged?"}
-  BEGIN["NtripClient.begin()\n+ startTask(core 0)"]
+  LOAD["ntrip_config_load()<br>→ NtripConfig + NtripLockout"]
+  ENABLED{"enabled &<br>not locked out?"}
+  HASH{"Config hash<br>changed?"}
+  BEGIN["NtripClient.begin()<br>+ startTask(core 0)"]
   STOP["NtripClient.stop()"]
-  SYNC["syncLockoutWithClientState\n(clear on STREAMING, set on LOCKED_OUT)"]
-  LOCKOUT{"State ==\nLOCKED_OUT?"}
-  HANDLE_LO["handleLockout\nauto-reset after 2 min"]
-  STATS["displayDetailedStats\nevery 30 s"]
+  SYNC["syncLockoutWithClientState<br>(clear on STREAMING, set on LOCKED_OUT)"]
+  LOCKOUT{"State ==<br>LOCKED_OUT?"}
+  HANDLE_LO["handleLockout<br>auto-reset after 2 min"]
+  STATS["displayDetailedStats<br>every 30 s"]
   SLEEP(["vTaskDelay 1 s"])
 
   START --> CHECK_NET
@@ -222,9 +222,9 @@ flowchart TD
 flowchart LR
   subgraph data["RTCM Data Path"]
     CASTER["NTRIP Caster"]
-    LIB["NtripClient library\n(internal task, core 0)"]
-    WRITER["NtripStreamWriter\n(Print adapter)"]
-    SB(("ntrip→uart\nStreamBuffer"))
+    LIB["NtripClient library<br>(internal task, core 0)"]
+    WRITER["NtripStreamWriter<br>(Print adapter)"]
+    SB(("ntrip→uart<br>StreamBuffer"))
   end
 
   CASTER -->|TCP| LIB -->|RTCM frames| WRITER -->|xStreamBufferSend| SB
@@ -236,31 +236,31 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  UART["Raw UART bytes\n(from task_uart_rx)"]
+  UART["Raw UART bytes<br>(from task_uart_rx)"]
 
   subgraph collector["Line Collector"]
     DOLLAR["Wait for $"]
     ACCUM["Accumulate chars"]
-    NEWLINE["\\n → null-terminate"]
+    NEWLINE["LF → null-terminate"]
   end
 
-  CHECK["minmea_check()\nverify checksum"]
+  CHECK["minmea_check()<br>verify checksum"]
 
   subgraph dispatch["Sentence Dispatch"]
-    RMC["RMC\nlat, lon, speed\ntime, date, validity"]
-    GGA["GGA\nfix quality, sats\nHDOP, time"]
-    GSA["GSA\nfix type\nPDOP/HDOP/VDOP"]
-    GST["GST\nσ_lat, σ_lon, σ_alt\n→ accuracy (m)"]
-    GSV["GSV\nper-sat PRN, el, az, SNR\n(multi-msg staged)"]
+    RMC["RMC<br>lat, lon, speed<br>time, date, validity"]
+    GGA["GGA<br>fix quality, sats<br>HDOP, time"]
+    GSA["GSA<br>fix type<br>PDOP/HDOP/VDOP"]
+    GST["GST<br>σ_lat, σ_lon, σ_alt<br>→ accuracy (m)"]
+    GSV["GSV<br>per-sat PRN, el, az, SNR<br>(multi-msg staged)"]
   end
 
-  STATE["GpsState\n(portMUX protected)"]
-  SNAP["nmea_get_snapshot()\n→ WebuiGpsSnapshot"]
+  STATE["GpsState<br>(portMUX protected)"]
+  SNAP["nmea_get_snapshot()<br>→ WebuiGpsSnapshot"]
 
   UART -->|nmea_feed_bytes| collector
   collector --> CHECK --> dispatch
   RMC & GGA & GSA & GST --> STATE
-  GSV -->|"stage per-constellation\nthen commit"| STATE
+  GSV -->|"stage per-constellation<br>then commit"| STATE
   STATE --> SNAP
 ```
 
@@ -271,13 +271,13 @@ flowchart LR
 ```mermaid
 flowchart LR
   subgraph api["wifi_config API"]
-    DEF["defaults()\n→ empty WifiConfig"]
-    VAL["validate(cfg)\nssid required, static IP if !dhcp"]
-    LOAD["load(out, err)\n→ WifiConfig"]
+    DEF["defaults()<br>→ empty WifiConfig"]
+    VAL["validate(cfg)<br>ssid required, static IP if !dhcp"]
+    LOAD["load(out, err)<br>→ WifiConfig"]
     SAVE["save(cfg, err)"]
   end
 
-  NVS["NVS (wifi namespace)\nssid, pass, dhcp\nip, gw, subnet, dns"]
+  NVS["NVS (wifi namespace)<br>ssid, pass, dhcp<br>ip, gw, subnet, dns"]
 
   LOAD -->|read| NVS
   SAVE -->|write| NVS
@@ -290,14 +290,14 @@ flowchart LR
 ```mermaid
 flowchart LR
   subgraph api["gnss_config API"]
-    DEF["defaults()\n→ PIN_GNSS_RX/TX, GNSS_BAUD"]
-    VAL["validate(cfg)\npins, baud range"]
-    LOAD["load(out, err)\n→ GnssConfig"]
+    DEF["defaults()<br>→ PIN_GNSS_RX/TX, GNSS_BAUD"]
+    VAL["validate(cfg)<br>pins, baud range"]
+    LOAD["load(out, err)<br>→ GnssConfig"]
     SAVE["save(cfg, err)"]
-    BEGIN["begin()\ninit NVS, write defaults if missing"]
+    BEGIN["begin()<br>init NVS, write defaults if missing"]
   end
 
-  NVS["NVS (gnss namespace)\nrx_pin, tx_pin, baud"]
+  NVS["NVS (gnss namespace)<br>rx_pin, tx_pin, baud"]
 
   BEGIN -->|init| NVS
   LOAD -->|read| NVS
@@ -311,13 +311,13 @@ flowchart LR
 ```mermaid
 flowchart LR
   subgraph api["ntrip_config API"]
-    DEF["defaults()\n→ disabled, port 2101, 5 retries"]
-    VAL["validate(cfg)\nhost, mount, port required"]
-    LOAD["load(out, lockout, err)\n→ NtripConfig + NtripLockout"]
+    DEF["defaults()<br>→ disabled, port 2101, 5 retries"]
+    VAL["validate(cfg)<br>host, mount, port required"]
+    LOAD["load(out, lockout, err)<br>→ NtripConfig + NtripLockout"]
     SAVE["save(cfg, lockout, err)"]
   end
 
-  NVS["NVS (ntrip namespace)\n13 config keys\n+ 3 lockout keys"]
+  NVS["NVS (ntrip namespace)<br>13 config keys<br>+ 3 lockout keys"]
 
   LOAD -->|read| NVS
   SAVE -->|write| NVS
@@ -329,7 +329,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  MACRO["LOG_I / LOG_W / LOG_E / LOG_D\n(preprocessor macros)"]
+  MACRO["LOG_I / LOG_W / LOG_E / LOG_D<br>(preprocessor macros)"]
   FN["logToSerial(color, tag, file, line, fmt, ...)"]
   USB["Serial (USB CDC)"]
 
