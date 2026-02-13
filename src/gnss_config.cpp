@@ -7,12 +7,25 @@
 #define MODULE_LOG 1
 #include "logger.h"
 
-namespace {
-bool g_nvs_ready = false;
-} // namespace
+static_assert(NVS_SCHEMA_VERSION == 1,
+              "GNSS NVS schema mismatch: update firmware or schema");
+static_assert(NVS_GNSS_REQUIRED_KEYS == 3,
+              "GNSS NVS key count mismatch: update firmware or schema");
 
 GnssConfig gnss_config_defaults() {
-  return GnssConfig{PIN_GNSS_RX, PIN_GNSS_TX, GNSS_BAUD};
+  #if IMMUTABLE_UART
+    return GnssConfig{
+      PIN_GNSS_RX,
+      PIN_GNSS_TX,
+      GNSS_BAUD
+    };
+  #else
+    return GnssConfig{
+      -1, // rx_pin
+      -1, // tx_pin
+      0   // baud
+    };
+  #endif
 }
 
 bool gnss_config_validate(const GnssConfig& cfg, String* error) {
@@ -37,11 +50,6 @@ bool gnss_config_validate(const GnssConfig& cfg, String* error) {
 }
 
 bool gnss_config_load(GnssConfig& out, String* error) {
-  if (!g_nvs_ready) {
-    if (error) *error = "NVS not ready";
-    return false;
-  }
-
   Preferences prefs;
   if (!prefs.begin(nvs_keys::gnss::kNamespace, true)) {
     if (error) *error = "NVS open failed";
@@ -65,11 +73,11 @@ bool gnss_config_load(GnssConfig& out, String* error) {
 }
 
 bool gnss_config_save(const GnssConfig& cfg, String* error) {
-  if (!g_nvs_ready) {
-    if (error) *error = "NVS not ready";
-    return false;
-  }
-
+#if IMMUTABLE_UART
+  (void)cfg;
+  if (error) *error = "UART config is immutable (build flags)";
+  return false;
+#else
   Preferences prefs;
   if (!prefs.begin(nvs_keys::gnss::kNamespace, false)) {
     if (error) *error = "NVS open failed";
@@ -89,34 +97,5 @@ bool gnss_config_save(const GnssConfig& cfg, String* error) {
   }
 
   return true;
-}
-
-bool gnss_config_begin() {
-  Preferences prefs;
-  if (!prefs.begin(nvs_keys::gnss::kNamespace, false)) {
-    LOG_E("GNSS", "NVS open failed");
-    LOG_W("GNSS", "Using fallback hardcoded config");
-    g_nvs_ready = false;
-    return true;
-  }
-  prefs.end();
-
-  g_nvs_ready = true;
-  LOG_I("GNSS", "NVS ready");
-
-  GnssConfig loaded{};
-  String err;
-  if (gnss_config_load(loaded, &err) && gnss_config_validate(loaded, nullptr)) {
-    LOG_I("GNSS", "Config loaded from NVS");
-  } else {
-    LOG_W("GNSS", "NVS config missing/invalid, saving defaults");
-    GnssConfig defaults = gnss_config_defaults();
-    if (gnss_config_save(defaults, nullptr)) {
-      LOG_I("GNSS", "Default config saved successfully");
-    } else {
-      LOG_W("GNSS", "Failed to save default config");
-    }
-  }
-
-  return true;
+#endif
 }

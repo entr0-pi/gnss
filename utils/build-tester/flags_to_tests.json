@@ -2,7 +2,7 @@
   "env": "lolin_c3_mini",
   "test_flags": [
     {"id": 0,  "tier": "A", "name": "Default (no flags)",       "flags": []},
-    {"id": 1,  "tier": "A", "name": "Full production config",   "flags": ["-DBLE_ENABLE=1", "-DBLE_DEVICE_NAME=\\\"MyGNSS\\\"", "-DWEBUI_ENABLE=1", "-DNMEA_ENABLE=1", "-DTCP_ENABLE=1", "-DTCP_PORT=52148", "-DNTRIP_CLIENT_ENABLE=1"]},
+    {"id": 1,  "tier": "A", "name": "Full production config",   "flags": ["-DWIFI_DUAL_MODE=1", "-DBLE_ENABLE=1", "-DBLE_DEVICE_NAME=\\\"MyGNSS\\\"", "-DWEBUI_ENABLE=1", "-DNMEA_ENABLE=1", "-DTCP_ENABLE=1", "-DTCP_PORT=52148", "-DNTRIP_CLIENT_ENABLE=1"]},
 
     {"id": 10, "tier": "B", "name": "BLE only",                 "flags": ["-DBLE_ENABLE=1"]},
     {"id": 11, "tier": "B", "name": "TCP only",                 "flags": ["-DTCP_ENABLE=1"]},
@@ -17,6 +17,9 @@
     {"id": 22, "tier": "B", "name": "NTRIP task disabled",      "flags": ["-DWEBUI_ENABLE=1", "-DNTRIP_CLIENT_ENABLE=1", "-DNTRIP_CLIENT_ENABLE_TASK=0"]},
     {"id": 23, "tier": "B", "name": "NTRIP Rev1 fallback off",  "flags": ["-DWEBUI_ENABLE=1", "-DNTRIP_CLIENT_ENABLE=1", "-DNTRIP_CLIENT_ENABLE_REV1_FALLBACK=0"]},
     {"id": 24, "tier": "B", "name": "NTRIP passive scan tuned", "flags": ["-DWEBUI_ENABLE=1", "-DNTRIP_CLIENT_ENABLE=1", "-DNTRIP_CLIENT_PASSIVE_SCAN_BYTES=64"]},
+    {"id": 25, "tier": "B", "name": "WiFi dual mode enabled",   "flags": ["-DWEBUI_ENABLE=1", "-DWIFI_DUAL_MODE=1"]},
+    {"id": 26, "tier": "B", "name": "WiFi dual mode + STA channel", "flags": ["-DWEBUI_ENABLE=1", "-DWIFI_DUAL_MODE=1", "-DSTA_CHANNEL=6"]},
+    {"id": 27, "tier": "B", "name": "WiFi dual mode + custom SoftAP", "flags": ["-DWEBUI_ENABLE=1", "-DWIFI_DUAL_MODE=1", "-DSOFTAP_SSID_VALUE=\\\"GNSS-LAB\\\"", "-DSOFTAP_PASS_VALUE=\\\"pass12345\\\"", "-DSOFTAP_CHANNEL=11", "-DSOFTAP_HIDDEN=0", "-DSOFTAP_MAX_CONN=4"]},
 
     {"id": 30, "tier": "C", "name": "NTRIP without WEBUI (must fail)",        "flags": ["-DNTRIP_CLIENT_ENABLE=1"], "expect": "fail"},
     {"id": 31, "tier": "C", "name": "Hardcoded UART without pins (must fail)", "flags": ["-DFORCE_HARDCODED_UART=1"], "expect": "fail"}

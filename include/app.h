@@ -192,12 +192,7 @@ static const uint16_t BLE_LOW_RATE_DELAY_MS =
 #define FORCE_HARDCODED_UART 0
 #endif
 
-#if !FORCE_HARDCODED_UART
-  // Normal mode: unconfigured defaults, use LittleFS config
-  static const int PIN_GNSS_RX = -1;        // Unconfigured
-  static const int PIN_GNSS_TX = -1;        // Unconfigured
-  static const uint32_t GNSS_BAUD = 0;     // Unconfigured
-#else
+#if FORCE_HARDCODED_UART
   // Forced hardcoded mode: use build flags
   #ifndef HARD_RX_PIN
     #error "FORCE_HARDCODED_UART requires HARD_RX_PIN to be defined"
@@ -214,10 +209,13 @@ static const uint16_t BLE_LOW_RATE_DELAY_MS =
   static const uint32_t GNSS_BAUD = HARD_BAUD;
 #endif
 
-// Fallback values if LittleFS fails/corrupt (safety net)
-static const int FALLBACK_GNSS_RX = 20;
-static const int FALLBACK_GNSS_TX = 21;
-static const uint32_t FALLBACK_GNSS_BAUD = 115200;
+// ---------------- Immutability flags ----------------
+// Per-subsystem immutability. When 1, the subsystem config cannot be changed
+// at runtime (WebUI POST is rejected, NVS defaults are not seeded).
+// These are the single source of truth -- do not re-derive elsewhere.
+#define IMMUTABLE_UART   (FORCE_HARDCODED_UART)
+#define IMMUTABLE_WIFI   (FORCE_WIFI_SECRETS || !WIFI_ENABLE)
+#define IMMUTABLE_NTRIP  (!NTRIP_CLIENT_ENABLE)
 
 // ---------------- SERIAL ----------------
 // USB CDC serial used for debug logs in the Arduino monitor.

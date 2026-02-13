@@ -2,3 +2,10 @@
 .vscode/
 .git/
 utils/build-tester/build_test_results.log
+build/bin/
+**/__pycache__/
+*.pyc
+*.pyo
+*.log
+*.tmp
+*.swp

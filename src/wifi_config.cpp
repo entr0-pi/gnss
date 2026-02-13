@@ -1,7 +1,13 @@
 #include "wifi_config.h"
 
 #include <Preferences.h>
+#include "app.h"
 #include "nvs_keys.h"
+
+static_assert(NVS_SCHEMA_VERSION == 1,
+              "WiFi NVS schema mismatch: update firmware or schema");
+static_assert(NVS_WIFI_REQUIRED_KEYS == 8,
+              "WiFi NVS key count mismatch: update firmware or schema");
 
 namespace {
 bool parse_ip_field(const String& value, const char* field, IPAddress& out, String* error) {
@@ -25,13 +31,23 @@ bool parse_ip_field(const String& value, const char* field, IPAddress& out, Stri
 
 WifiConfig wifi_config_defaults() {
   WifiConfig cfg;
-  cfg.ssid = "";
-  cfg.pass = "";
+#if IMMUTABLE_WIFI
+  cfg.ssid = STA_SSID;
+  cfg.pass = STA_PASS;
   cfg.dhcp = false;
+  cfg.ip = STA_IP;
+  cfg.gw = STA_GW;
+  cfg.subnet = STA_SUBNET;
+  cfg.dns = STA_DNS;
+#else
+  cfg.ssid = "CHANGEME";
+  cfg.pass = "CHANGEME";
+  cfg.dhcp = true;
   cfg.ip = IPAddress();
   cfg.gw = IPAddress();
   cfg.subnet = IPAddress();
   cfg.dns = IPAddress();
+#endif
   return cfg;
 }
 
@@ -104,6 +120,11 @@ bool wifi_config_load(WifiConfig& cfg, String* error) {
 }
 
 bool wifi_config_save(const WifiConfig& cfg, String* error) {
+#if IMMUTABLE_WIFI
+  (void)cfg;
+  if (error) *error = "WiFi config is immutable (build flags)";
+  return false;
+#else
   if (cfg.ssid.isEmpty()) {
     if (error) *error = "WiFi config ssid is empty";
     return false;
@@ -150,4 +171,5 @@ bool wifi_config_save(const WifiConfig& cfg, String* error) {
   }
 
   return true;
+#endif
 }

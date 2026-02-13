@@ -1,33 +1,40 @@
+# syntax=docker/dockerfile:1.7
 # ESP32-C3 Docker builder that exports flashable binaries
 #
 # Build: docker build -t gnss-bin-export -f build/Dockerfile .
-# Run:   docker run --rm -v "$(pwd)/build:/project/build" gnss-bin-export
+# Run:   docker run --rm -v "$(pwd)/build/bin:/project/build" gnss-bin-export
 
 FROM python:3.12-slim
 
-RUN pip install --no-cache-dir platformio
-
-# Pre-install platform/toolchains to improve repeat build time
-RUN pio pkg install -g -p "espressif32" && \
-    pio pkg install -g -t "toolchain-riscv32-esp"
-
 WORKDIR /project
 
-# Copy dependency metadata first to maximize layer caching.
-# This avoids re-downloading packages when only source files change.
+# Install tooling with pip cache mount.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir platformio
+
+# Copy dependency metadata first, before source files, to maximize cache reuse.
 COPY platformio.ini ./
+COPY lib/ lib/
 
-# Pre-fetch library dependencies so they are cached in this layer
-RUN pio pkg install -e full || true
+# Pre-install PlatformIO packages with cache mount.
+# This layer stays cached unless dependency metadata changes.
+RUN --mount=type=cache,target=/root/.platformio \
+    pio pkg install -g -p "espressif32" && \
+    pio pkg install -g -t "toolchain-riscv32-esp" && \
+    pio pkg install -g -t "tool-mklittlefs" && \
+    pio pkg install -e full || true
 
-# Copy the rest of project files needed for firmware build/export
+# Copy source files after dependencies so normal code edits do not invalidate
+# dependency download/install layers.
 COPY partitions.csv ./
 COPY src/ src/
 COPY include/ include/
-COPY lib/ lib/
 COPY data/ data/
-COPY build/docker-export-bins.sh /usr/local/bin/docker-export-bins.sh
+COPY build/scripts/docker-export-bins.sh /usr/local/bin/docker-export-bins.sh
+COPY build/scripts/create-data-bin.sh /usr/local/bin/create-data-bin.sh
 RUN sed -i 's/\r$//' /usr/local/bin/docker-export-bins.sh && \
+    sed -i 's/\r$//' /usr/local/bin/create-data-bin.sh && \
+    chmod +x /usr/local/bin/create-data-bin.sh && \
     chmod +x /usr/local/bin/docker-export-bins.sh
 
 ENTRYPOINT ["/usr/local/bin/docker-export-bins.sh"]

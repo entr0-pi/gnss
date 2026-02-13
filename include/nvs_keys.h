@@ -1,5 +1,15 @@
 #pragma once
 
+// NVS schema version. Increment when adding/removing/renaming keys.
+// Every config module asserts against this at build time.
+#define NVS_SCHEMA_VERSION        1
+
+// Required key counts per namespace.
+// These must match the actual keys read/written by each *_config module.
+#define NVS_GNSS_REQUIRED_KEYS    3   // rx_pin, tx_pin, baud
+#define NVS_WIFI_REQUIRED_KEYS    8   // ssid, pass, dhcp, ip, gw, subnet, dns, accesspoint
+#define NVS_NTRIP_REQUIRED_KEYS  16   // enabled..connect_timeout + lockout (3)
+
 namespace nvs_keys {
 
 namespace gnss {

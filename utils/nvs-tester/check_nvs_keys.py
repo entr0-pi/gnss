@@ -22,8 +22,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 H_FILE = REPO_ROOT / "include" / "nvs_keys.h"
-CSV_FILE = REPO_ROOT / "nvs_keys.csv"
-CSV_EXAMPLE = REPO_ROOT / "nvs_keys.csv.example"
+CSV_FILE = REPO_ROOT / "utils" / "uploader" / "nvs_keys.csv"
+CSV_EXAMPLE = REPO_ROOT / "utils" / "uploader" / "nvs_keys.csv.example"
 
 
 def parse_header(path: Path) -> dict[str, set[str]]:

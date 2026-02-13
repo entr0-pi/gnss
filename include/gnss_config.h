@@ -8,7 +8,6 @@ struct GnssConfig {
   uint32_t baud;
 };
 
-bool gnss_config_begin();
 GnssConfig gnss_config_defaults();
 bool gnss_config_validate(const GnssConfig& cfg, String* error);
 bool gnss_config_load(GnssConfig& out, String* error);

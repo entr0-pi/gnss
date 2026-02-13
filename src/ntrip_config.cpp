@@ -1,7 +1,13 @@
 #include "ntrip_config.h"
 
 #include <Preferences.h>
+#include "app.h"
 #include "nvs_keys.h"
+
+static_assert(NVS_SCHEMA_VERSION == 1,
+              "NTRIP NVS schema mismatch: update firmware or schema");
+static_assert(NVS_NTRIP_REQUIRED_KEYS == 16,
+              "NTRIP NVS key count mismatch: update firmware or schema");
 
 namespace {
 
@@ -107,6 +113,11 @@ bool ntrip_config_load(NtripConfig& out, NtripLockout* lockoutOut, String* error
 }
 
 bool ntrip_config_save(const NtripConfig& in, const NtripLockout* lockoutToPreserve, String* error) {
+#if IMMUTABLE_NTRIP
+  (void)in; (void)lockoutToPreserve;
+  if (error) *error = "NTRIP config is immutable";
+  return false;
+#else
   Preferences prefs;
   if (!prefs.begin(nvs_keys::ntrip::kNamespace, false)) {
     if (error) *error = "Failed to open NVS";
@@ -142,4 +153,5 @@ bool ntrip_config_save(const NtripConfig& in, const NtripLockout* lockoutToPrese
   }
 
   return true;
+#endif
 }

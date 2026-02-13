@@ -33,6 +33,7 @@
 #include "app.h"
 #define MODULE_LOG 1
 #include "logger.h"
+#include "config_bootstrap.h"
 #include "gnss_config.h"
 #include "ntrip_client.h"
 #include "wifi_config.h"
@@ -509,8 +510,8 @@ void loop() {
 static void initSerialAndConfig() {
   Serial.begin(SERIAL_BAUD);
   vTaskDelay(pdMS_TO_TICKS(200));
-  LOG_I("SETUP", "Loading config...");
-  gnss_config_begin();
+  LOG_I("SETUP", "Bootstrapping config...");
+  config_bootstrap();
 }
 
 /**

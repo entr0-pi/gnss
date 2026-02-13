@@ -333,7 +333,7 @@ static void handleRestart() {
 
 // ------------- API: /api/config -------------
 
-static void handleConfigGet() {
+static void handleUARTConfigGet() {
   markRequestAndGetPrevAgeMs();
 
   GnssConfig cfg = gnss_config_defaults();
@@ -344,12 +344,7 @@ static void handleConfigGet() {
   doc["rx_pin"] = cfg.rx_pin;
   doc["tx_pin"] = cfg.tx_pin;
   doc["baud"]   = cfg.baud;
-
-  #if FORCE_HARDCODED_UART
-    doc["locked"] = true;
-  #else
-    doc["locked"] = false;
-  #endif
+  doc["locked"] = (bool)IMMUTABLE_UART;
 
   JsonObject defObj = doc["defaults"].to<JsonObject>();
   defObj["rx_pin"] = defaults.rx_pin;
@@ -359,10 +354,10 @@ static void handleConfigGet() {
   sendJson(200, doc);
 }
 
-static void handleConfigPost() {
+static void handleUARTConfigPost() {
   markRequestAndGetPrevAgeMs();
 
-  #if FORCE_HARDCODED_UART
+  #if IMMUTABLE_UART
     sendJsonError(403, "UART config is locked via build flags");
     return;
   #endif
@@ -418,11 +413,7 @@ static void handleWifiConfigGet() {
   doc["loaded"] = loaded;
   if (!loaded) doc["error"] = error;
 
-  #if FORCE_WIFI_SECRETS
-    doc["locked"] = true;
-  #else
-    doc["locked"] = false;
-  #endif
+  doc["locked"] = (bool)IMMUTABLE_WIFI;
 
   if (!loaded) {
     cfg.ssid   = STA_SSID;
@@ -448,7 +439,7 @@ static void handleWifiConfigGet() {
 static void handleWifiConfigPost() {
   markRequestAndGetPrevAgeMs();
 
-  #if FORCE_WIFI_SECRETS
+  #if IMMUTABLE_WIFI
     sendJsonError(403, "WiFi config is locked via build flags");
     return;
   #endif
@@ -542,7 +533,7 @@ static void handleNtripConfigGet() {
   const bool loaded = ntrip_config_load(cfg, &lockout, &error);
 
   JsonDocument doc;
-  doc["locked"] = false;
+  doc["locked"] = (bool)IMMUTABLE_NTRIP;
 
   if (loaded) {
     JsonObject ntrip = doc["ntrip"].to<JsonObject>();
@@ -573,6 +564,11 @@ static void handleNtripConfigGet() {
 
 static void handleNtripConfigPost() {
   markRequestAndGetPrevAgeMs();
+
+  #if IMMUTABLE_NTRIP
+    sendJsonError(403, "NTRIP config is locked");
+    return;
+  #endif
 
   if (!s_server->hasArg("plain")) {
     sendJsonError(400, "Missing body");
@@ -697,8 +693,8 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
   });
 
   server.on("/api/status",       HTTP_GET,  handleStatus);
-  server.on("/api/config",       HTTP_GET,  handleConfigGet);
-  server.on("/api/config",       HTTP_POST, handleConfigPost);
+  server.on("/api/config",       HTTP_GET,  handleUARTConfigGet);
+  server.on("/api/config",       HTTP_POST, handleUARTConfigPost);
   server.on("/api/wifi_config",  HTTP_GET,  handleWifiConfigGet);
   server.on("/api/wifi_config",  HTTP_POST, handleWifiConfigPost);
   server.on("/api/ntrip_config", HTTP_GET,  handleNtripConfigGet);

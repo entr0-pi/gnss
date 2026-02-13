@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # ESP32-C3 Build Flag Tester
 # Reproducible PlatformIO build environment for testing flag combinations.
 #
@@ -8,27 +9,27 @@
 
 FROM python:3.12-slim
 
-# Install PlatformIO
-RUN pip install --no-cache-dir platformio
-
-# Pre-install ESP32 platform and RISC-V toolchain (heavy layer, cached)
-RUN pio pkg install -g -p "espressif32" && \
-    pio pkg install -g -t "toolchain-riscv32-esp"
-
 WORKDIR /project
 
-# Copy dependency-relevant files first (maximises layer caching)
-COPY partitions.csv ./
+# Install PlatformIO with pip cache mount.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir platformio
+
+# Copy dependency metadata first for better cache reuse.
+COPY utils/build-tester/platformio.ini.test platformio.ini
 COPY lib/ lib/
+
+# Pre-install heavy PlatformIO packages and env dependencies with cache mount.
+RUN --mount=type=cache,target=/root/.platformio \
+    pio pkg install -g -p "espressif32" && \
+    pio pkg install -g -t "toolchain-riscv32-esp" && \
+    pio pkg install -e lolin_c3_mini || true
+
+# Copy source and tester files after dependency layers.
+COPY partitions.csv ./
 COPY include/ include/
 COPY src/ src/
 COPY data/ data/
-
-# Use the test ini as the project's platformio.ini
-COPY utils/build-tester/platformio.ini.test platformio.ini
-
-# Pre-fetch library dependencies so they are cached in this layer
-RUN pio pkg install -e lolin_c3_mini || true
 
 # Copy the build-tester tooling
 COPY utils/build-tester/ utils/build-tester/
