@@ -776,15 +776,6 @@ python check_nvs_keys.py  # exit 0 = consistent
 
 PyQt/Tkinter GUI for flashing LittleFS + NVS partitions without PlatformIO.
 
-### Docker Build (`build/`)
-
-```bash
-# Build firmware + data.bin in Docker
-./build/docker-export-bins.sh
-
-# Create LittleFS image only
-./build/create-data-bin.sh
-```
 
 ### Logger Usage
 
