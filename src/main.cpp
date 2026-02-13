@@ -38,7 +38,9 @@
 #include "wifi_config.h"
 
 #if WIFI_ENABLE
+#include <Preferences.h>
 #include <WiFi.h>
+#include "nvs_keys.h"
 #endif
 
 #if WEBUI_ENABLE
@@ -734,13 +736,35 @@ static void yieldToTasks() {
 // -------------------------------------------
 
 #if WIFI_ENABLE
-static void setupWiFi() {
-  auto parseIpField = [](const String& value, IPAddress& out) -> bool {
-    return !value.isEmpty() && out.fromString(value);
-  };
+static bool isSoftApEnabledFromNvs() {
+#if WIFI_DUAL_MODE
+  Preferences prefs;
+  if (!prefs.begin(nvs_keys::wifi::kNamespace, true)) {
+    LOG_W("WiFi", "Cannot open wifi NVS namespace; defaulting accesspoint=1");
+    return true;
+  }
 
-  // Station mode: connect to an existing access point / hotspot.
+  if (!prefs.isKey(nvs_keys::wifi::kAccessPoint)) {
+    prefs.end();
+    return true;
+  }
+
+  const int ap_setting = prefs.getInt(nvs_keys::wifi::kAccessPoint, 1);
+  prefs.end();
+  return ap_setting != 0;
+#else
+  return false;
+#endif
+}
+
+static void setupWiFi() {
+  // Station mode or dual mode (STA + softAP) based on build flags.
+#if WIFI_DUAL_MODE
+  const bool enable_soft_ap = isSoftApEnabledFromNvs();
+  WiFi.mode(enable_soft_ap ? WIFI_AP_STA : WIFI_STA);
+#else
   WiFi.mode(WIFI_STA);
+#endif
   WiFi.setAutoReconnect(true);
   WiFi.persistent(false);
   WiFi.setSleep(true);
@@ -762,6 +786,32 @@ static void setupWiFi() {
   const IPAddress gw = use_file_cfg ? file_cfg.gw : STA_GW;
   const IPAddress subnet = use_file_cfg ? file_cfg.subnet : STA_SUBNET;
   const IPAddress dns = use_file_cfg ? file_cfg.dns : STA_DNS;
+  uint8_t sta_channel = STA_CHANNEL;
+
+#if WIFI_DUAL_MODE
+  if (enable_soft_ap) {
+    uint8_t ap_channel = SOFTAP_CHANNEL;
+    if (sta_channel >= 1 && sta_channel <= 13 && ap_channel == sta_channel) {
+      ap_channel = (sta_channel % 13) + 1;
+      LOG_W("WiFi", "SOFTAP_CHANNEL matched STA_CHANNEL; adjusted AP channel to %u", ap_channel);
+    }
+
+    if (!WiFi.softAP(SOFTAP_SSID, SOFTAP_PASS, ap_channel, SOFTAP_HIDDEN, SOFTAP_MAX_CONN)) {
+      LOG_E("WiFi", "Failed to start softAP");
+    } else {
+      LOG_I("WiFi", "softAP started: ssid='%s' ip=%s channel=%u",
+            SOFTAP_SSID,
+            WiFi.softAPIP().toString().c_str(),
+            ap_channel);
+    }
+
+    if (sta_channel == 0) {
+      LOG_W("WiFi", "STA_CHANNEL=0 (auto); AP/STA channel separation cannot be guaranteed at compile time");
+    }
+  } else {
+    LOG_I("WiFi", "Dual mode build enabled, but softAP disabled by NVS wifi/accesspoint=0");
+  }
+#endif
 
   LOG_I("WiFi", "Config source: %s", use_file_cfg ? "NVS" : "compile-time");
   LOG_I("WiFi", "SSID: '%s' (len=%u)", ssid ? ssid : "", ssid ? (unsigned)strlen(ssid) : 0U);
@@ -791,7 +841,12 @@ static void setupWiFi() {
 
   // Start connection attempt using SSID/PASS.
   LOG_I("WiFi", "Calling WiFi.begin(...)");
-  WiFi.begin(ssid, pass);
+  if (sta_channel >= 1 && sta_channel <= 13) {
+    LOG_I("WiFi", "Using fixed STA channel: %u", sta_channel);
+    WiFi.begin(ssid, pass, sta_channel);
+  } else {
+    WiFi.begin(ssid, pass);
+  }
 
   // Wait up to 10 seconds for connection with yield to prevent watchdog.
   unsigned long t0 = millis();
