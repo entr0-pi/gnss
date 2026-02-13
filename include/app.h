@@ -50,6 +50,7 @@
 #ifndef NTRIP_CLIENT_PASSIVE_SCAN_BYTES
 #define NTRIP_CLIENT_PASSIVE_SCAN_BYTES 128
 #endif
+// ---------------- END NTRIP library flags ----------------
 
 #ifndef WIFI_ENABLE
 #define WIFI_ENABLE (WEBUI_ENABLE || TCP_ENABLE || NTRIP_CLIENT_ENABLE)
@@ -89,7 +90,7 @@
 #define SOFTAP_MAX_CONN 2
 #endif
 
-#if WIFI_ENABLE
+#if WIFI_ENABLE && WIFI_DUAL_MODE
 static const char* SOFTAP_SSID = SOFTAP_SSID_VALUE;
 static const char* SOFTAP_PASS = SOFTAP_PASS_VALUE;
 #endif

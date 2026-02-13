@@ -11,6 +11,7 @@ ip,data,string,192.168.1.50
 gw,data,string,192.168.1.1
 subnet,data,string,255.255.255.0
 dns,data,string,8.8.8.8
+accesspoint,data,u8,1
 ntrip,namespace,,
 enabled,data,u8,0
 host,data,string,ntrip.example.com
