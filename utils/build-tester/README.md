@@ -85,6 +85,14 @@ When running inside Docker, the container starts with `platformio.ini.test` alre
 | `[XFAIL]` | Build failed as expected (Tier C) |
 | `[UNEX.PASS]` | Build succeeded but was expected to fail |
 
+## Key features
+
+- **Tiered test coverage**: quick smoke tests (Tier A), pairwise/parameter coverage (Tier B), and expected-failure guard tests (Tier C).
+- **Flexible selection**: run by tier, explicit IDs, or ranges; list tests without executing builds.
+- **Safe config handling**: temporarily swaps `platformio.ini` with `platformio.ini.test` and restores original config after execution.
+- **Expectation-aware reporting**: distinguishes normal passes/failures from expected failures (`XFAIL`) and unexpected passes.
+- **Automation-friendly**: emits machine-usable exit code (`0` success, `1` mismatch/failure).
+
 ## Exit codes
 
 | Code | Meaning |
