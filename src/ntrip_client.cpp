@@ -6,6 +6,9 @@
 #include <WiFi.h>
 #include "NtripClient.h"
 #include "ntrip_config.h"
+#if NMEA_ENABLE
+#include "nmea_gps.h"
+#endif
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #define MODULE_LOG 1
@@ -82,7 +85,7 @@ String configHash(const NtripConfig& cfg) {
        + ":" + cfg.pass + "|" + String(cfg.max_tries) + "|" + String(cfg.retry_delay_ms)
        + "|" + String(cfg.health_timeout_ms) + "|" + String(cfg.passive_sample_ms)
        + "|" + String(cfg.required_valid_frames) + "|" + String(cfg.buffer_size)
-       + "|" + String(cfg.connect_timeout_ms);
+       + "|" + String(cfg.connect_timeout_ms) + "|" + String(cfg.send_gga ? 1 : 0);
 }
 
 bool isInternetReachable() {
@@ -144,6 +147,28 @@ bool loadAndValidateConfig(NtripClientConfig& config) {
   config.requiredValidFrames = g_ntripCfg.required_valid_frames;
   config.bufferSize          = g_ntripCfg.buffer_size;
   config.connectTimeoutMs    = g_ntripCfg.connect_timeout_ms;
+
+  // Wire GGA sentence if enabled
+#if NMEA_ENABLE
+  if (g_ntripCfg.send_gga) {
+    String lastGga;
+    if (nmea_get_last_gga(lastGga) && lastGga.length() > 0) {
+      config.ggaSentence = lastGga;
+      LOG_D("NTRIP", "GGA enabled and available: %s", lastGga.c_str());
+    } else {
+      config.ggaSentence = "";
+      LOG_W("NTRIP", "GGA enabled but no valid GGA sentence available");
+    }
+  } else {
+    config.ggaSentence = "";
+  }
+#else
+  // NMEA not enabled - GGA cannot be provided
+  config.ggaSentence = "";
+  if (g_ntripCfg.send_gga) {
+    LOG_W("NTRIP", "GGA enabled but NMEA not compiled in");
+  }
+#endif
 
   return true;
 }
@@ -427,6 +452,7 @@ bool ntrip_client_get_snapshot(NtripClientSnapshot& out) {
   out.totalFrames = static_cast<uint32_t>(stats.totalFrames);
   out.lastMessageType = stats.lastMessageType;
   out.lastFrameAgeMs = (stats.lastFrameTime > 0) ? static_cast<uint32_t>(millis() - stats.lastFrameTime) : 0;
+  out.protocolVersion = stats.protocolVersion;
   return true;
 }
 

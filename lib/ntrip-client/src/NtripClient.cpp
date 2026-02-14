@@ -344,12 +344,20 @@ bool NtripClient::connectCaster(const NtripClientConfig& cfg) {
   String errMsg;
 
   if (connectCasterWithVersion(cfg, true, err, errMsg)) {
+    if (statsMutex != nullptr && xSemaphoreTake(statsMutex, portMAX_DELAY)) {
+      _stats.protocolVersion = 2;
+      xSemaphoreGive(statsMutex);
+    }
     return true;
   }
 
 #if NTRIP_CLIENT_ENABLE_REV1_FALLBACK
   NTRIP_LOGW("Rev2 failed, falling back to Rev1");
   if (connectCasterWithVersion(cfg, false, err, errMsg)) {
+    if (statsMutex != nullptr && xSemaphoreTake(statsMutex, portMAX_DELAY)) {
+      _stats.protocolVersion = 1;
+      xSemaphoreGive(statsMutex);
+    }
     return true;
   }
 #endif
@@ -462,6 +470,10 @@ void NtripClient::disconnect() {
   if (client.connected()) client.stop();
   _healthy = false;
   _state = NtripState::DISCONNECTED;
+  if (statsMutex != nullptr && xSemaphoreTake(statsMutex, portMAX_DELAY)) {
+    _stats.protocolVersion = 0;
+    xSemaphoreGive(statsMutex);
+  }
 }
 
 void NtripClient::setError(NtripError err, const String& msg) {

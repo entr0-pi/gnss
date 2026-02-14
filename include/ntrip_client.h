@@ -11,6 +11,7 @@ struct NtripClientSnapshot {
   uint32_t totalFrames;
   uint16_t lastMessageType;
   uint32_t lastFrameAgeMs;
+  uint8_t protocolVersion;  // 1 = Rev1, 2 = Rev2, 0 = not connected
 };
 
 #if NTRIP_CLIENT_ENABLE

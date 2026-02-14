@@ -4,6 +4,7 @@ let valeurAvg = null;  // exponential moving average
 let uartLocked = false;
 let wifiLocked = false;
 let ntripLocked = false;
+let selectedSatKey = null;
 
 function setIcon(id, ok = false) {
   const el = document.getElementById(id);
@@ -74,12 +75,48 @@ function clamp(n, min, max){
   return Math.min(max, Math.max(min, n));
 }
 
+function satKey(sat){
+  const constellation = sat?.constellation || "Unknown";
+  const prn = sat?.nr ?? sat?.prn ?? null;
+  if (prn !== null && prn !== undefined && prn !== "") {
+    return `${constellation}:prn:${prn}`;
+  }
+  // Fallback key when PRN is unavailable: use position tuple.
+  const az = Number(sat?.azimuth);
+  const el = Number(sat?.elevation);
+  const azKey = Number.isFinite(az) ? az.toFixed(1) : "na";
+  const elKey = Number.isFinite(el) ? el.toFixed(1) : "na";
+  return `${constellation}:pos:${azKey}:${elKey}`;
+}
+
+function clearSatDetails(){
+  if ($("sat_constellation")) $("sat_constellation").textContent = "—";
+  if ($("sat_azimuth")) $("sat_azimuth").textContent = "—";
+  if ($("sat_elevation")) $("sat_elevation").textContent = "—";
+  if ($("sat_signal")) $("sat_signal").textContent = "—";
+}
+
+function setSatDetails(sat){
+  const az = Number(sat?.azimuth);
+  const el = Number(sat?.elevation);
+  const signal = Number(sat?.signal_power ?? sat?.power_dbhz ?? sat?.power);
+
+  if ($("sat_constellation")) $("sat_constellation").textContent = sat?.constellation || "—";
+  if ($("sat_azimuth")) $("sat_azimuth").textContent = Number.isFinite(az) ? `${az.toFixed(1)}°` : "—";
+  if ($("sat_elevation")) $("sat_elevation").textContent = Number.isFinite(el) ? `${el.toFixed(1)}°` : "—";
+  if ($("sat_signal")) $("sat_signal").textContent = Number.isFinite(signal) ? `${signal} dBHz` : "—";
+}
+
 function renderSkyplot(satellites){
   const markers = $("skyplot_markers");
   if (!markers) return;
   markers.innerHTML = "";
 
-  if (!Array.isArray(satellites) || satellites.length === 0) return;
+  if (!Array.isArray(satellites) || satellites.length === 0) {
+    selectedSatKey = null;
+    clearSatDetails();
+    return;
+  }
 
   const classMap = {
     GPS: "constellation-gps",
@@ -87,6 +124,9 @@ function renderSkyplot(satellites){
     Galileo: "constellation-galileo",
     BeiDou: "constellation-beidou"
   };
+
+  let selectedStillExists = false;
+  let selectedUpdated = false;
 
   satellites.forEach((sat) => {
     const azimuth = Number(sat?.azimuth);
@@ -110,8 +150,29 @@ function renderSkyplot(satellites){
     marker.style.height = `${size}px`;
     const powerLabel = Number.isFinite(power) ? `${power} dBHz` : "— dBHz";
     marker.title = `${sat?.constellation || "Unknown"} • ${powerLabel} • Az ${azimuth.toFixed(1)}° El ${elevation.toFixed(1)}°`;
+    const key = satKey(sat);
+    marker.dataset.satKey = key;
+    marker.addEventListener("click", () => {
+      selectedSatKey = key;
+      setSatDetails(sat);
+      document.querySelectorAll(".skyplot-marker.is-selected").forEach((m) => m.classList.remove("is-selected"));
+      marker.classList.add("is-selected");
+    });
+    if (selectedSatKey === key) {
+      marker.classList.add("is-selected");
+      selectedStillExists = true;
+      if (!selectedUpdated) {
+        setSatDetails(sat);
+        selectedUpdated = true;
+      }
+    }
     markers.appendChild(marker);
   });
+
+  if (selectedSatKey && !selectedStillExists) {
+    selectedSatKey = null;
+    clearSatDetails();
+  }
 }
 
 function setConfigNote(message, ok = true) {
@@ -166,21 +227,18 @@ async function loadConfig(){
     const saveBtn = $("saveAllConfigBtn");
 
     if (isLocked) {
-      // Make inputs readonly
       if ($("cfg_rx")) $("cfg_rx").readOnly = true;
       if ($("cfg_tx")) $("cfg_tx").readOnly = true;
       if ($("cfg_baud")) $("cfg_baud").readOnly = true;
-
-      // Show lock message
       setConfigNote("🔒 Configuration locked (compile-time flags)", true);
     } else {
-      // Normal mode: editable
       if ($("cfg_rx")) $("cfg_rx").readOnly = false;
       if ($("cfg_tx")) $("cfg_tx").readOnly = false;
       if ($("cfg_baud")) $("cfg_baud").readOnly = false;
-
       setConfigNote("Loaded from device");
     }
+    const uartBtn = $("saveUartBtn");
+    if (uartBtn) uartBtn.style.display = isLocked ? "none" : "";
     if (saveBtn) saveBtn.style.display = (uartLocked && wifiLocked && ntripLocked) ? "none" : "";
   } catch (e) {
     setConfigNote("Failed to load config", false);
@@ -203,6 +261,7 @@ async function loadWifiConfig(){
     if ($("wifi_ssid")) $("wifi_ssid").value = cfg.ssid ?? "";
     if ($("wifi_pass")) $("wifi_pass").value = cfg.pass ?? "";
     if ($("wifi_dhcp")) $("wifi_dhcp").checked = !!cfg.dhcp;
+    if ($("wifi_accesspoint")) $("wifi_accesspoint").checked = !!cfg.accesspoint;
     if ($("wifi_ip")) $("wifi_ip").value = cfg.ip ?? "";
     if ($("wifi_gw")) $("wifi_gw").value = cfg.gw ?? "";
     if ($("wifi_subnet")) $("wifi_subnet").value = cfg.subnet ?? "";
@@ -220,6 +279,8 @@ async function loadWifiConfig(){
       updateWifiStaticInputs(!!cfg.dhcp);
       setWifiConfigNote("Loaded from device");
     }
+    const wifiBtn = $("saveWifiBtn");
+    if (wifiBtn) wifiBtn.style.display = isLocked ? "none" : "";
     if (saveBtn) saveBtn.style.display = (uartLocked && wifiLocked && ntripLocked) ? "none" : "";
   } catch (e) {
     setWifiConfigNote("Failed to load WiFi config", false);
@@ -246,10 +307,13 @@ async function loadNtripConfig(){
     if ($("ntrip_required_valid_frames")) $("ntrip_required_valid_frames").value = ntrip.required_valid_frames ?? 3;
     if ($("ntrip_buffer_size")) $("ntrip_buffer_size").value = ntrip.buffer_size ?? 1024;
     if ($("ntrip_connect_timeout_ms")) $("ntrip_connect_timeout_ms").value = ntrip.connect_timeout_ms ?? 5000;
+    if ($("ntrip_send_gga")) $("ntrip_send_gga").checked = !!ntrip.send_gga;
 
     ntripLocked = cfg.locked === true;
     setNtripConfigNote(ntripLocked ? "🔒 Configuration locked (compile-time flags)" : "Loaded from device");
 
+    const ntripBtn = $("saveNtripBtn");
+    if (ntripBtn) ntripBtn.style.display = ntripLocked ? "none" : "";
     const saveBtn = $("saveAllConfigBtn");
     if (saveBtn) saveBtn.style.display = (uartLocked && wifiLocked && ntripLocked) ? "none" : "";
   } catch (e) {
@@ -304,6 +368,10 @@ async function refresh(){
     $('gps_utc').textContent   = safe(utc);
     $('gps_age').textContent   = safe((s.gps?.age_ms !== undefined) ? (s.gps.age_ms + " ms") : undefined);
     if ($("ntrip_sat")) $("ntrip_sat").textContent = safe_ok(s.ntrip?.connected) ? "🛰️" : "❌";
+    if ($("ntrip_version")) {
+      const pv = s.ntrip?.protocol_version;
+      $("ntrip_version").textContent = s.ntrip ? (pv === 2 ? "v2" : pv === 1 ? "v1" : "N/A") : "N/A";
+    }
     setIcon("ntrip_streaming", safe_ok(s.ntrip?.streaming));
     setIcon("ntrip_healthy", safe_ok(s.ntrip?.healthy));
     if ($("ntrip_bytes")) $("ntrip_bytes").textContent = fmtBytes(s.ntrip?.bytes_received);
@@ -346,6 +414,7 @@ async function refresh(){
     updateColorRssi(NaN);
     if ($("gps_sats_view")) $("gps_sats_view").textContent = "—";
     if ($("ntrip_sat")) $("ntrip_sat").textContent = "—";
+    if ($("ntrip_version")) $("ntrip_version").textContent = "—";
     if ($("ntrip_bytes")) $("ntrip_bytes").textContent = "—";
     if ($("ntrip_frames")) $("ntrip_frames").textContent = "—";
     if ($("ntrip_last_msg")) $("ntrip_last_msg").textContent = "—";
@@ -367,150 +436,217 @@ if (restartBtn) {
   });
 }
 
+// --- Per-section save functions (return true on success) ---
+
+async function saveUartConfig() {
+  if (uartLocked) {
+    setConfigNote("🔒 GNSS config locked", true);
+    return false;
+  }
+
+  const rx = Number.parseInt($("cfg_rx").value, 10);
+  const tx = Number.parseInt($("cfg_tx").value, 10);
+  const baud = Number.parseInt($("cfg_baud").value, 10);
+
+  if (!Number.isFinite(rx) || !Number.isFinite(tx) || !Number.isFinite(baud)) {
+    setConfigNote("Enter valid RX, TX, and baud values.", false);
+    return false;
+  }
+
+  setConfigNote("Saving…");
+
+  const resp = await fetch('/api/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rx_pin: rx, tx_pin: tx, baud })
+  });
+  const payload = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    setConfigNote(payload.error || "Failed to save GNSS config", false);
+    return false;
+  }
+  if (payload.config) {
+    $("cfg_rx").value = payload.config.rx_pin ?? rx;
+    $("cfg_tx").value = payload.config.tx_pin ?? tx;
+    $("cfg_baud").value = payload.config.baud ?? baud;
+  }
+  setConfigNote("Saved.");
+  return true;
+}
+
+async function saveWifiConfig() {
+  if (wifiLocked) {
+    setWifiConfigNote("🔒 WiFi config locked", true);
+    return false;
+  }
+
+  const ssid = $("wifi_ssid")?.value?.trim() ?? "";
+  const pass = $("wifi_pass")?.value ?? "";
+  const dhcp = !!$("wifi_dhcp")?.checked;
+  const accesspoint = !!$("wifi_accesspoint")?.checked;
+  const ip = $("wifi_ip")?.value?.trim() ?? "";
+  const gw = $("wifi_gw")?.value?.trim() ?? "";
+  const subnet = $("wifi_subnet")?.value?.trim() ?? "";
+  const dns = $("wifi_dns")?.value?.trim() ?? "";
+
+  if (!ssid) {
+    setWifiConfigNote("SSID is required.", false);
+    return false;
+  }
+  if (!dhcp && (!ip || !gw || !subnet || !dns)) {
+    setWifiConfigNote("Static IP requires IP, gateway, subnet, and DNS.", false);
+    return false;
+  }
+
+  setWifiConfigNote("Saving…");
+
+  const resp = await fetch('/api/wifi_config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ssid, pass, dhcp, accesspoint, ip, gw, subnet, dns })
+  });
+  const payload = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    setWifiConfigNote(payload.error || "Failed to save WiFi config", false);
+    return false;
+  }
+  setWifiConfigNote("Saved.");
+  return true;
+}
+
+async function saveNtripConfig() {
+  if (ntripLocked) {
+    setNtripConfigNote("🔒 NTRIP config locked", true);
+    return false;
+  }
+
+  const ntrip_enabled = !!$("ntrip_enabled")?.checked;
+  const ntrip_host = $("ntrip_host")?.value?.trim() ?? "";
+  const ntrip_port = Number.parseInt($("ntrip_port")?.value ?? "", 10);
+  const ntrip_mount = $("ntrip_mount")?.value?.trim() ?? "";
+  const ntrip_user = $("ntrip_user")?.value ?? "";
+  const ntrip_pass = $("ntrip_pass")?.value ?? "";
+  const ntrip_max_tries = Number.parseInt($("ntrip_max_tries")?.value ?? "", 10);
+  const ntrip_retry_delay_ms = Number.parseInt($("ntrip_retry_delay_ms")?.value ?? "", 10);
+  const ntrip_health_timeout_ms = Number.parseInt($("ntrip_health_timeout_ms")?.value ?? "", 10);
+  const ntrip_passive_sample_ms = Number.parseInt($("ntrip_passive_sample_ms")?.value ?? "", 10);
+  const ntrip_required_valid_frames = Number.parseInt($("ntrip_required_valid_frames")?.value ?? "", 10);
+  const ntrip_buffer_size = Number.parseInt($("ntrip_buffer_size")?.value ?? "", 10);
+   const ntrip_connect_timeout_ms = Number.parseInt($("ntrip_connect_timeout_ms")?.value ?? "", 10);
+   const ntrip_send_gga = !!$("ntrip_send_gga")?.checked;
+
+  if (!ntrip_host || !ntrip_mount) {
+    setNtripConfigNote("Host and mount are required.", false);
+    return false;
+  }
+  if (!Number.isFinite(ntrip_port) || ntrip_port < 1 || ntrip_port > 65535) {
+    setNtripConfigNote("Port must be between 1 and 65535.", false);
+    return false;
+  }
+  const requiredNums = [
+    ntrip_max_tries, ntrip_retry_delay_ms, ntrip_health_timeout_ms, ntrip_passive_sample_ms,
+    ntrip_required_valid_frames, ntrip_buffer_size, ntrip_connect_timeout_ms
+  ];
+  if (requiredNums.some((v) => !Number.isFinite(v) || v <= 0)) {
+    setNtripConfigNote("Numeric NTRIP fields must be > 0.", false);
+    return false;
+  }
+
+  setNtripConfigNote("Saving…");
+
+   const resp = await fetch('/api/ntrip_config', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({
+       ntrip: {
+         enabled: ntrip_enabled,
+         host: ntrip_host,
+         port: ntrip_port,
+         mount: ntrip_mount,
+         user: ntrip_user,
+         pass: ntrip_pass,
+         max_tries: ntrip_max_tries,
+         retry_delay_ms: ntrip_retry_delay_ms,
+         health_timeout_ms: ntrip_health_timeout_ms,
+         passive_sample_ms: ntrip_passive_sample_ms,
+         required_valid_frames: ntrip_required_valid_frames,
+         buffer_size: ntrip_buffer_size,
+         connect_timeout_ms: ntrip_connect_timeout_ms,
+         send_gga: ntrip_send_gga
+       }
+     })
+   });
+  const payload = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    setNtripConfigNote(payload.error || "Failed to save NTRIP config", false);
+    return false;
+  }
+  setNtripConfigNote("Saved.");
+  return true;
+}
+
+async function restartDevice() {
+  try { await fetch('/api/restart', { method: 'POST' }); } catch (e) {}
+}
+
+// --- Per-section save buttons ---
+
+function setupSaveBtn(id, saveFn, setNote) {
+  const btn = $(id);
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    try {
+      const ok = await saveFn();
+      if (ok) {
+        setNote("Saved. Restarting…");
+        await restartDevice();
+      }
+    } catch (e) {
+      setNote("Failed to reach device", false);
+    }
+  });
+}
+
+setupSaveBtn("saveUartBtn", saveUartConfig, setConfigNote);
+setupSaveBtn("saveWifiBtn", saveWifiConfig, setWifiConfigNote);
+setupSaveBtn("saveNtripBtn", saveNtripConfig, setNtripConfigNote);
+
+// --- Save All button ---
+
 const saveAllConfigBtn = $("saveAllConfigBtn");
 if (saveAllConfigBtn) {
   saveAllConfigBtn.addEventListener("click", async () => {
     if (uartLocked && wifiLocked && ntripLocked) {
-      setConfigNote("🔒 UART config locked", true);
+      setConfigNote("🔒 GNSS config locked", true);
       setWifiConfigNote("🔒 WiFi config locked", true);
       setNtripConfigNote("🔒 NTRIP config locked", true);
       return;
     }
 
-    const rx = Number.parseInt($("cfg_rx").value, 10);
-    const tx = Number.parseInt($("cfg_tx").value, 10);
-    const baud = Number.parseInt($("cfg_baud").value, 10);
-    const ssid = $("wifi_ssid")?.value?.trim() ?? "";
-    const pass = $("wifi_pass")?.value ?? "";
-    const dhcp = !!$("wifi_dhcp")?.checked;
-    const ip = $("wifi_ip")?.value?.trim() ?? "";
-    const gw = $("wifi_gw")?.value?.trim() ?? "";
-    const subnet = $("wifi_subnet")?.value?.trim() ?? "";
-    const dns = $("wifi_dns")?.value?.trim() ?? "";
-    const ntrip_enabled = !!$("ntrip_enabled")?.checked;
-    const ntrip_host = $("ntrip_host")?.value?.trim() ?? "";
-    const ntrip_port = Number.parseInt($("ntrip_port")?.value ?? "", 10);
-    const ntrip_mount = $("ntrip_mount")?.value?.trim() ?? "";
-    const ntrip_user = $("ntrip_user")?.value ?? "";
-    const ntrip_pass = $("ntrip_pass")?.value ?? "";
-    const ntrip_max_tries = Number.parseInt($("ntrip_max_tries")?.value ?? "", 10);
-    const ntrip_retry_delay_ms = Number.parseInt($("ntrip_retry_delay_ms")?.value ?? "", 10);
-    const ntrip_health_timeout_ms = Number.parseInt($("ntrip_health_timeout_ms")?.value ?? "", 10);
-    const ntrip_passive_sample_ms = Number.parseInt($("ntrip_passive_sample_ms")?.value ?? "", 10);
-    const ntrip_required_valid_frames = Number.parseInt($("ntrip_required_valid_frames")?.value ?? "", 10);
-    const ntrip_buffer_size = Number.parseInt($("ntrip_buffer_size")?.value ?? "", 10);
-    const ntrip_connect_timeout_ms = Number.parseInt($("ntrip_connect_timeout_ms")?.value ?? "", 10);
-
-    if (!uartLocked && (!Number.isFinite(rx) || !Number.isFinite(tx) || !Number.isFinite(baud))) {
-      setConfigNote("Enter valid RX, TX, and baud values.", false);
-      return;
-    }
-    if (!wifiLocked && !ssid) {
-      setWifiConfigNote("SSID is required.", false);
-      return;
-    }
-
-    if (!wifiLocked && !dhcp && (!ip || !gw || !subnet || !dns)) {
-      setWifiConfigNote("Static IP requires IP, gateway, subnet, and DNS.", false);
-      return;
-    }
-    if (!ntripLocked) {
-      if (!ntrip_host || !ntrip_mount) {
-        setNtripConfigNote("Host and mount are required.", false);
-        return;
-      }
-      if (!Number.isFinite(ntrip_port) || ntrip_port < 1 || ntrip_port > 65535) {
-        setNtripConfigNote("Port must be between 1 and 65535.", false);
-        return;
-      }
-      const requiredNums = [
-        ntrip_max_tries, ntrip_retry_delay_ms, ntrip_health_timeout_ms, ntrip_passive_sample_ms,
-        ntrip_required_valid_frames, ntrip_buffer_size, ntrip_connect_timeout_ms
-      ];
-      if (requiredNums.some((v) => !Number.isFinite(v) || v <= 0)) {
-        setNtripConfigNote("Numeric NTRIP fields must be > 0.", false);
-        return;
-      }
-    }
-
-    if (!uartLocked) setConfigNote("Saving…");
-    if (!wifiLocked) setWifiConfigNote("Saving…");
-    if (!ntripLocked) setNtripConfigNote("Saving…");
-
     let savedSomething = false;
 
     try {
       if (!uartLocked) {
-        const resp = await fetch('/api/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rx_pin: rx, tx_pin: tx, baud })
-        });
-        const payload = await resp.json().catch(() => ({}));
-        if (!resp.ok) {
-          setConfigNote(payload.error || "Failed to save UART config", false);
-          return;
-        }
+        const ok = await saveUartConfig();
+        if (!ok) return;
         savedSomething = true;
-        setConfigNote("Saved.");
-        if (payload.config) {
-          $("cfg_rx").value = payload.config.rx_pin ?? rx;
-          $("cfg_tx").value = payload.config.tx_pin ?? tx;
-          $("cfg_baud").value = payload.config.baud ?? baud;
-        }
       }
-
       if (!wifiLocked) {
-        const resp = await fetch('/api/wifi_config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ssid, pass, dhcp, ip, gw, subnet, dns })
-        });
-        const payload = await resp.json().catch(() => ({}));
-        if (!resp.ok) {
-          setWifiConfigNote(payload.error || "Failed to save WiFi config", false);
-          return;
-        }
+        const ok = await saveWifiConfig();
+        if (!ok) return;
         savedSomething = true;
-        setWifiConfigNote("Saved.");
       }
-
       if (!ntripLocked) {
-        const resp = await fetch('/api/ntrip_config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ntrip: {
-              enabled: ntrip_enabled,
-              host: ntrip_host,
-              port: ntrip_port,
-              mount: ntrip_mount,
-              user: ntrip_user,
-              pass: ntrip_pass,
-              max_tries: ntrip_max_tries,
-              retry_delay_ms: ntrip_retry_delay_ms,
-              health_timeout_ms: ntrip_health_timeout_ms,
-              passive_sample_ms: ntrip_passive_sample_ms,
-              required_valid_frames: ntrip_required_valid_frames,
-              buffer_size: ntrip_buffer_size,
-              connect_timeout_ms: ntrip_connect_timeout_ms
-            }
-          })
-        });
-        const payload = await resp.json().catch(() => ({}));
-        if (!resp.ok) {
-          setNtripConfigNote(payload.error || "Failed to save NTRIP config", false);
-          return;
-        }
+        const ok = await saveNtripConfig();
+        if (!ok) return;
         savedSomething = true;
-        setNtripConfigNote("Saved.");
       }
 
       if (savedSomething) {
         if (!uartLocked) setConfigNote("Saved. Restarting…");
         if (!wifiLocked) setWifiConfigNote("Saved. Restarting…");
         if (!ntripLocked) setNtripConfigNote("Saved. Restarting…");
-        try { await fetch('/api/restart', { method: 'POST' }); } catch (e) {}
+        await restartDevice();
       }
     } catch (e) {
       if (!uartLocked) setConfigNote("Failed to reach device", false);

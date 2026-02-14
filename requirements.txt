@@ -1,3 +1,5 @@
 esptool==5.1.0
 sv_ttk==2.6.1
 esp_idf_nvs_partition_gen==0.2.0
+fastapi==0.129.0
+uvicorn==0.40.0

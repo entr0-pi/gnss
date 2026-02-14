@@ -4,9 +4,9 @@
 #include "app.h"
 #include "nvs_keys.h"
 
-static_assert(NVS_SCHEMA_VERSION == 1,
+static_assert(NVS_SCHEMA_VERSION == 2,
               "NTRIP NVS schema mismatch: update firmware or schema");
-static_assert(NVS_NTRIP_REQUIRED_KEYS == 16,
+static_assert(NVS_NTRIP_REQUIRED_KEYS == 17,
               "NTRIP NVS key count mismatch: update firmware or schema");
 
 namespace {
@@ -34,7 +34,8 @@ NtripConfig ntrip_config_defaults() {
     5000,         // passive_sample_ms
     3,            // required_valid_frames
     1024,         // buffer_size
-    5000          // connect_timeout_ms
+    5000,         // connect_timeout_ms
+    false         // send_gga
   };
 }
 
@@ -101,6 +102,8 @@ bool ntrip_config_load(NtripConfig& out, NtripLockout* lockoutOut, String* error
   out.required_valid_frames = prefs.getUInt(nvs_keys::ntrip::kReqValid);
   out.buffer_size          = prefs.getUInt(nvs_keys::ntrip::kBufferSize);
   out.connect_timeout_ms   = prefs.getULong(nvs_keys::ntrip::kConnectTimeout);
+  // Backward compatible: default to false if key is missing
+  out.send_gga             = prefs.getBool(nvs_keys::ntrip::kSendGga, false);
 
   if (lockoutOut) {
     lockoutOut->failed_attempts = prefs.getInt(nvs_keys::ntrip::lockout::kAttempts, 0);
@@ -115,12 +118,12 @@ bool ntrip_config_load(NtripConfig& out, NtripLockout* lockoutOut, String* error
 bool ntrip_config_save(const NtripConfig& in, const NtripLockout* lockoutToPreserve, String* error) {
 #if IMMUTABLE_NTRIP
   (void)in; (void)lockoutToPreserve;
-  if (error) *error = "NTRIP config is immutable";
+  if (error) *error = "NTRIP config is immutable (build flags)";
   return false;
 #else
   Preferences prefs;
   if (!prefs.begin(nvs_keys::ntrip::kNamespace, false)) {
-    if (error) *error = "Failed to open NVS";
+    if (error) *error = "NVS open failed";
     return false;
   }
 
@@ -138,6 +141,7 @@ bool ntrip_config_save(const NtripConfig& in, const NtripLockout* lockoutToPrese
   ok = ok && prefs.putUInt(nvs_keys::ntrip::kReqValid, in.required_valid_frames);
   ok = ok && prefs.putUInt(nvs_keys::ntrip::kBufferSize, in.buffer_size);
   ok = ok && prefs.putULong(nvs_keys::ntrip::kConnectTimeout, in.connect_timeout_ms);
+  ok = ok && prefs.putBool(nvs_keys::ntrip::kSendGga, in.send_gga);
 
   if (lockoutToPreserve) {
     ok = ok && prefs.putInt(nvs_keys::ntrip::lockout::kAttempts, lockoutToPreserve->failed_attempts);
@@ -148,7 +152,7 @@ bool ntrip_config_save(const NtripConfig& in, const NtripLockout* lockoutToPrese
   prefs.end();
 
   if (!ok) {
-    if (error) *error = "Failed to write NVS";
+    if (error) *error = "NTRIP config write failed";
     return false;
   }
 

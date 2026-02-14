@@ -309,6 +309,7 @@ static void handleStatus() {
     ntripObj["total_frames"]      = ntrip.totalFrames;
     ntripObj["last_msg_type"]     = ntrip.lastMessageType;
     ntripObj["last_frame_age_ms"] = ntrip.lastFrameAgeMs;
+    ntripObj["protocol_version"]  = ntrip.protocolVersion;
   }
   #endif
 
@@ -419,6 +420,7 @@ static void handleWifiConfigGet() {
     cfg.ssid   = STA_SSID;
     cfg.pass   = STA_PASS;
     cfg.dhcp   = false;
+    cfg.accesspoint = true;
     cfg.ip     = STA_IP;
     cfg.gw     = STA_GW;
     cfg.subnet = STA_SUBNET;
@@ -428,6 +430,7 @@ static void handleWifiConfigGet() {
   doc["ssid"]   = cfg.ssid;
   doc["pass"]   = kPassMask;
   doc["dhcp"]   = cfg.dhcp;
+  doc["accesspoint"] = cfg.accesspoint;
   doc["ip"]     = cfg.ip.toString();
   doc["gw"]     = cfg.gw.toString();
   doc["subnet"] = cfg.subnet.toString();
@@ -455,8 +458,8 @@ static void handleWifiConfigPost() {
     return;
   }
 
-  if (!doc["ssid"].is<const char*>() || !doc["pass"].is<const char*>() || !doc["dhcp"].is<bool>()) {
-    sendJsonError(400, "ssid, pass, and dhcp are required");
+  if (!doc["ssid"].is<const char*>() || !doc["pass"].is<const char*>() || !doc["dhcp"].is<bool>() || !doc["accesspoint"].is<bool>()) {
+    sendJsonError(400, "ssid, pass, dhcp, and accesspoint are required");
     return;
   }
 
@@ -464,6 +467,7 @@ static void handleWifiConfigPost() {
   cfg.ssid = doc["ssid"].as<String>();
   cfg.pass = doc["pass"].as<String>();
   cfg.dhcp = doc["dhcp"].as<bool>();
+  cfg.accesspoint = doc["accesspoint"].as<bool>();
 
   // If the password was not changed (masked sentinel), preserve existing.
   if (cfg.pass == kPassMask) {
@@ -514,6 +518,7 @@ static void handleWifiConfigPost() {
   cfgObj["ssid"]   = cfg.ssid;
   cfgObj["pass"]   = kPassMask;
   cfgObj["dhcp"]   = cfg.dhcp;
+  cfgObj["accesspoint"] = cfg.accesspoint;
   cfgObj["ip"]     = cfg.ip.toString();
   cfgObj["gw"]     = cfg.gw.toString();
   cfgObj["subnet"] = cfg.subnet.toString();
@@ -550,6 +555,7 @@ static void handleNtripConfigGet() {
     ntrip["required_valid_frames"] = cfg.required_valid_frames;
     ntrip["buffer_size"]           = cfg.buffer_size;
     ntrip["connect_timeout_ms"]    = cfg.connect_timeout_ms;
+    ntrip["send_gga"]              = cfg.send_gga;
 
     JsonObject lockObj = doc["lockout"].to<JsonObject>();
     lockObj["failed_attempts"]  = lockout.failed_attempts;
@@ -599,7 +605,8 @@ static void handleNtripConfigPost() {
       !ntripIn["passive_sample_ms"].is<uint32_t>() ||
       !ntripIn["required_valid_frames"].is<uint32_t>() ||
       !ntripIn["buffer_size"].is<uint32_t>() ||
-      !ntripIn["connect_timeout_ms"].is<uint32_t>()) {
+      !ntripIn["connect_timeout_ms"].is<uint32_t>() ||
+      !ntripIn["send_gga"].is<bool>()) {
     sendJsonError(400, "Invalid or missing NTRIP fields");
     return;
   }
@@ -618,6 +625,7 @@ static void handleNtripConfigPost() {
   cfg.required_valid_frames = ntripIn["required_valid_frames"].as<uint32_t>();
   cfg.buffer_size          = ntripIn["buffer_size"].as<uint32_t>();
   cfg.connect_timeout_ms   = ntripIn["connect_timeout_ms"].as<uint32_t>();
+  cfg.send_gga             = ntripIn["send_gga"].as<bool>();
 
   String valError;
   if (!ntrip_config_validate(cfg, &valError)) {
@@ -653,6 +661,7 @@ static void handleNtripConfigPost() {
   cfgObj["required_valid_frames"] = cfg.required_valid_frames;
   cfgObj["buffer_size"]           = cfg.buffer_size;
   cfgObj["connect_timeout_ms"]    = cfg.connect_timeout_ms;
+  cfgObj["send_gga"]              = cfg.send_gga;
 
   sendJson(200, resp);
 }

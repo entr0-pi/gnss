@@ -2,13 +2,13 @@
 
 // NVS schema version. Increment when adding/removing/renaming keys.
 // Every config module asserts against this at build time.
-#define NVS_SCHEMA_VERSION        1
+#define NVS_SCHEMA_VERSION        2
 
 // Required key counts per namespace.
 // These must match the actual keys read/written by each *_config module.
 #define NVS_GNSS_REQUIRED_KEYS    3   // rx_pin, tx_pin, baud
 #define NVS_WIFI_REQUIRED_KEYS    8   // ssid, pass, dhcp, ip, gw, subnet, dns, accesspoint
-#define NVS_NTRIP_REQUIRED_KEYS  16   // enabled..connect_timeout + lockout (3)
+#define NVS_NTRIP_REQUIRED_KEYS  17   // enabled..connect_timeout + send_gga + lockout (3)
 
 namespace nvs_keys {
 
@@ -46,6 +46,7 @@ constexpr const char* kPassiveMs = "passive_ms";
 constexpr const char* kReqValid = "req_valid";
 constexpr const char* kBufferSize = "buf_size";
 constexpr const char* kConnectTimeout = "conn_to";
+constexpr const char* kSendGga = "send_gga";
 
 namespace lockout {
 constexpr const char* kAttempts = "lock_fails";

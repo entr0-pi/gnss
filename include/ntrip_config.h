@@ -16,6 +16,7 @@ struct NtripConfig {
   uint32_t required_valid_frames;
   uint32_t buffer_size;
   uint32_t connect_timeout_ms;
+  bool send_gga;
 };
 
 struct NtripLockout {

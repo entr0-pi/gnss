@@ -11,7 +11,7 @@
 #include "logger.h"
 
 // Build-time schema enforcement.
-static_assert(NVS_SCHEMA_VERSION == 1,
+static_assert(NVS_SCHEMA_VERSION == 2,
               "NVS schema version mismatch: firmware and NVS schema incompatible");
 
 namespace {
@@ -95,7 +95,7 @@ void config_bootstrap() {
     // Seed the accesspoint key (managed outside wifi_config module).
     Preferences prefs;
     if (prefs.begin(nvs_keys::wifi::kNamespace, false)) {
-      prefs.putInt(nvs_keys::wifi::kAccessPoint, 1);
+      prefs.putBool(nvs_keys::wifi::kAccessPoint, true);
       prefs.end();
     }
   } else {

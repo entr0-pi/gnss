@@ -92,6 +92,12 @@ static inline uint8_t talker_to_constellation(char t0, char t1) {
 static char g_line[96];
 static int  g_len = 0;
 
+// ================= Last GGA storage =================
+//
+// Store the last valid GGA sentence for NTRIP GGA header transmission.
+// The line is stored without CRLF; CRLF is added at send time if needed.
+static char g_last_gga[96] = {0};
+
 // ================= Concurrency protection =================
 //
 // ESP32 is 32-bit; `double` (64-bit) can be written/read in two halves ("torn") if accessed
@@ -250,6 +256,11 @@ static inline void process_line(const char* line, uint32_t nowMs) {
       const uint8_t fixQ = (uint8_t)gga.fix_quality;
       const uint8_t sats = (uint8_t)gga.satellites_tracked;
       const float   hd   = (float)minmea_tofloat(&gga.hdop);
+
+      // Store the validated GGA line for NTRIP GGA header transmission.
+      // The line is already null-terminated and checksum-validated.
+      strncpy(g_last_gga, line, sizeof(g_last_gga) - 1);
+      g_last_gga[sizeof(g_last_gga) - 1] = '\0';
 
       lock();
       g_gps.fixQuality = fixQ;
@@ -425,6 +436,8 @@ void nmea_begin() {
   // Reset the line collector and GSV staging buffer.
   g_len = 0;
   memset(g_gsv_buf, 0, sizeof(g_gsv_buf));
+  // Reset last GGA storage
+  g_last_gga[0] = '\0';
 }
 
 void nmea_feed_bytes(const uint8_t* data, size_t len, uint32_t nowMs) {
@@ -489,6 +502,13 @@ bool nmea_get_snapshot(NmeaGpsSnapshot& out) {
   // - Otherwise ageMs = now - last
   out.ageMs = (last == 0) ? 0 : (now - last);
 
-  return true;
+   return true;
+}
+
+bool nmea_get_last_gga(String& out) {
+  lock();
+  out = String(g_last_gga);
+  unlock();
+  return out.length() > 0;
 }
 #endif

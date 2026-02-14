@@ -1,31 +1,26 @@
 #include "gnss_config.h"
 
 #include <Preferences.h>
-
 #include "app.h"
 #include "nvs_keys.h"
-#define MODULE_LOG 1
-#include "logger.h"
 
-static_assert(NVS_SCHEMA_VERSION == 1,
+static_assert(NVS_SCHEMA_VERSION == 2,
               "GNSS NVS schema mismatch: update firmware or schema");
 static_assert(NVS_GNSS_REQUIRED_KEYS == 3,
               "GNSS NVS key count mismatch: update firmware or schema");
 
 GnssConfig gnss_config_defaults() {
-  #if IMMUTABLE_UART
-    return GnssConfig{
-      PIN_GNSS_RX,
-      PIN_GNSS_TX,
-      GNSS_BAUD
-    };
-  #else
-    return GnssConfig{
-      -1, // rx_pin
-      -1, // tx_pin
-      0   // baud
-    };
-  #endif
+  GnssConfig cfg;
+#if IMMUTABLE_UART
+  cfg.rx_pin = PIN_GNSS_RX;
+  cfg.tx_pin = PIN_GNSS_TX;
+  cfg.baud   = GNSS_BAUD;
+#else
+  cfg.rx_pin = -1;
+  cfg.tx_pin = -1;
+  cfg.baud   = 0;
+#endif
+  return cfg;
 }
 
 bool gnss_config_validate(const GnssConfig& cfg, String* error) {
@@ -75,7 +70,7 @@ bool gnss_config_load(GnssConfig& out, String* error) {
 bool gnss_config_save(const GnssConfig& cfg, String* error) {
 #if IMMUTABLE_UART
   (void)cfg;
-  if (error) *error = "UART config is immutable (build flags)";
+  if (error) *error = "GNSS config is immutable (build flags)";
   return false;
 #else
   Preferences prefs;
@@ -92,7 +87,7 @@ bool gnss_config_save(const GnssConfig& cfg, String* error) {
   prefs.end();
 
   if (!ok) {
-    if (error) *error = "Failed to write NVS";
+    if (error) *error = "GNSS config write failed";
     return false;
   }
 

@@ -271,6 +271,7 @@ bool webui_get_ntrip_snapshot(WebuiNtripSnapshot& out) {
   out.totalFrames = snap.totalFrames;
   out.lastMessageType = snap.lastMessageType;
   out.lastFrameAgeMs = snap.lastFrameAgeMs;
+  out.protocolVersion = snap.protocolVersion;
   return true;
 }
 #endif
@@ -750,9 +751,9 @@ static bool isSoftApEnabledFromNvs() {
     return true;
   }
 
-  const int ap_setting = prefs.getInt(nvs_keys::wifi::kAccessPoint, 1);
+  const bool ap_setting = prefs.getBool(nvs_keys::wifi::kAccessPoint, true);
   prefs.end();
-  return ap_setting != 0;
+  return ap_setting;
 #else
   return false;
 #endif

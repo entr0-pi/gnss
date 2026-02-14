@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <title>ESP32-C3 Status</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="icon" href="/favicon.ico?v=1.0.2">
-  <link rel="stylesheet" href="/style.css?v=1.0.11">
+  <link rel="icon" href="/favicon.ico?v=1.0.1">
+  <link rel="stylesheet" href="/style.css?v=1.0.1">
 </head>
 <body>
   <div class="wrap">
@@ -82,6 +82,7 @@
               <input class="input mono" id="cfg_baud" type="number" min="1200" max="2000000" step="100">
             </div>
             <div class="actions">
+              <button id="saveUartBtn" class="btn" type="button">Save GNSS</button>
               <div class="note" id="cfg_note">—</div>
             </div>
           </div>
@@ -90,6 +91,10 @@
         <div class="cat">
           <div class="catTitle">Wi-Fi</div>
           <div class="catBody">
+            <div class="line">
+              <label class="lk" for="wifi_accesspoint">Access Point</label>
+              <input id="wifi_accesspoint" type="checkbox">
+            </div>
             <div class="line">
               <label class="lk" for="wifi_ssid">SSID</label>
               <input class="input mono" id="wifi_ssid" type="text" autocomplete="off">
@@ -119,6 +124,7 @@
               <input class="input mono" id="wifi_dns" type="text" placeholder="8.8.8.8">
             </div>
             <div class="actions">
+              <button id="saveWifiBtn" class="btn" type="button">Save WiFi</button>
               <div class="note" id="wifi_cfg_note">—</div>
             </div>
           </div>
@@ -142,6 +148,10 @@
             <div class="line">
               <label class="lk" for="ntrip_mount">Mount</label>
               <input class="input mono" id="ntrip_mount" type="text" autocomplete="off">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_send_gga">Send GGA to caster</label>
+              <input id="ntrip_send_gga" type="checkbox">
             </div>
             <div class="line">
               <label class="lk" for="ntrip_user">User</label>
@@ -180,13 +190,14 @@
               <input class="input mono" id="ntrip_connect_timeout_ms" type="number" min="100" step="100">
             </div>
             <div class="actions">
+              <button id="saveNtripBtn" class="btn" type="button">Save NTRIP</button>
               <div class="note" id="ntrip_cfg_note">—</div>
             </div>
           </div>
         </div>
 
         <div class="actions">
-          <button id="saveAllConfigBtn" class="btn" type="button">Save UART + WiFi + NTRIP</button>
+          <button id="saveAllConfigBtn" class="btn" type="button">Save All</button>
         </div>
 
       </div>
@@ -215,6 +226,7 @@
           <div class="catTitle">NTRIP</div>
           <div class="catBody">
             <div class="line"><span class="lk">Linked</span><span class="lv mono" id="ntrip_sat">—</span></div>
+            <div class="line"><span class="lk">Version</span><span class="lv mono" id="ntrip_version">—</span></div>
             <div class="line"><span class="lk">Streaming</span><span class="lv mono emoji" id="ntrip_streaming">—</span></div>
             <div class="line"><span class="lk">Healthy</span><span class="lv mono emoji" id="ntrip_healthy">—</span></div>
             <div class="line"><span class="lk">Bytes</span><span class="lv mono" id="ntrip_bytes">—</span></div>
@@ -254,6 +266,12 @@
               <span class="legend-item"><span class="legend-marker constellation-glonass"></span>GLONASS</span>
               <span class="legend-item"><span class="legend-marker constellation-galileo"></span>Galileo</span>
               <span class="legend-item"><span class="legend-marker constellation-beidou"></span>BeiDou</span>
+            </div>
+            <div class="sat-details">
+              <div class="line"><span class="lk">Constellation</span><span class="lv mono" id="sat_constellation">—</span></div>
+              <div class="line"><span class="lk">Azimuth</span><span class="lv mono" id="sat_azimuth">—</span></div>
+              <div class="line"><span class="lk">Elevation</span><span class="lv mono" id="sat_elevation">—</span></div>
+              <div class="line"><span class="lk">Signal</span><span class="lv mono" id="sat_signal">—</span></div>
             </div>
           </div>
         </div>

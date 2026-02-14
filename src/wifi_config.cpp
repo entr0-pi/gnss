@@ -4,7 +4,7 @@
 #include "app.h"
 #include "nvs_keys.h"
 
-static_assert(NVS_SCHEMA_VERSION == 1,
+static_assert(NVS_SCHEMA_VERSION == 2,
               "WiFi NVS schema mismatch: update firmware or schema");
 static_assert(NVS_WIFI_REQUIRED_KEYS == 8,
               "WiFi NVS key count mismatch: update firmware or schema");
@@ -32,17 +32,32 @@ bool parse_ip_field(const String& value, const char* field, IPAddress& out, Stri
 WifiConfig wifi_config_defaults() {
   WifiConfig cfg;
 #if IMMUTABLE_WIFI
+  #if WIFI_ENABLE
   cfg.ssid = STA_SSID;
   cfg.pass = STA_PASS;
   cfg.dhcp = false;
+  cfg.accesspoint = true;
   cfg.ip = STA_IP;
   cfg.gw = STA_GW;
   cfg.subnet = STA_SUBNET;
   cfg.dns = STA_DNS;
+  #else
+  // WiFi-disabled builds are immutable by definition, but STA_* constants
+  // are only available when WIFI_ENABLE=1.
+  cfg.ssid = "CHANGEME";
+  cfg.pass = "CHANGEME";
+  cfg.dhcp = true;
+  cfg.accesspoint = false;
+  cfg.ip = IPAddress();
+  cfg.gw = IPAddress();
+  cfg.subnet = IPAddress();
+  cfg.dns = IPAddress();
+  #endif
 #else
   cfg.ssid = "CHANGEME";
   cfg.pass = "CHANGEME";
   cfg.dhcp = true;
+  cfg.accesspoint = true;
   cfg.ip = IPAddress();
   cfg.gw = IPAddress();
   cfg.subnet = IPAddress();
@@ -78,6 +93,7 @@ bool wifi_config_load(WifiConfig& cfg, String* error) {
   const bool has_ssid = prefs.isKey(nvs_keys::wifi::kSsid);
   const bool has_pass = prefs.isKey(nvs_keys::wifi::kPass);
   const bool has_dhcp = prefs.isKey(nvs_keys::wifi::kDhcp);
+  const bool has_accesspoint = prefs.isKey(nvs_keys::wifi::kAccessPoint);
   if (!has_ssid || !has_pass || !has_dhcp) {
     prefs.end();
     if (error) {
@@ -89,6 +105,7 @@ bool wifi_config_load(WifiConfig& cfg, String* error) {
   cfg.ssid = prefs.getString(nvs_keys::wifi::kSsid);
   cfg.pass = prefs.getString(nvs_keys::wifi::kPass);
   cfg.dhcp = prefs.getBool(nvs_keys::wifi::kDhcp);
+  cfg.accesspoint = has_accesspoint ? prefs.getBool(nvs_keys::wifi::kAccessPoint) : true;
 
   if (!cfg.dhcp) {
     const String ip_str = prefs.getString(nvs_keys::wifi::kIp);
@@ -150,6 +167,7 @@ bool wifi_config_save(const WifiConfig& cfg, String* error) {
   ok = ok && prefs.putString(nvs_keys::wifi::kSsid, cfg.ssid) > 0;
   ok = ok && prefs.putString(nvs_keys::wifi::kPass, cfg.pass) > 0;
   ok = ok && prefs.putBool(nvs_keys::wifi::kDhcp, cfg.dhcp);
+  ok = ok && prefs.putBool(nvs_keys::wifi::kAccessPoint, cfg.accesspoint);
 
   if (cfg.dhcp) {
     ok = ok && prefs.putString(nvs_keys::wifi::kIp, "0.0.0.0") > 0;

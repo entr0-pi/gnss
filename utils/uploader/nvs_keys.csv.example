@@ -26,6 +26,7 @@ passive_ms,data,u32,5000
 req_valid,data,u32,3
 buf_size,data,u32,1024
 conn_to,data,u32,5000
+send_gga,data,u8,0
 lock_fails,data,i32,0
 lock_aband,data,u8,0
 lock_hash,data,string,

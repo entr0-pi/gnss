@@ -91,6 +91,7 @@ struct NtripStats {
   unsigned long connectionStart = 0;
   NtripError lastError = NtripError::NONE;
   String lastErrorMessage;
+  uint8_t protocolVersion = 0;  // 1 = Rev1, 2 = Rev2, 0 = not connected
 };
 
 // ─── NtripClient ────────────────────────────────────────────────────────────

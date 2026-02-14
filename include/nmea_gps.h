@@ -51,4 +51,5 @@ struct NmeaGpsSnapshot {
 void nmea_begin();
 void nmea_feed_bytes(const uint8_t* data, size_t len, uint32_t nowMs);
 bool nmea_get_snapshot(NmeaGpsSnapshot& out);
+bool nmea_get_last_gga(String& out);
 #endif
