@@ -1,17 +1,45 @@
 {
-  "config": {
+  "uart_config": {
+    "locked": false,
     "rx_pin": 16,
     "tx_pin": 17,
-    "baud": 9600,
+    "baud": 9600
+  },
+  "wifi_config": {
+    "locked": false,
     "ssid": "your-ssid",
     "pass": "your-password",
     "dhcp": true,
     "accesspoint": true,
+    "dual_mode_supported": true,
     "ip": "192.168.1.50",
     "gw": "192.168.1.1",
     "subnet": "255.255.255.0",
-    "dns": "8.8.8.8",
-    "locked": false
+    "dns": "8.8.8.8"
+  },
+  "ntrip_config": {
+    "locked": false,
+    "ntrip": {
+      "enabled": false,
+      "host": "rtk2go.com",
+      "port": 2101,
+      "mount": "YOUR_MOUNT",
+      "user": "your_email@example.com",
+      "pass": "none",
+      "max_tries": 5,
+      "retry_delay_ms": 30000,
+      "health_timeout_ms": 60000,
+      "passive_sample_ms": 5000,
+      "required_valid_frames": 3,
+      "buffer_size": 1024,
+      "connect_timeout_ms": 5000,
+      "send_gga": false
+    },
+    "lockout": {
+      "failed_attempts": 0,
+      "abandoned": false,
+      "last_config_hash": ""
+    }
   },
   "status": {
     "device": {
@@ -25,14 +53,26 @@
       "heap_max_alloc": 1048576
     },
     "wifi": {
-      "rssi_dbm": -62,
       "ssid": "MyWiFi",
       "ip": "192.168.1.42",
       "gw": "192.168.1.1",
       "dns": "192.168.1.1",
       "subnet": "255.255.255.0",
       "broadcast": "192.168.1.255",
-      "mac": "AA:BB:CC:DD:EE:FF"
+      "mac": "AA:BB:CC:DD:EE:FF",
+      "rssi_dbm": -62
+    },
+    "internet": {
+      "reach": true
+    },
+    "http": {
+      "port": 80,
+      "req_total": 123,
+      "prev_req_age_ms": 1500
+    },
+    "app": {
+      "state": "running",
+      "notes": "Demo status"
     },
     "ble": {
       "connected": true,
@@ -59,21 +99,111 @@
       "age_ms": 500,
       "satellites_in_view": 15,
       "satellites": [
-        { "constellation": "GPS", "signal_power": 45, "azimuth": 12.0, "elevation": 65.0 },
-        { "constellation": "GPS", "signal_power": 38, "azimuth": 58.0, "elevation": 42.0 },
-        { "constellation": "GPS", "signal_power": 51, "azimuth": 102.0, "elevation": 75.0 },
-        { "constellation": "GLONASS", "signal_power": 44, "azimuth": 210.0, "elevation": 55.0 },
-        { "constellation": "GLONASS", "signal_power": 36, "azimuth": 145.0, "elevation": 30.0 },
-        { "constellation": "GLONASS", "signal_power": 48, "azimuth": 5.0, "elevation": 70.0 },
-        { "constellation": "Galileo", "signal_power": 46, "azimuth": 260.0, "elevation": 48.0 },
-        { "constellation": "Galileo", "signal_power": 41, "azimuth": 78.0, "elevation": 25.0 },
-        { "constellation": "Galileo", "signal_power": 35, "azimuth": 330.0, "elevation": 15.0 },
-        { "constellation": "BeiDou", "signal_power": 49, "azimuth": 120.0, "elevation": 52.0 },
-        { "constellation": "BeiDou", "signal_power": 40, "azimuth": 300.0, "elevation": 62.0 },
-        { "constellation": "BeiDou", "signal_power": 37, "azimuth": 35.0, "elevation": 18.0 },
-        { "constellation": "GPS", "signal_power": 32, "azimuth": 190.0, "elevation": 10.0 },
-        { "constellation": "GLONASS", "signal_power": 39, "azimuth": 250.0, "elevation": 35.0 },
-        { "constellation": "Galileo", "signal_power": 43, "azimuth": 15.0, "elevation": 80.0 }
+        {
+          "constellation": "GPS",
+          "nr": 1,
+          "signal_power": 45,
+          "azimuth": 12.0,
+          "elevation": 60.0
+        },
+        {
+          "constellation": "GPS",
+          "nr": 3,
+          "signal_power": 38,
+          "azimuth": 58.0,
+          "elevation": 45.0
+        },
+        {
+          "constellation": "GPS",
+          "nr": 8,
+          "signal_power": 51,
+          "azimuth": 102.0,
+          "elevation": 75.0
+        },
+        {
+          "constellation": "GLONASS",
+          "nr": 66,
+          "signal_power": 44,
+          "azimuth": 210.0,
+          "elevation": 55.0
+        },
+        {
+          "constellation": "GLONASS",
+          "nr": 70,
+          "signal_power": 36,
+          "azimuth": 145.0,
+          "elevation": 30.0
+        },
+        {
+          "constellation": "GLONASS",
+          "nr": 73,
+          "signal_power": 48,
+          "azimuth": 5.0,
+          "elevation": 70.0
+        },
+        {
+          "constellation": "Galileo",
+          "nr": 11,
+          "signal_power": 46,
+          "azimuth": 260.0,
+          "elevation": 48.0
+        },
+        {
+          "constellation": "Galileo",
+          "nr": 19,
+          "signal_power": 41,
+          "azimuth": 78.0,
+          "elevation": 25.0
+        },
+        {
+          "constellation": "Galileo",
+          "nr": 27,
+          "signal_power": 35,
+          "azimuth": 330.0,
+          "elevation": 15.0
+        },
+        {
+          "constellation": "BeiDou",
+          "nr": 201,
+          "signal_power": 49,
+          "azimuth": 120.0,
+          "elevation": 52.0
+        },
+        {
+          "constellation": "BeiDou",
+          "nr": 208,
+          "signal_power": 40,
+          "azimuth": 300.0,
+          "elevation": 60.0
+        },
+        {
+          "constellation": "BeiDou",
+          "nr": 214,
+          "signal_power": 37,
+          "azimuth": 35.0,
+          "elevation": 18.0
+        },
+        {
+          "constellation": "GPS",
+          "nr": 22,
+          "signal_power": 32,
+          "azimuth": 190.0,
+          "elevation": 10.0
+        },
+        {
+          "constellation": "GLONASS",
+          "nr": 79,
+          "signal_power": 39,
+          "azimuth": 250.0,
+          "elevation": 35.0
+        },
+        {
+          "constellation": "Galileo",
+          "nr": 30,
+          "signal_power": 43,
+          "azimuth": 15.0,
+          "elevation": 80.0
+        }
       ]
     },
     "ntrip": {
@@ -85,41 +215,6 @@
       "last_msg_type": 1077,
       "last_frame_age_ms": 420,
       "protocol_version": 2
-    },
-    "internet": {
-      "reach": true
-    },
-    "http": {
-      "port": 80,
-      "req_total": 123,
-      "prev_req_age_ms": 1500
-    },
-    "app": {
-      "state": "running",
-      "notes": "Demo status"
-    }
-  },
-  "ntrip_config": {
-    "ntrip": {
-      "enabled": false,
-      "host": "rtk2go.com",
-      "port": 2101,
-      "mount": "YOUR_MOUNT",
-      "user": "your_email@example.com",
-      "pass": "none",
-      "max_tries": 5,
-      "retry_delay_ms": 30000,
-      "health_timeout_ms": 60000,
-      "passive_sample_ms": 5000,
-      "required_valid_frames": 3,
-      "buffer_size": 1024,
-      "connect_timeout_ms": 5000,
-      "send_gga": false
-    },
-    "lockout": {
-      "failed_attempts": 0,
-      "abandoned": false,
-      "last_config_hash": ""
     }
   }
 }

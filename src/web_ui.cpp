@@ -431,6 +431,7 @@ static void handleWifiConfigGet() {
   doc["pass"]   = kPassMask;
   doc["dhcp"]   = cfg.dhcp;
   doc["accesspoint"] = cfg.accesspoint;
+  doc["dual_mode_supported"] = (bool)WIFI_DUAL_MODE;
   doc["ip"]     = cfg.ip.toString();
   doc["gw"]     = cfg.gw.toString();
   doc["subnet"] = cfg.subnet.toString();

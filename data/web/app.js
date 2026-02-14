@@ -5,6 +5,9 @@ let uartLocked = false;
 let wifiLocked = false;
 let ntripLocked = false;
 let selectedSatKey = null;
+let skyplotConstellationFilter = null;
+let skyplotMinElevationDeg = 0;
+let wifiDualModeSupported = true;
 
 function setIcon(id, ok = false) {
   const el = document.getElementById(id);
@@ -75,6 +78,30 @@ function clamp(n, min, max){
   return Math.min(max, Math.max(min, n));
 }
 
+function setBleTabEnabled(enabled){
+  const bleTabBtn = document.querySelector('.tabBtn[data-tab="tab_ble"]');
+  if (!bleTabBtn) return;
+  bleTabBtn.disabled = !enabled;
+  bleTabBtn.classList.toggle("is-disabled", !enabled);
+
+  const blePanel = $("tab_ble");
+  if (!enabled && blePanel && blePanel.classList.contains("isActive")) {
+    if (typeof window.activateTab === "function") window.activateTab("tab_status");
+  }
+}
+
+function setGpsTabEnabled(enabled){
+  const gpsTabBtn = document.querySelector('.tabBtn[data-tab="tab_gps"]');
+  if (!gpsTabBtn) return;
+  gpsTabBtn.disabled = !enabled;
+  gpsTabBtn.classList.toggle("is-disabled", !enabled);
+
+  const gpsPanel = $("tab_gps");
+  if (!enabled && gpsPanel && gpsPanel.classList.contains("isActive")) {
+    if (typeof window.activateTab === "function") window.activateTab("tab_status");
+  }
+}
+
 function satKey(sat){
   const constellation = sat?.constellation || "Unknown";
   const prn = sat?.nr ?? sat?.prn ?? null;
@@ -107,12 +134,38 @@ function setSatDetails(sat){
   if ($("sat_signal")) $("sat_signal").textContent = Number.isFinite(signal) ? `${signal} dBHz` : "—";
 }
 
+function updateLegendFilterUi(){
+  const items = document.querySelectorAll(".skyplot-legend .legend-item");
+  items.forEach((item) => {
+    const c = item.dataset.constellation;
+    item.classList.remove("is-active", "is-dimmed");
+    if (!skyplotConstellationFilter) return;
+    if (c === skyplotConstellationFilter) item.classList.add("is-active");
+    else item.classList.add("is-dimmed");
+  });
+}
+
 function renderSkyplot(satellites){
   const markers = $("skyplot_markers");
   if (!markers) return;
   markers.innerHTML = "";
 
   if (!Array.isArray(satellites) || satellites.length === 0) {
+    selectedSatKey = null;
+    clearSatDetails();
+    return;
+  }
+
+  const byElevation = satellites.filter((sat) => {
+    const elevation = Number(sat?.elevation);
+    return Number.isFinite(elevation) && elevation >= skyplotMinElevationDeg;
+  });
+
+  const visibleSatellites = skyplotConstellationFilter
+    ? byElevation.filter((sat) => (sat?.constellation || "") === skyplotConstellationFilter)
+    : byElevation;
+
+  if (visibleSatellites.length === 0) {
     selectedSatKey = null;
     clearSatDetails();
     return;
@@ -128,7 +181,7 @@ function renderSkyplot(satellites){
   let selectedStillExists = false;
   let selectedUpdated = false;
 
-  satellites.forEach((sat) => {
+  visibleSatellites.forEach((sat) => {
     const azimuth = Number(sat?.azimuth);
     const elevation = Number(sat?.elevation);
     const power = Number(sat?.signal_power ?? sat?.power_dbhz ?? sat?.power);
@@ -143,11 +196,15 @@ function renderSkyplot(satellites){
     const size = clamp(8 + ((Number.isFinite(power) ? power : 30) - 20) / 40 * 6, 8, 14);
 
     const marker = document.createElement("span");
-    marker.className = `skyplot-marker ${classMap[sat?.constellation] || "constellation-other"}`;
+    marker.className = "skyplot-marker";
     marker.style.left = `${x}%`;
     marker.style.top = `${y}%`;
     marker.style.width = `${size}px`;
     marker.style.height = `${size}px`;
+
+    const dot = document.createElement("span");
+    dot.className = `skyplot-dot ${classMap[sat?.constellation] || "constellation-other"}`;
+    marker.appendChild(dot);
     const powerLabel = Number.isFinite(power) ? `${power} dBHz` : "— dBHz";
     marker.title = `${sat?.constellation || "Unknown"} • ${powerLabel} • Az ${azimuth.toFixed(1)}° El ${elevation.toFixed(1)}°`;
     const key = satKey(sat);
@@ -202,13 +259,64 @@ function setWifiInputsEnabled(enabled) {
   });
 }
 
+function setNtripInputsEnabled(enabled) {
+  const ids = [
+    "ntrip_enabled",
+    "ntrip_host",
+    "ntrip_port",
+    "ntrip_mount",
+    "ntrip_send_gga",
+    "ntrip_user",
+    "ntrip_pass",
+    "ntrip_max_tries",
+    "ntrip_retry_delay_ms",
+    "ntrip_health_timeout_ms",
+    "ntrip_passive_sample_ms",
+    "ntrip_required_valid_frames",
+    "ntrip_buffer_size",
+    "ntrip_connect_timeout_ms"
+  ];
+  ids.forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    if (el.type === "checkbox") {
+      el.disabled = !enabled;
+    } else {
+      el.readOnly = !enabled;
+    }
+  });
+}
+
 function updateWifiStaticInputs(dhcp) {
+  const block = $("wifi_static_block");
+  if (block) block.style.display = dhcp ? "none" : "";
+
   const staticIds = ["wifi_ip", "wifi_gw", "wifi_subnet", "wifi_dns"];
   staticIds.forEach((id) => {
     const el = $(id);
     if (!el) return;
     el.readOnly = !!dhcp;
   });
+}
+
+function updateDhcpModeLabel(){
+  const dhcp = $("wifi_dhcp");
+  const label = $("wifi_dhcp_text");
+  if (!dhcp || !label) return;
+  label.textContent = dhcp.checked ? "DHCP" : "Static address";
+}
+
+function updateWifiModeLabel(){
+  const ap = $("wifi_accesspoint");
+  const label = $("wifi_mode_text");
+  if (!ap || !label) return;
+  if (!wifiDualModeSupported) {
+    label.textContent = "WiFi mode: Station only (build-locked)";
+    return;
+  }
+  label.textContent = ap.checked
+    ? "WiFi mode: Dual mode"
+    : "WiFi mode: Station only";
 }
 
 async function loadConfig(){
@@ -257,11 +365,15 @@ async function loadWifiConfig(){
     const r = await fetch('/api/wifi_config', { cache:'no-store' });
     if (!r.ok) throw new Error("http " + r.status);
     const cfg = await r.json();
-
+    wifiDualModeSupported = (cfg.dual_mode_supported !== false);
     if ($("wifi_ssid")) $("wifi_ssid").value = cfg.ssid ?? "";
     if ($("wifi_pass")) $("wifi_pass").value = cfg.pass ?? "";
     if ($("wifi_dhcp")) $("wifi_dhcp").checked = !!cfg.dhcp;
-    if ($("wifi_accesspoint")) $("wifi_accesspoint").checked = !!cfg.accesspoint;
+    if ($("wifi_accesspoint")) {
+      $("wifi_accesspoint").checked = wifiDualModeSupported ? !!cfg.accesspoint : false;
+      $("wifi_accesspoint").disabled = !wifiDualModeSupported;
+    }
+    updateWifiModeLabel();
     if ($("wifi_ip")) $("wifi_ip").value = cfg.ip ?? "";
     if ($("wifi_gw")) $("wifi_gw").value = cfg.gw ?? "";
     if ($("wifi_subnet")) $("wifi_subnet").value = cfg.subnet ?? "";
@@ -279,6 +391,7 @@ async function loadWifiConfig(){
       updateWifiStaticInputs(!!cfg.dhcp);
       setWifiConfigNote("Loaded from device");
     }
+    updateDhcpModeLabel();
     const wifiBtn = $("saveWifiBtn");
     if (wifiBtn) wifiBtn.style.display = isLocked ? "none" : "";
     if (saveBtn) saveBtn.style.display = (uartLocked && wifiLocked && ntripLocked) ? "none" : "";
@@ -310,6 +423,7 @@ async function loadNtripConfig(){
     if ($("ntrip_send_gga")) $("ntrip_send_gga").checked = !!ntrip.send_gga;
 
     ntripLocked = cfg.locked === true;
+    setNtripInputsEnabled(!ntripLocked);
     setNtripConfigNote(ntripLocked ? "🔒 Configuration locked (compile-time flags)" : "Loaded from device");
 
     const ntripBtn = $("saveNtripBtn");
@@ -339,8 +453,8 @@ async function refresh(){
 
     // Update icons in BOTH places (tab 1 + tab 2/3 duplicates)
     const bleOk = safe_ok(s.ble?.connected);
-    setIcon("ble_connected", bleOk);
     setIcon("ble_connected2", bleOk);
+    setBleTabEnabled(bleOk);
 
     $('ble_mtu').textContent      = safe(s.ble?.mtu);
     $('ble_txBytes').textContent  = fmtBytes(s.ble?.txBytes);
@@ -351,6 +465,7 @@ async function refresh(){
     const gpsOk = safe_ok(s.gps?.valid);
     setIcon("gps_valid", gpsOk);
     setIcon("gps_valid2", gpsOk);
+    setGpsTabEnabled(gpsOk);
 
     $('gps_fix').textContent   = safe((s.gps?.fix_type && s.gps?.fix_quality) ? (s.gps.fix_type + " / " + s.gps.fix_quality) : undefined);
     $('gps_fix2').textContent   = safe((s.gps?.fix_type && s.gps?.fix_quality) ? (s.gps.fix_type + " / " + s.gps.fix_quality) : undefined);
@@ -421,6 +536,8 @@ async function refresh(){
     if ($("ntrip_age")) $("ntrip_age").textContent = "—";
     setIcon("ntrip_streaming", false);
     setIcon("ntrip_healthy", false);
+    setBleTabEnabled(false);
+    setGpsTabEnabled(false);
     renderSkyplot(null);
   }
 }
@@ -483,7 +600,7 @@ async function saveWifiConfig() {
   const ssid = $("wifi_ssid")?.value?.trim() ?? "";
   const pass = $("wifi_pass")?.value ?? "";
   const dhcp = !!$("wifi_dhcp")?.checked;
-  const accesspoint = !!$("wifi_accesspoint")?.checked;
+  const accesspoint = wifiDualModeSupported ? !!$("wifi_accesspoint")?.checked : false;
   const ip = $("wifi_ip")?.value?.trim() ?? "";
   const gw = $("wifi_gw")?.value?.trim() ?? "";
   const subnet = $("wifi_subnet")?.value?.trim() ?? "";
@@ -660,17 +777,27 @@ const wifiDhcp = $("wifi_dhcp");
 if (wifiDhcp) {
   wifiDhcp.addEventListener("change", () => {
     updateWifiStaticInputs(!!wifiDhcp.checked);
+    updateDhcpModeLabel();
   });
+}
+
+const wifiAccesspoint = $("wifi_accesspoint");
+if (wifiAccesspoint) {
+  wifiAccesspoint.addEventListener("change", updateWifiModeLabel);
 }
 
 // Tabs logic (simple show/hide)
 (function initTabs(){
   const btns = Array.from(document.querySelectorAll(".tabBtn"));
   const panels = Array.from(document.querySelectorAll(".tabPanel"));
+  const tabs = document.querySelector(".tabs");
+  const gear = $("openConfigBtn");
 
   function activate(tabId){
     panels.forEach(p => p.classList.toggle("isActive", p.id === tabId));
     btns.forEach(b => b.classList.toggle("isActive", b.dataset.tab === tabId));
+    if (tabs) tabs.classList.toggle("is-hidden", tabId === "tab_config");
+    if (gear) gear.classList.toggle("is-hidden", !(tabId === "tab_status" || tabId === "tab_config"));
   }
 
   window.activateTab = activate;
@@ -682,9 +809,35 @@ if (wifiDhcp) {
 const openConfigBtn = $("openConfigBtn");
 if (openConfigBtn) {
   openConfigBtn.addEventListener("click", () => {
-    if (typeof window.activateTab === "function") window.activateTab("tab_config");
+    const inConfig = !!$("tab_config")?.classList.contains("isActive");
+    if (typeof window.activateTab === "function") {
+      window.activateTab(inConfig ? "tab_status" : "tab_config");
+    }
   });
 }
+
+const skyplotMinElInput = $("skyplot_min_el");
+if (skyplotMinElInput) {
+  skyplotMinElInput.addEventListener("change", () => {
+    const raw = Number(skyplotMinElInput.value);
+    const clamped = Number.isFinite(raw) ? clamp(raw, 0, 90) : 0;
+    skyplotMinElevationDeg = clamped;
+    skyplotMinElInput.value = String(clamped);
+    selectedSatKey = null;
+    clearSatDetails();
+  });
+}
+
+document.querySelectorAll(".skyplot-legend .legend-item").forEach((item) => {
+  item.addEventListener("click", () => {
+    const c = item.dataset.constellation;
+    skyplotConstellationFilter = (skyplotConstellationFilter === c) ? null : c;
+    selectedSatKey = null;
+    clearSatDetails();
+    updateLegendFilterUi();
+  });
+});
+updateLegendFilterUi();
 
 refresh();
 loadConfig();
