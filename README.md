@@ -193,4 +193,7 @@ For deeper technical details:
 └─ README.md
 ```
 
+## Some pictures...
+
 <img src="assets/webUI-1.png" alt="Web UI" width="400">
+<img src="assets/webUI-3.png" alt="Web UI" width="400">
