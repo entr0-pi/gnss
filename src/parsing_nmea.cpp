@@ -1,6 +1,8 @@
 #if NMEA_ENABLE
 #include "parsing_nmea.h"   // Your public snapshot struct + function declarations
 #include "app.h"
+#define MODULE_LOG 1
+#include "logger.h"
 
 // minmea is a small, fast NMEA parser library (C).
 // We include it as C to avoid C++ name mangling issues.
@@ -118,6 +120,7 @@ static inline void unlock() { portEXIT_CRITICAL(&g_mux);  }
 static struct {
   uint8_t     count;
   uint8_t     total_msgs;
+  uint8_t     last_msg_nr;
   uint32_t    lastUpdateMs;
   NmeaSatInfo sats[NMEA_MAX_SATS];
 } g_gsv_buf[5] = {};
@@ -140,7 +143,10 @@ static inline void buffer_sat(uint8_t cons, const struct minmea_sat_info& in) {
     s.snr = (int16_t)in.snr;
     return;
   }
-  if (g_gsv_buf[cons].count >= NMEA_MAX_SATS) return;
+  if (g_gsv_buf[cons].count >= NMEA_MAX_SATS) {
+    LOG_W("GSV", "Sat buffer full (%u), dropping PRN %d", NMEA_MAX_SATS, in.nr);
+    return;
+  }
   NmeaSatInfo& s = g_gsv_buf[cons].sats[g_gsv_buf[cons].count++];
   s.nr = (int16_t)in.nr;
   s.elevation = (int16_t)in.elevation;
@@ -360,7 +366,25 @@ static inline void process_line(const char* line, uint32_t nowMs) {
       if (gsv.msg_nr == 1) {
         g_gsv_buf[cons].count = 0;
         g_gsv_buf[cons].total_msgs = (uint8_t)gsv.total_msgs;
+        g_gsv_buf[cons].last_msg_nr = 1;
       }
+#if NMEA_VALIDATE_GSV_SEQUENCE
+      else {
+        if (gsv.msg_nr != g_gsv_buf[cons].last_msg_nr + 1) {
+          LOG_W("GSV", "Sequence gap cons=%u: expected msg %u, got %u",
+                cons, g_gsv_buf[cons].last_msg_nr + 1, gsv.msg_nr);
+          g_gsv_buf[cons].count = 0;
+          break;
+        }
+        if ((uint8_t)gsv.total_msgs != g_gsv_buf[cons].total_msgs) {
+          LOG_W("GSV", "total_msgs changed cons=%u: was %u, now %u",
+                cons, g_gsv_buf[cons].total_msgs, gsv.total_msgs);
+          g_gsv_buf[cons].count = 0;
+          break;
+        }
+        g_gsv_buf[cons].last_msg_nr = (uint8_t)gsv.msg_nr;
+      }
+#endif
 
       // Accumulate satellites from this GSV message (up to 4 per message).
       for (int i = 0; i < 4; i++) {

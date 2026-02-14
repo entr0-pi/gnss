@@ -276,3 +276,10 @@ static const TickType_t BLE_FAIL_DELAY    = pdMS_TO_TICKS(15);
 // GSV buffer expiration: if a constellation hasn't updated within this window,
 // its satellites are dropped from the "in view" list.
 static const uint32_t NMEA_GSV_STALE_MS = 10000;
+
+// Validate GSV message sequence (sequential msg_nr, consistent total_msgs).
+// Rejects and resets the buffer on sequence errors.
+// Disable (set to 0) if your receiver sends non-standard GSV sequences.
+#ifndef NMEA_VALIDATE_GSV_SEQUENCE
+#define NMEA_VALIDATE_GSV_SEQUENCE 1
+#endif
