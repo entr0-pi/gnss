@@ -15,16 +15,105 @@
 #define TCP_ENABLE 0
 #endif
 
+#ifndef NTRIP_CLIENT_ENABLE
+#define NTRIP_CLIENT_ENABLE 0
+#endif
+
+#ifndef BLE_ENABLE
+#define BLE_ENABLE 0
+#endif
+
 #ifndef TCP_PORT
 #define TCP_PORT 5000
 #endif
 
+// ---------------- NTRIP library flags ----------------
+// These are consumed by lib/ntrip-client (NtripClient.h).
+// Keep them centralized here so build_flags only need one include point.
+//
+// NTRIP_CLIENT_ENABLE_TASK:
+//   1 = run NTRIP in a background FreeRTOS task (ESP32 default)
+//   0 = taskless mode (manual loop)
+#ifndef NTRIP_CLIENT_ENABLE_TASK
+#define NTRIP_CLIENT_ENABLE_TASK 1
+#endif
+
+// NTRIP_CLIENT_ENABLE_REV1_FALLBACK:
+//   1 = if NTRIP Rev2 handshake fails, retry with Rev1
+//   0 = Rev2 only
+#ifndef NTRIP_CLIENT_ENABLE_REV1_FALLBACK
+#define NTRIP_CLIENT_ENABLE_REV1_FALLBACK 1
+#endif
+
+// NTRIP_CLIENT_PASSIVE_SCAN_BYTES:
+//   Number of bytes scanned during passive health checks for RTCM preamble.
+#ifndef NTRIP_CLIENT_PASSIVE_SCAN_BYTES
+#define NTRIP_CLIENT_PASSIVE_SCAN_BYTES 128
+#endif
+// ---------------- END NTRIP library flags ----------------
+
 #ifndef WIFI_ENABLE
-#define WIFI_ENABLE (WEBUI_ENABLE || TCP_ENABLE)
+#define WIFI_ENABLE (WEBUI_ENABLE || TCP_ENABLE || NTRIP_CLIENT_ENABLE)
+#endif
+
+// WiFi operating mode:
+// 0 = STA only
+// 1 = dual mode (STA + softAP)
+#ifndef WIFI_DUAL_MODE
+#define WIFI_DUAL_MODE 0
+#endif
+
+// Optional fixed STA channel for quicker association.
+// 0 = automatic channel selection (default)
+#ifndef STA_CHANNEL
+#define STA_CHANNEL 0
+#endif
+
+// SoftAP defaults (used when WIFI_DUAL_MODE=1).
+#ifndef SOFTAP_SSID_VALUE
+#define SOFTAP_SSID_VALUE "GNSS-ESP32-AP"
+#endif
+
+#ifndef SOFTAP_PASS_VALUE
+#define SOFTAP_PASS_VALUE ""
+#endif
+
+#ifndef SOFTAP_CHANNEL
+#define SOFTAP_CHANNEL 6
+#endif
+
+#ifndef SOFTAP_HIDDEN
+#define SOFTAP_HIDDEN 0
+#endif
+
+#ifndef SOFTAP_MAX_CONN
+#define SOFTAP_MAX_CONN 2
+#endif
+
+#if WIFI_ENABLE && WIFI_DUAL_MODE
+static const char* SOFTAP_SSID = SOFTAP_SSID_VALUE;
+static const char* SOFTAP_PASS = SOFTAP_PASS_VALUE;
 #endif
 
 #ifndef FORCE_WIFI_SECRETS
 #define FORCE_WIFI_SECRETS 0
+#endif
+
+#ifndef GLOBAL_LOG_LEVEL
+// 0:SILENT, 1:ERROR, 2:WARNING, 3:INFO, 4:DEBUG
+#define GLOBAL_LOG_LEVEL 0
+#endif
+
+#ifndef LOG_USE_COLOR
+#define LOG_USE_COLOR 0
+#endif
+
+#ifndef APP_NAME
+#define APP_NAME    "GNSS-ESP32"
+#endif
+
+#ifndef APP_VERSION
+#define APP_VERSION "1.0.0"
 #endif
 
 // ---------------- Dependency rule ----------------
@@ -33,6 +122,11 @@
   #warning "NMEA_ENABLE forced to 0 because WEBUI_ENABLE=0"
   #undef  NMEA_ENABLE
   #define NMEA_ENABLE 0
+#endif
+
+// NTRIP depends on WiFi + Web UI (for internet reachability checks).
+#if NTRIP_CLIENT_ENABLE != 0 && WEBUI_ENABLE == 0
+  #error "NTRIP_CLIENT_ENABLE requires WEBUI_ENABLE=1"
 #endif
 
 #if WIFI_ENABLE && FORCE_WIFI_SECRETS
@@ -95,11 +189,10 @@ static const uint16_t BLE_LOW_RATE_DELAY_MS =
 // Can be overridden at compile time via build_flags in platformio.ini
 
 #ifndef FORCE_HARDCODED_UART
-  // Normal mode: unconfigured defaults, use LittleFS config
-  static const int PIN_GNSS_RX = -1;        // Unconfigured
-  static const int PIN_GNSS_TX = -1;        // Unconfigured
-  static const uint32_t GNSS_BAUD = 0;     // Unconfigured
-#else
+#define FORCE_HARDCODED_UART 0
+#endif
+
+#if FORCE_HARDCODED_UART
   // Forced hardcoded mode: use build flags
   #ifndef HARD_RX_PIN
     #error "FORCE_HARDCODED_UART requires HARD_RX_PIN to be defined"
@@ -116,10 +209,13 @@ static const uint16_t BLE_LOW_RATE_DELAY_MS =
   static const uint32_t GNSS_BAUD = HARD_BAUD;
 #endif
 
-// Fallback values if LittleFS fails/corrupt (safety net)
-static const int FALLBACK_GNSS_RX = 20;
-static const int FALLBACK_GNSS_TX = 21;
-static const uint32_t FALLBACK_GNSS_BAUD = 115200;
+// ---------------- Immutability flags ----------------
+// Per-subsystem immutability. When 1, the subsystem config cannot be changed
+// at runtime (WebUI POST is rejected, NVS defaults are not seeded).
+// These are the single source of truth -- do not re-derive elsewhere.
+#define IMMUTABLE_UART   (FORCE_HARDCODED_UART)
+#define IMMUTABLE_WIFI   (FORCE_WIFI_SECRETS || !WIFI_ENABLE)
+#define IMMUTABLE_NTRIP  (!NTRIP_CLIENT_ENABLE)
 
 // ---------------- SERIAL ----------------
 // USB CDC serial used for debug logs in the Arduino monitor.
@@ -156,6 +252,12 @@ static const size_t SB_UART_TO_TCP_SIZE = 2048;
 static const size_t SB_TCP_TO_UART_SIZE = 4096;
 #endif
 
+#if NTRIP_CLIENT_ENABLE
+// SB_NTRIP_TO_UART_SIZE:
+//   Buffer for NTRIP corrections -> GNSS UART stream.
+static const size_t SB_NTRIP_TO_UART_SIZE = 4096;
+#endif
+
 // StreamBuffer trigger level:
 // A receiver task blocked on xStreamBufferReceive() will unblock once at least this
 // many bytes are present (or timeout). 1 means "wake as soon as any byte arrives".
@@ -174,3 +276,10 @@ static const TickType_t BLE_FAIL_DELAY    = pdMS_TO_TICKS(15);
 // GSV buffer expiration: if a constellation hasn't updated within this window,
 // its satellites are dropped from the "in view" list.
 static const uint32_t NMEA_GSV_STALE_MS = 10000;
+
+// Validate GSV message sequence (sequential msg_nr, consistent total_msgs).
+// Rejects and resets the buffer on sequence errors.
+// Disable (set to 0) if your receiver sends non-standard GSV sequences.
+#ifndef NMEA_VALIDATE_GSV_SEQUENCE
+#define NMEA_VALIDATE_GSV_SEQUENCE 1
+#endif

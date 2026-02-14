@@ -2,7 +2,6 @@
 #pragma once
 
 #include <Arduino.h>
-#include <Arduino.h>
 #include "app.h"
 
 #if WEBUI_ENABLE
@@ -13,6 +12,13 @@ class WebServer;
 #include <IPAddress.h>
 
 void webui_begin(WebServer& server, const IPAddress& sta_dns);
+
+// Last known internet reachability from /api/status probes.
+#if WEBUI_ENABLE
+bool webui_get_internet_reachable();
+#else
+inline bool webui_get_internet_reachable() { return false; }
+#endif
 
 // ---- BLE snapshot interface (implemented in main.cpp) ----
 struct WebuiBleSnapshot {
@@ -42,7 +48,7 @@ struct WebuiTcpSnapshot {
 #define NMEA_MAX_SATS 48
 #endif
 
-// Per-satellite info for the web UI (mirrors NmeaSatInfo from nmea_gps.h).
+// Per-satellite info for the web UI (mirrors NmeaSatInfo from parsing_nmea.h).
 struct WebuiSatInfo {
   int16_t  nr;            // satellite PRN number
   int16_t  elevation;     // degrees above horizon (0-90)
@@ -89,3 +95,16 @@ bool webui_get_tcp_snapshot(WebuiTcpSnapshot& out);
 bool webui_get_gps_snapshot(WebuiGpsSnapshot& out);
 #endif
 
+#if NTRIP_CLIENT_ENABLE
+struct WebuiNtripSnapshot {
+  bool connected;
+  bool healthy;
+  bool streaming;
+  uint32_t bytesReceived;
+  uint32_t totalFrames;
+  uint16_t lastMessageType;
+  uint32_t lastFrameAgeMs;
+  uint8_t protocolVersion;  // 1 = Rev1, 2 = Rev2, 0 = not connected
+};
+bool webui_get_ntrip_snapshot(WebuiNtripSnapshot& out);
+#endif

@@ -24,16 +24,24 @@
 
 // ---- BLE ----
 // NimBLE-Arduino implements BLE peripheral/server, characteristics, notifications, callbacks, etc.
+#if BLE_ENABLE
 #include <NimBLEDevice.h>
+#endif
 
 // ---- (WiFi + WebServer) ----
 // WiFi STA mode connects to an existing hotspot/router and hosts a small status web server.
 #include "app.h"
-#include "gnss_config.h"
-#include "wifi_config.h"
+#define MODULE_LOG 1
+#include "logger.h"
+#include "config_bootstrap.h"
+#include "config_gnss.h"
+#include "ntrip_client.h"
+#include "config_wifi.h"
 
 #if WIFI_ENABLE
+#include <Preferences.h>
 #include <WiFi.h>
+#include "nvs_keys.h"
 #endif
 
 #if WEBUI_ENABLE
@@ -49,7 +57,7 @@
 // ---- NMEA ----
 // Optional NMEA parsing (compile-time). If disabled, bytes are still streamed.
 #if NMEA_ENABLE
-#include "nmea_gps.h"
+#include "parsing_nmea.h"
 #endif
 
 // ---- FreeRTOS primitives used by ESP32 Arduino ----
@@ -57,7 +65,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/stream_buffer.h"
-#include "esp_task_wdt.h"
 
 #if WEBUI_ENABLE
 // ---- Webserver ----
@@ -65,6 +72,7 @@
 WebServer server(80);
 #endif
 
+#if BLE_ENABLE
 // ---------------- BLE (NUS UUIDs) ----------------
 // Nordic UART Service (NUS) UUIDs:
 // - Service UUID
@@ -84,7 +92,9 @@ static NimBLECharacteristic* g_txChar    = nullptr;
 // g_notifyEn:  true when the central enabled notifications on the TX characteristic.
 static bool                  g_connected = false;
 static bool                  g_notifyEn  = false;
+#endif
 
+#if BLE_ENABLE
 // StreamBuffers (static allocation)
 // Using xStreamBufferCreateStatic() avoids dynamic allocations and fragmentation.
 // - g_sb_uart2ble: bytes from GNSS UART RX -> BLE notify task
@@ -95,6 +105,7 @@ static uint8_t               g_sb_uart2ble_storage[SB_UART_TO_BLE_SIZE];
 static uint8_t               g_sb_ble2uart_storage[SB_BLE_TO_UART_SIZE];
 static StreamBufferHandle_t  g_sb_uart2ble = nullptr;
 static StreamBufferHandle_t  g_sb_ble2uart = nullptr;
+#endif
 
 #if TCP_ENABLE
 // StreamBuffers for TCP (static allocation).
@@ -111,6 +122,15 @@ static StreamBufferHandle_t  g_sb_tcp2uart = nullptr;
 static WiFiServer g_tcpServer(TCP_PORT);
 static WiFiClient g_tcpClient;
 #endif
+
+#if NTRIP_CLIENT_ENABLE
+// StreamBuffer for NTRIP (static allocation).
+// - g_sb_ntrip2uart: bytes from NTRIP client -> GNSS UART TX
+static StaticStreamBuffer_t  g_sb_ntrip2uart_struct;
+static uint8_t               g_sb_ntrip2uart_storage[SB_NTRIP_TO_UART_SIZE];
+static StreamBufferHandle_t  g_sb_ntrip2uart = nullptr;
+#endif
+#if BLE_ENABLE
 // ========================= BLE STATUS (BLOCK) =========================
 // Small status accumulator used by the web UI snapshots.
 //
@@ -136,6 +156,7 @@ struct BleStatus {
 static BleStatus g_bleStatus;
 static uint16_t g_ble_mtu = BLE_MTU;
 // ======================= END BLE STATUS (BLOCK) =======================
+#endif
 
 #if TCP_ENABLE
 // ========================= TCP STATUS (BLOCK) =========================
@@ -163,6 +184,7 @@ static TcpStatus g_tcpStatus;
 //
 // Important: This function reads the current global state and copies it into `out`.
 bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
+#if BLE_ENABLE
   out.connected     = g_bleStatus.connected;
   out.mtu           = g_bleStatus.mtu;
 
@@ -174,6 +196,10 @@ bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
   out.ble2uartDrops = g_bleStatus.ble2uartDrops;
 
   return true;
+#else
+  (void)out;
+  return false;
+#endif
 }
 #endif
 
@@ -234,6 +260,23 @@ bool webui_get_gps_snapshot(WebuiGpsSnapshot& out) {
 }
 #endif
 
+#if WEBUI_ENABLE && NTRIP_CLIENT_ENABLE
+bool webui_get_ntrip_snapshot(WebuiNtripSnapshot& out) {
+  NtripClientSnapshot snap{};
+  if (!ntrip_client_get_snapshot(snap)) return false;
+  out.connected = snap.connected;
+  out.healthy = snap.healthy;
+  out.streaming = snap.streaming;
+  out.bytesReceived = snap.bytesReceived;
+  out.totalFrames = snap.totalFrames;
+  out.lastMessageType = snap.lastMessageType;
+  out.lastFrameAgeMs = snap.lastFrameAgeMs;
+  out.protocolVersion = snap.protocolVersion;
+  return true;
+}
+#endif
+
+#if BLE_ENABLE
 // ---------------- BLE Callbacks ----------------
 // NimBLE calls these on BLE events (connect/disconnect/subscribe/write).
 //
@@ -328,16 +371,56 @@ class RxCallbacks : public NimBLECharacteristicCallbacks {
     }
   }
 };
+#endif
 
 // ----------- FUNCTIONS DECLARATIONS -----------
 // Declared here so setup() can call them before their definitions below.
+
+// Setup helper functions (extracted for cleaner setup())
+static void initSerialAndConfig();
+static void createStreamBuffers();
+static void setupUartIfConfigured();
+#if BLE_ENABLE
+static void startBleServer();
+#endif
+#if WEBUI_ENABLE
+static void initWebUiRoutes();
+#endif
+#if WIFI_ENABLE
+static void connectWiFi();
+#endif
+#if WEBUI_ENABLE
+static void startWebServer();
+#endif
+#if NMEA_ENABLE
+static void initNmea();
+#endif
+static void startWorkerTasks();
+
+// Loop helper functions (extracted for cleaner loop())
+static void logLoopEntryOnce();
+#if WIFI_ENABLE
+static void maybeReconnectWiFi();
+#endif
+#if WEBUI_ENABLE
+static void handleWebUi();
+#endif
+static void yieldToTasks();
+
+// Core setup functions
+#if BLE_ENABLE
 static void setupBLE();
+#endif
 static void setupUART();
 #if WIFI_ENABLE
 static void setupWiFi();
 #endif
+
+// FreeRTOS task functions
 static void task_uart_rx(void* arg);
+#if BLE_ENABLE
 static void task_ble_tx(void* arg);
+#endif
 static void task_uart_tx(void* arg);
 #if TCP_ENABLE
 static void task_tcp_io(void* arg);
@@ -348,20 +431,104 @@ static void task_tcp_io(void* arg);
 // -------------------------------------------
 
 void setup() {
-  // Debug serial over USB.
+  // Initialize debug serial and load persisted GNSS configuration from NVS.
+  initSerialAndConfig();
+
+  // Allocate FreeRTOS StreamBuffers for inter-task byte streaming (UART<->BLE, UART<->TCP).
+  createStreamBuffers();
+
+  // Configure UART for GNSS communication if pins/baud are set; skips if not configured.
+  setupUartIfConfigured();
+
+  #if BLE_ENABLE
+  // Initialize NimBLE stack, create NUS service, and start advertising.
+  startBleServer();
+
+  #endif
+
+  #if WEBUI_ENABLE
+  // Register HTTP routes for the status web UI (before server starts).
+  initWebUiRoutes();
+  #endif
+
+  #if WIFI_ENABLE
+  // Connect to WiFi in STA mode using stored or default credentials.
+  connectWiFi();
+  #endif
+
+  #if WEBUI_ENABLE
+  // Start the HTTP server to serve the web UI.
+  startWebServer();
+  #endif
+
+  #if NMEA_ENABLE
+  // Initialize the optional NMEA sentence parser.
+  initNmea();
+  #endif
+
+  #if NTRIP_CLIENT_ENABLE
+  // Start the NTRIP client and configuration monitor.
+  ntrip_client_setup(g_sb_ntrip2uart);
+  #endif
+
+  // Create FreeRTOS tasks for UART RX/TX, BLE TX, and optionally TCP I/O.
+  startWorkerTasks();
+}
+
+void loop() {
+  // Log a one-time banner on first iteration to indicate loop has started.
+  logLoopEntryOnce();
+
+  #if WIFI_ENABLE
+  // Attempt WiFi reconnection if disconnected (throttled to every 5 seconds).
+  maybeReconnectWiFi();
+  #endif
+
+  #if WEBUI_ENABLE
+  // Poll the HTTP server to process incoming web requests.
+  handleWebUi();
+  #endif
+
+  #if NTRIP_CLIENT_ENABLE
+  // Periodic NTRIP status logging and lockout handling.
+  ntrip_client_loop();
+  #endif
+
+  // Yield CPU time to other FreeRTOS tasks.
+  yieldToTasks();
+}
+
+// -------------------------------------------
+// ----------- SETUP HELPER FUNCTIONS --------
+// -------------------------------------------
+
+/**
+ * initSerialAndConfig()
+ * Initializes the debug serial port (USB CDC) and loads the persisted GNSS
+ * configuration from NVS. A short delay allows the USB CDC and RTOS
+ * scheduler to stabilize after boot.
+ */
+static void initSerialAndConfig() {
   Serial.begin(SERIAL_BAUD);
-
-  // Give USB CDC + RTOS some time to settle (especially right after boot).
   vTaskDelay(pdMS_TO_TICKS(200));
+  LOG_I("SETUP", "Bootstrapping config...");
+  config_bootstrap();
+}
 
-  Serial.println("[SETUP] Loading config...");
-  // Load persisted UART configuration (LittleFS) if available.
-  gnss_config_begin();
+/**
+ * createStreamBuffers()
+ * Allocates FreeRTOS StreamBuffers using static memory for inter-task
+ * communication. These lock-free byte FIFOs connect:
+ *   - UART RX -> BLE TX (g_sb_uart2ble)
+ *   - BLE RX -> UART TX (g_sb_ble2uart)
+ *   - UART RX -> TCP TX (g_sb_uart2tcp) [if TCP_ENABLE]
+ *   - TCP RX -> UART TX (g_sb_tcp2uart) [if TCP_ENABLE]
+ * Halts with an infinite loop if allocation fails.
+ */
+static void createStreamBuffers() {
+  LOG_I("SETUP", "Creating stream buffers...");
 
-  Serial.println("[SETUP] Creating stream buffers...");
-  // Create StreamBuffers using static storage (no heap allocation for the buffers).
-  // - UART->BLE buffer holds bytes read from Serial1 (GNSS output).
-  // - BLE->UART buffer holds bytes written by phone to BLE RX characteristic.
+#if BLE_ENABLE
   g_sb_uart2ble = xStreamBufferCreateStatic(
       SB_UART_TO_BLE_SIZE, SB_TRIGGER_LEVEL,
       g_sb_uart2ble_storage, &g_sb_uart2ble_struct);
@@ -369,6 +536,7 @@ void setup() {
   g_sb_ble2uart = xStreamBufferCreateStatic(
       SB_BLE_TO_UART_SIZE, SB_TRIGGER_LEVEL,
       g_sb_ble2uart_storage, &g_sb_ble2uart_struct);
+#endif
 
 #if TCP_ENABLE
   g_sb_uart2tcp = xStreamBufferCreateStatic(
@@ -380,80 +548,160 @@ void setup() {
       g_sb_tcp2uart_storage, &g_sb_tcp2uart_struct);
 #endif
 
-  // If allocation fails, we cannot safely run. Halt here (infinite delay loop).
-  if (!g_sb_uart2ble || !g_sb_ble2uart
-#if TCP_ENABLE
-      || !g_sb_uart2tcp || !g_sb_tcp2uart
+#if NTRIP_CLIENT_ENABLE
+  g_sb_ntrip2uart = xStreamBufferCreateStatic(
+      SB_NTRIP_TO_UART_SIZE, SB_TRIGGER_LEVEL,
+      g_sb_ntrip2uart_storage, &g_sb_ntrip2uart_struct);
 #endif
-      ) {
-    Serial.println("[SETUP] ERROR: Stream buffer creation failed!");
+
+  bool ok = true;
+#if BLE_ENABLE
+  ok = ok && g_sb_uart2ble && g_sb_ble2uart;
+#endif
+#if TCP_ENABLE
+  ok = ok && g_sb_uart2tcp && g_sb_tcp2uart;
+#endif
+#if NTRIP_CLIENT_ENABLE
+  ok = ok && g_sb_ntrip2uart;
+#endif
+
+  if (!ok) {
+    LOG_E("SETUP", "Stream buffer creation failed!");
     for (;;) vTaskDelay(pdMS_TO_TICKS(1000));
   }
+}
 
-  // CRITICAL: Initialize UART BEFORE WiFi/BLE to avoid ESP32-C3 hang issue
-  // Skip UART if not configured (-1/0)
-  const GnssConfig& cfg = gnss_config_get();
+/**
+ * setupUartIfConfigured()
+ * Checks the persisted GNSS configuration for valid UART pins and baud rate.
+ * If configured, initializes Serial1 for GNSS communication.
+ * CRITICAL: Must be called BEFORE WiFi/BLE init to avoid ESP32-C3 hang issues.
+ */
+static void setupUartIfConfigured() {
+  GnssConfig cfg = gnss_config_defaults();
+  gnss_config_load(cfg, nullptr);
   if (cfg.rx_pin == -1 || cfg.tx_pin == -1 || cfg.baud == 0) {
-    Serial.println("[SETUP] UART not configured - configure via web UI");
+    LOG_W("SETUP", "UART not configured - configure via web UI");
   } else {
-    Serial.println("[SETUP] Setting up UART...");
+    LOG_I("SETUP", "Setting up UART...");
     setupUART();
   }
+}
 
-  Serial.println("[SETUP] Starting BLE...");
-  // Configure BLE server + characteristics + advertising.
+/**
+ * startBleServer()
+ * Initializes the NimBLE stack, creates the Nordic UART Service (NUS),
+ * and starts BLE advertising. After this call, BLE centrals can discover
+ * and connect to the device.
+ */
+#if BLE_ENABLE
+static void startBleServer() {
+  LOG_I("SETUP", "Starting BLE...");
   setupBLE();
+}
+#endif
 
-  #if WEBUI_ENABLE
-  Serial.println("[SETUP] Initializing WebUI...");
-  // Configure HTTP routes / static assets for the status UI.
-  // (Doing this before server.begin() is fine; it just registers handlers.)
+#if WEBUI_ENABLE
+/**
+ * initWebUiRoutes()
+ * Registers HTTP routes and static assets for the status web UI.
+ * Must be called before startWebServer(). Routes are registered but
+ * the server does not accept connections until server.begin() is called.
+ */
+static void initWebUiRoutes() {
+  LOG_I("SETUP", "Initializing WebUI...");
   webui_begin(server, STA_DNS);
-  #endif
+}
+#endif
 
-  #if WIFI_ENABLE
-  Serial.println("[SETUP] Connecting to WiFi...");
-  // Connect to WiFi (STA).
+#if WIFI_ENABLE
+/**
+ * connectWiFi()
+ * Connects to WiFi in STA mode using credentials from NVS or
+ * compile-time defaults. Blocks for up to 10 seconds waiting for
+ * connection; if it fails, loop() will retry periodically.
+ */
+static void connectWiFi() {
+  LOG_I("SETUP", "Connecting to WiFi...");
   setupWiFi();
-  Serial.println("[SETUP] WiFi setup complete");
-  #endif
+  LOG_I("SETUP", "WiFi setup complete");
+}
+#endif
 
-  #if WEBUI_ENABLE
-  Serial.println("[SETUP] Starting web server...");
-  // Start listening for HTTP requests.
+#if WEBUI_ENABLE
+/**
+ * startWebServer()
+ * Starts the HTTP server listening on port 80. After this call,
+ * the web UI becomes accessible at the device's IP address.
+ */
+static void startWebServer() {
+  LOG_I("SETUP", "Starting web server...");
   server.begin();
-  Serial.println("[SETUP] Web server started");
-  #endif
+  LOG_I("SETUP", "Web server started");
+}
+#endif
 
-  // Initialize NMEA parser module (optional).
-  #if NMEA_ENABLE
-  Serial.println("[SETUP] Initializing NMEA...");
+#if NMEA_ENABLE
+/**
+ * initNmea()
+ * Initializes the optional NMEA sentence parser module. When enabled,
+ * incoming GNSS bytes are parsed to extract position, time, and
+ * satellite information for the web UI.
+ */
+static void initNmea() {
+  LOG_I("SETUP", "Initializing NMEA...");
   nmea_begin();
-  #endif
+}
+#endif
 
-  Serial.println("[SETUP] Creating tasks...");
-  // Create worker tasks.
-  // We prioritize UART tasks slightly higher so RTCM bytes (from phone) can reach GNSS
-  // quickly even if BLE notify or HTTP are busy.
+/**
+ * startWorkerTasks()
+ * Creates FreeRTOS tasks for the main data processing loops:
+ *   - task_uart_rx: Reads GNSS bytes from Serial1, feeds NMEA parser, buffers for BLE/TCP
+ *   - task_uart_tx: Writes correction data (from BLE/TCP) to GNSS via Serial1
+ *   - task_ble_tx:  Sends buffered GNSS data to connected BLE central via notifications
+ *   - task_tcp_io:  Handles TCP client connections and bidirectional data (if TCP_ENABLE)
+ * UART tasks run at priority 3, BLE/TCP tasks at priority 2.
+ */
+static void startWorkerTasks() {
+  LOG_I("SETUP", "Creating tasks...");
   xTaskCreate(task_uart_rx, "uart_rx", 4096, nullptr, 3, nullptr);
   xTaskCreate(task_uart_tx, "uart_tx", 4096, nullptr, 3, nullptr);
+#if BLE_ENABLE
   xTaskCreate(task_ble_tx,  "ble_tx",  4096, nullptr, 2, nullptr);
+#endif
 #if TCP_ENABLE
   g_tcpServer.begin();
   g_tcpServer.setNoDelay(true);
   xTaskCreate(task_tcp_io,  "tcp_io",  4096, nullptr, 2, nullptr);
 #endif
-  Serial.println("[SETUP] Setup complete!");
+  LOG_I("SETUP", "Setup complete!");
 }
 
-void loop() {
+// -------------------------------------------
+// ----------- LOOP HELPER FUNCTIONS ---------
+// -------------------------------------------
+
+/**
+ * logLoopEntryOnce()
+ * Prints a one-time banner to serial when the main loop first executes.
+ * Useful for confirming that setup() completed and loop() is running.
+ */
+static void logLoopEntryOnce() {
   static bool first_loop = true;
   if (first_loop) {
-    Serial.println("[LOOP] Entered main loop");
+    LOG_I("LOOP", "Entered main loop");
     first_loop = false;
   }
+}
 
-  #if WIFI_ENABLE
+#if WIFI_ENABLE
+/**
+ * maybeReconnectWiFi()
+ * Checks WiFi connection status and attempts reconnection if disconnected.
+ * Throttled to one attempt every 5 seconds to avoid spamming the WiFi stack.
+ */
+static void maybeReconnectWiFi() {
   static unsigned long last_wifi_attempt = 0;
   if (WiFi.status() != WL_CONNECTED) {
     const unsigned long now = millis();
@@ -462,42 +710,76 @@ void loop() {
       last_wifi_attempt = now;
     }
   }
-  #endif
+}
+#endif
 
-  #if WEBUI_ENABLE
-  // WebServer is polled; it processes one client request per call.
+#if WEBUI_ENABLE
+/**
+ * handleWebUi()
+ * Polls the HTTP server to process one pending client request per call.
+ * Must be called frequently in loop() for responsive web UI.
+ */
+static void handleWebUi() {
   server.handleClient();
-  #endif
+}
+#endif
 
-  // Small delay yields CPU to other FreeRTOS tasks on ESP32 Arduino.
+/**
+ * yieldToTasks()
+ * Yields CPU time to other FreeRTOS tasks with a small delay.
+ * Prevents loop() from monopolizing the CPU on ESP32 Arduino.
+ */
+static void yieldToTasks() {
   delay(2);
 }
 
 // -------------------------------------------
-// ---------------- FUNCTIONS ----------------
+// ----------- CORE SETUP FUNCTIONS ----------
 // -------------------------------------------
 
 #if WIFI_ENABLE
+static bool isSoftApEnabledFromNvs() {
+#if WIFI_DUAL_MODE
+  Preferences prefs;
+  if (!prefs.begin(nvs_keys::wifi::kNamespace, true)) {
+    LOG_W("WiFi", "Cannot open wifi NVS namespace; defaulting accesspoint=1");
+    return true;
+  }
+
+  if (!prefs.isKey(nvs_keys::wifi::kAccessPoint)) {
+    prefs.end();
+    return true;
+  }
+
+  const bool ap_setting = prefs.getBool(nvs_keys::wifi::kAccessPoint, true);
+  prefs.end();
+  return ap_setting;
+#else
+  return false;
+#endif
+}
+
 static void setupWiFi() {
-  // Station mode: connect to an existing access point / hotspot.
+  // Station mode or dual mode (STA + softAP) based on build flags.
+#if WIFI_DUAL_MODE
+  const bool enable_soft_ap = isSoftApEnabledFromNvs();
+  WiFi.mode(enable_soft_ap ? WIFI_AP_STA : WIFI_STA);
+#else
   WiFi.mode(WIFI_STA);
+#endif
   WiFi.setAutoReconnect(true);
   WiFi.persistent(false);
   WiFi.setSleep(true);
 
   WifiConfig file_cfg{};
   bool use_file_cfg = false;
-#if !FORCE_WIFI_SECRETS
   String wifi_error;
   if (wifi_config_load(file_cfg, &wifi_error)) {
     use_file_cfg = true;
-    Serial.println("[WiFi] Loaded config from LittleFS");
+    LOG_I("WiFi", "Loaded config from NVS");
   } else {
-    Serial.println(String("[WiFi] Failed to load config from LittleFS: ") + wifi_error);
+    LOG_W("WiFi", "NVS config missing/invalid: %s", wifi_error.c_str());
   }
-#else
-  Serial.println("[WiFi] FORCE_WIFI_SECRETS enabled, skipping LittleFS config");
-#endif
 
   const char* ssid = use_file_cfg ? file_cfg.ssid.c_str() : STA_SSID;
   const char* pass = use_file_cfg ? file_cfg.pass.c_str() : STA_PASS;
@@ -506,38 +788,89 @@ static void setupWiFi() {
   const IPAddress gw = use_file_cfg ? file_cfg.gw : STA_GW;
   const IPAddress subnet = use_file_cfg ? file_cfg.subnet : STA_SUBNET;
   const IPAddress dns = use_file_cfg ? file_cfg.dns : STA_DNS;
+  uint8_t sta_channel = STA_CHANNEL;
+
+#if WIFI_DUAL_MODE
+  if (enable_soft_ap) {
+    uint8_t ap_channel = SOFTAP_CHANNEL;
+    if (sta_channel >= 1 && sta_channel <= 13 && ap_channel == sta_channel) {
+      ap_channel = (sta_channel % 13) + 1;
+      LOG_W("WiFi", "SOFTAP_CHANNEL matched STA_CHANNEL; adjusted AP channel to %u", ap_channel);
+    }
+
+    if (!WiFi.softAP(SOFTAP_SSID, SOFTAP_PASS, ap_channel, SOFTAP_HIDDEN, SOFTAP_MAX_CONN)) {
+      LOG_E("WiFi", "Failed to start softAP");
+    } else {
+      LOG_I("WiFi", "softAP started: ssid='%s' ip=%s channel=%u",
+            SOFTAP_SSID,
+            WiFi.softAPIP().toString().c_str(),
+            ap_channel);
+    }
+
+    if (sta_channel == 0) {
+      LOG_W("WiFi", "STA_CHANNEL=0 (auto); AP/STA channel separation cannot be guaranteed at compile time");
+    }
+  } else {
+    LOG_I("WiFi", "Dual mode build enabled, but softAP disabled by NVS wifi/accesspoint=0");
+  }
+#endif
+
+  LOG_I("WiFi", "Config source: %s", use_file_cfg ? "NVS" : "compile-time");
+  LOG_I("WiFi", "SSID: '%s' (len=%u)", ssid ? ssid : "", ssid ? (unsigned)strlen(ssid) : 0U);
+  LOG_I("WiFi", "PASS length: %u", pass ? (unsigned)strlen(pass) : 0U);
+  LOG_I("WiFi", "DHCP: %s", use_dhcp ? "true" : "false");
+  if (!use_dhcp) {
+    LOG_I("WiFi", "Static IP: %s", ip.toString().c_str());
+    LOG_I("WiFi", "Gateway : %s", gw.toString().c_str());
+    LOG_I("WiFi", "Subnet  : %s", subnet.toString().c_str());
+    LOG_I("WiFi", "DNS     : %s", dns.toString().c_str());
+  }
 
   // Apply static IP configuration for the STA interface.
-  // Order: local IP, gateway, subnet, DNS.
   if (use_dhcp) {
     if (!WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0))) {
-      Serial.println("[WiFi] DHCP config failed!");
+      LOG_E("WiFi", "DHCP config failed!");
+    } else {
+      LOG_I("WiFi", "DHCP config applied");
     }
   } else {
     if (!WiFi.config(ip, gw, subnet, dns)) {
-      Serial.println("[WiFi] Config failed!");
+      LOG_E("WiFi", "Config failed!");
+    } else {
+      LOG_I("WiFi", "Static config applied");
     }
   }
 
   // Start connection attempt using SSID/PASS.
-  WiFi.begin(ssid, pass);
+  LOG_I("WiFi", "Calling WiFi.begin(...)");
+  if (sta_channel >= 1 && sta_channel <= 13) {
+    LOG_I("WiFi", "Using fixed STA channel: %u", sta_channel);
+    WiFi.begin(ssid, pass, sta_channel);
+  } else {
+    WiFi.begin(ssid, pass);
+  }
 
   // Wait up to 10 seconds for connection with yield to prevent watchdog.
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && (millis() - t0) < 10000) {
     delay(500);
-    Serial.print(".");
+    LOG_I("WiFi", ".");
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\n[WiFi] Connected: " + WiFi.localIP().toString());
+    LOG_I("WiFi", "Connected: %s", WiFi.localIP().toString().c_str());
+    LOG_I("WiFi", "Gateway: %s", WiFi.gatewayIP().toString().c_str());
+    LOG_I("WiFi", "Subnet : %s", WiFi.subnetMask().toString().c_str());
+    LOG_I("WiFi", "DNS[0] : %s", WiFi.dnsIP(0).toString().c_str());
+    LOG_I("WiFi", "DNS[1] : %s", WiFi.dnsIP(1).toString().c_str());
   } else {
-    Serial.println("\n[WiFi] Connection failed, will retry in loop");
+    LOG_W("WiFi", "Connection failed, will retry in loop");
   }
 }
 #endif
 
 // ---------------- Setup BLE ----------------
+#if BLE_ENABLE
 static void setupBLE() {
   // Initialize NimBLE and set the device name used in advertising.
   NimBLEDevice::init(BLE_DEVICE_NAME);
@@ -579,17 +912,18 @@ static void setupBLE() {
   // Start advertising now.
   adv->start();
 }
+#endif
 
 // ---------------- Setup UART ----------------
 static void setupUART() {
-  const GnssConfig& cfg = gnss_config_get();
-  Serial.printf("[UART] Configuring: RX=%d, TX=%d, Baud=%u\n",
-                cfg.rx_pin, cfg.tx_pin, cfg.baud);
+  GnssConfig cfg = gnss_config_defaults();
+  gnss_config_load(cfg, nullptr);
+  LOG_I("UART", "Configuring: RX=%d, TX=%d, Baud=%u", cfg.rx_pin, cfg.tx_pin, cfg.baud);
 
   Serial1.begin(cfg.baud, SERIAL_8N1, cfg.rx_pin, cfg.tx_pin);
   delay(100); // Give UART time to initialize
 
-  Serial.println("[UART] UART configured successfully");
+  LOG_I("UART", "UART configured successfully");
 }
 
 bool gnss_apply_runtime_config(const GnssConfig& cfg, String* error) {
@@ -599,8 +933,7 @@ bool gnss_apply_runtime_config(const GnssConfig& cfg, String* error) {
   Serial1.end();
   Serial1.begin(cfg.baud, SERIAL_8N1, cfg.rx_pin, cfg.tx_pin);
 
-  if (!gnss_config_save(cfg)) {
-    if (error) *error = "Failed to persist config to LittleFS.";
+  if (!gnss_config_save(cfg, error)) {
     return false;
   }
 
@@ -636,6 +969,7 @@ static void task_uart_rx(void* arg) {
       nmea_feed_bytes(tmp, (size_t)n, millis());
       #endif
 
+#if BLE_ENABLE
       // Push bytes into UART->BLE buffer only when BLE is actively consuming.
       // This avoids counting "drops" when BLE is idle but TCP is receiving the stream.
       if (g_connected && g_notifyEn && g_sb_uart2ble) {
@@ -644,6 +978,7 @@ static void task_uart_rx(void* arg) {
           g_bleStatus.uart2bleDrops += (uint32_t)((size_t)n - sent);
         }
       }
+#endif
 
       #if TCP_ENABLE
       // Mirror the same stream to TCP.
@@ -658,6 +993,7 @@ static void task_uart_rx(void* arg) {
   }
 }
 
+#if BLE_ENABLE
 // BLE TX task:
 // Pulls bytes from UART->BLE buffer and sends them as BLE notifications when:
 // - a central is connected AND
@@ -722,6 +1058,7 @@ static void task_ble_tx(void* arg) {
     }
   }
 }
+#endif
 
 // UART TX task:
 // Pulls bytes from BLE->UART buffer (typically RTCM corrections) and writes to GNSS (Serial1).
@@ -734,6 +1071,7 @@ static void task_uart_tx(void* arg) {
   for (;;) {
     bool did_work = false;
 
+    #if BLE_ENABLE
     // Non-blocking read from BLE->UART buffer.
     size_t got = 0;
     if (g_sb_ble2uart) {
@@ -745,6 +1083,7 @@ static void task_uart_tx(void* arg) {
       Serial1.write(tmp, got);
       did_work = true;
     }
+    #endif
 
     #if TCP_ENABLE
     // Non-blocking read from TCP->UART buffer.
@@ -754,6 +1093,18 @@ static void task_uart_tx(void* arg) {
     }
     if (got_tcp > 0) {
       Serial1.write(tmp, got_tcp);
+      did_work = true;
+    }
+    #endif
+
+    #if NTRIP_CLIENT_ENABLE
+    // Non-blocking read from NTRIP->UART buffer.
+    size_t got_ntrip = 0;
+    if (g_sb_ntrip2uart) {
+      got_ntrip = xStreamBufferReceive(g_sb_ntrip2uart, tmp, sizeof(tmp), 0);
+    }
+    if (got_ntrip > 0) {
+      Serial1.write(tmp, got_ntrip);
       did_work = true;
     }
     #endif

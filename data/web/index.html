@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>ESP32-C3 Status</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="/favicon.ico?v=1.0.1">
+  <link rel="stylesheet" href="/style.css?v=1.0.2">
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="title">STATUS REPORT</div>
+      <div class="sub">Web Server on ESP32-C3 LOLIN with UM980</div>
+      <!-- Dot online -->
+      <div class="status-inline">
+        <span class="dot" id="dot"></span>
+        <span id="state">connecting…</span>
+        <button id="openConfigBtn" class="iconBtn" type="button" title="Open Configuration" aria-label="Open Configuration">⚙</button>
+      </div>
+      <!-- Tabs -->
+      <nav class="tabs" aria-label="Sections">
+        <button class="tabBtn isActive" data-tab="tab_status" type="button">Overview</button>
+        <button class="tabBtn" data-tab="tab_gps" type="button">GPS</button>
+        <button class="tabBtn" data-tab="tab_device" type="button">Device</button>
+        <button class="tabBtn" data-tab="tab_ble" type="button">Bluetooth</button>
+        <button class="tabBtn" data-tab="tab_wifi" type="button">WiFi</button>
+
+      </nav>
+    </header>
+
+    <section class="card">
+
+      <!-- ===================== TAB 1: STATUS + ICONS ===================== -->
+      <div class="tabPanel isActive" id="tab_status">
+        <div class="grid">
+          <div class="kv">
+            <div class="k">Uptime</div>
+            <div class="v" id="uptime">—</div>
+          </div>
+          <div class="kv">
+            <div class="k">Signal Power</div>
+            <div class="v mono" id="rssi">—</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="cat">
+          <div class="catBody">
+            <div class="line"><span class="lk">GPS Connected</span><span class="lv mono emoji" id="gps_valid">—</span></div>
+            <div class="line"><span class="lk">GPS Quality</span><span class="lv mono" id="gps_fix">—</span></div>
+            <div class="line"><span class="lk">Horizontal Accuracy</span><span class="lv mono" id="gps_hacc">—</span></div>
+            <div class="line"><span class="lk">Vertical Accuracy</span><span class="lv mono" id="gps_vacc">—</span></div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="actions">
+          <button id="restartBtn" class="btn danger">Restart</button>
+          <div class="note" id="note">Polling /api/status…</div>
+        </div>
+      </div>
+
+      <!-- ===================== CONFIG PANEL ===================== -->
+      <div class="tabPanel" id="tab_config">
+        <div class="cat">
+          <div class="catTitle">GNSS UART</div>
+          <div class="catBody">
+            <div class="line">
+              <label class="lk" for="cfg_rx">RX Pin</label>
+              <input class="input mono" id="cfg_rx" type="number" min="0" max="50" step="1">
+            </div>
+            <div class="line">
+              <label class="lk" for="cfg_tx">TX Pin</label>
+              <input class="input mono" id="cfg_tx" type="number" min="0" max="50" step="1">
+            </div>
+            <div class="line">
+              <label class="lk" for="cfg_baud">Baud</label>
+              <input class="input mono" id="cfg_baud" type="number" min="1200" max="2000000" step="100">
+            </div>
+            <div class="actions">
+              <button id="saveUartBtn" class="btn btn-subtle" type="button">Save GNSS</button>
+              <div class="note" id="cfg_note">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cat">
+          <div class="catTitle">Wi-Fi</div>
+          <div class="catBody">
+            <div class="line">
+              <label class="lk" id="wifi_mode_text" for="wifi_accesspoint">WiFi mode: Station only</label>
+              <input id="wifi_accesspoint" type="checkbox" title="Dual mode (STA+AP)">
+            </div>
+            <div class="line">
+              <label class="lk" for="wifi_ssid">SSID <span class="lk-inline-note">(for the station mode)</span></label>
+              <input class="input mono" id="wifi_ssid" type="text" autocomplete="off">
+            </div>
+            <div class="line">
+              <label class="lk" for="wifi_pass">Password <span class="lk-inline-note">(for the station mode)</span></label>
+              <input class="input mono" id="wifi_pass" type="password" autocomplete="off">
+            </div>
+            <div class="line">
+              <label class="lk" id="wifi_dhcp_text" for="wifi_dhcp">DHCP</label>
+              <input id="wifi_dhcp" type="checkbox">
+            </div>
+            <div id="wifi_static_block">
+              <div class="line">
+                <label class="lk" for="wifi_ip">IP</label>
+                <input class="input mono" id="wifi_ip" type="text" placeholder="192.168.1.50">
+              </div>
+              <div class="line">
+                <label class="lk" for="wifi_gw">Gateway</label>
+                <input class="input mono" id="wifi_gw" type="text" placeholder="192.168.1.1">
+              </div>
+              <div class="line">
+                <label class="lk" for="wifi_subnet">Subnet</label>
+                <input class="input mono" id="wifi_subnet" type="text" placeholder="255.255.255.0">
+              </div>
+              <div class="line">
+                <label class="lk" for="wifi_dns">DNS</label>
+                <input class="input mono" id="wifi_dns" type="text" placeholder="8.8.8.8">
+              </div>
+            </div>
+            <div class="actions">
+              <button id="saveWifiBtn" class="btn btn-subtle" type="button">Save WiFi</button>
+              <div class="note" id="wifi_cfg_note">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cat">
+          <div class="catTitle">NTRIP</div>
+          <div class="catBody">
+            <div class="line">
+              <label class="lk" for="ntrip_enabled">Enabled</label>
+              <input id="ntrip_enabled" type="checkbox">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_host">Host</label>
+              <input class="input mono" id="ntrip_host" type="text" autocomplete="off">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_port">Port</label>
+              <input class="input mono" id="ntrip_port" type="number" min="1" max="65535" step="1">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_mount">Mount</label>
+              <input class="input mono" id="ntrip_mount" type="text" autocomplete="off">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_send_gga">Send GGA to caster</label>
+              <input id="ntrip_send_gga" type="checkbox">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_user">User</label>
+              <input class="input mono" id="ntrip_user" type="text" autocomplete="off">
+            </div>
+            <div class="line">
+              <label class="lk" for="ntrip_pass">Password</label>
+              <input class="input mono" id="ntrip_pass" type="password" autocomplete="off">
+            </div>
+            <details class="cfg-advanced">
+              <summary class="cfg-advanced-summary">Advanced NTRIP settings</summary>
+              <div class="line">
+                <label class="lk" for="ntrip_max_tries">Max tries</label>
+                <input class="input mono" id="ntrip_max_tries" type="number" min="1" step="1">
+              </div>
+              <div class="line">
+                <label class="lk" for="ntrip_retry_delay_ms">Retry delay (ms)</label>
+                <input class="input mono" id="ntrip_retry_delay_ms" type="number" min="100" step="100">
+              </div>
+              <div class="line">
+                <label class="lk" for="ntrip_health_timeout_ms">Health timeout (ms)</label>
+                <input class="input mono" id="ntrip_health_timeout_ms" type="number" min="100" step="100">
+              </div>
+              <div class="line">
+                <label class="lk" for="ntrip_passive_sample_ms">Passive sample (ms)</label>
+                <input class="input mono" id="ntrip_passive_sample_ms" type="number" min="100" step="100">
+              </div>
+              <div class="line">
+                <label class="lk" for="ntrip_required_valid_frames">Required valid frames</label>
+                <input class="input mono" id="ntrip_required_valid_frames" type="number" min="1" step="1">
+              </div>
+              <div class="line">
+                <label class="lk" for="ntrip_buffer_size">Buffer size</label>
+                <input class="input mono" id="ntrip_buffer_size" type="number" min="64" step="64">
+              </div>
+              <div class="line">
+                <label class="lk" for="ntrip_connect_timeout_ms">Connect timeout (ms)</label>
+                <input class="input mono" id="ntrip_connect_timeout_ms" type="number" min="100" step="100">
+              </div>
+            </details>
+            <div class="actions">
+              <button id="saveNtripBtn" class="btn btn-subtle" type="button">Save NTRIP</button>
+              <div class="note" id="ntrip_cfg_note">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions actions-save-all">
+          <button id="saveAllConfigBtn" class="btn" type="button">Save All</button>
+        </div>
+
+      </div>
+
+      <!-- ===================== TAB 2: GPS ===================== -->
+      <div class="tabPanel" id="tab_gps">
+        <div class="cat">
+          <div class="catTitle">GPS</div>
+          <div class="catBody">
+            <div class="line"><span class="lk">Validity</span><span class="lv mono emoji" id="gps_valid2">—</span></div>
+            <div class="line"><span class="lk">Fix type</span><span class="lv mono" id="gps_fix2">—</span></div>
+            <div class="line"><span class="lk">Sat in Use</span><span class="lv mono" id="gps_sats">—</span></div>
+            <div class="line"><span class="lk">UTC</span><span class="lv mono" id="gps_utc">—</span></div>
+            <div class="line"><span class="lk">Lat</span><span class="lv mono" id="gps_lat">—</span></div>
+            <div class="line"><span class="lk">Lon</span><span class="lv mono" id="gps_lon">—</span></div>
+            <div class="line"><span class="lk">Speed</span><span class="lv mono" id="gps_speed">—</span></div>
+            <div class="line"><span class="lk">HDOP</span><span class="lv mono" id="gps_hdop">—</span></div>
+            <div class="line"><span class="lk">H Acc</span><span class="lv mono" id="gps_hacc2">—</span></div>
+            <div class="line"><span class="lk">V Acc</span><span class="lv mono" id="gps_vacc2">—</span></div>
+            <div class="line"><span class="lk">Acc src</span><span class="lv mono" id="gps_accsrc">—</span></div>
+            <div class="line"><span class="lk">Age</span><span class="lv mono" id="gps_age">—</span></div>
+          </div>
+        </div>
+
+        <div class="cat">
+          <div class="catTitle">NTRIP</div>
+          <div class="catBody">
+            <div class="line"><span class="lk">Linked</span><span class="lv mono" id="ntrip_sat">—</span></div>
+            <div class="line"><span class="lk">Version</span><span class="lv mono" id="ntrip_version">—</span></div>
+            <div class="line"><span class="lk">Streaming</span><span class="lv mono emoji" id="ntrip_streaming">—</span></div>
+            <div class="line"><span class="lk">Healthy</span><span class="lv mono emoji" id="ntrip_healthy">—</span></div>
+            <div class="line"><span class="lk">Bytes</span><span class="lv mono" id="ntrip_bytes">—</span></div>
+            <div class="line"><span class="lk">Frames</span><span class="lv mono" id="ntrip_frames">—</span></div>
+            <div class="line"><span class="lk">Last Msg</span><span class="lv mono" id="ntrip_last_msg">—</span></div>
+            <div class="line"><span class="lk">Frame Age</span><span class="lv mono" id="ntrip_age">—</span></div>
+          </div>
+        </div>
+
+        <div class="cat">
+          <div class="catTitle">SKYPLOT</div>
+          <div class="catBody">
+            <div class="skyplot-stats">
+                <div class="line"><span class="lk">Satellites in view</span><span class="lv mono" id="gps_sats_view">—</span></div>
+                <div class="line">
+                  <label class="lk" for="skyplot_min_el">Min elevation</label>
+                  <input class="input mono" id="skyplot_min_el" type="number" min="0" max="90" step="1" value="0">
+                </div>
+                <div class="line"><span class="lk-note">Projection Stereographic - Lines: 10, 30, 45, 60, 75 degrees</span></div>
+            </div>
+            <div class="skyplot" id="skyplot">
+              <div class="skyplot-ring ring-00"></div>
+              <div class="skyplot-ring ring-10 skyplot-ring-thin"></div>
+              <div class="skyplot-ring ring-60"></div>
+              <div class="skyplot-ring ring-45 skyplot-ring-thin"></div>
+              <div class="skyplot-ring ring-30"></div>
+              <div class="skyplot-ring ring-75 skyplot-ring-thin"></div>
+              <div class="skyplot-axis axis-h"></div>
+              <div class="skyplot-axis axis-v"></div>
+              <div class="skyplot-center"></div>
+              <div class="skyplot-dir dir-n">N</div>
+              <div class="skyplot-dir dir-e">E</div>
+              <div class="skyplot-dir dir-s">S</div>
+              <div class="skyplot-dir dir-w">W</div>
+              <div class="skyplot-ring-label ring-60">30°</div>
+              <div class="skyplot-ring-label ring-30">60°</div>
+              <div class="skyplot-markers" id="skyplot_markers"></div>
+            </div>
+            <div class="skyplot-legend">
+              <span class="legend-item" data-constellation="GPS"><span class="legend-marker constellation-gps"></span>GPS</span>
+              <span class="legend-item" data-constellation="GLONASS"><span class="legend-marker constellation-glonass"></span>GLONASS</span>
+              <span class="legend-item" data-constellation="Galileo"><span class="legend-marker constellation-galileo"></span>Galileo</span>
+              <span class="legend-item" data-constellation="BeiDou"><span class="legend-marker constellation-beidou"></span>BeiDou</span>
+            </div>
+            <div class="sat-details">
+              <div class="line"><span class="lk">Constellation</span><span class="lv mono" id="sat_constellation">—</span></div>
+              <div class="line"><span class="lk">Azimuth</span><span class="lv mono" id="sat_azimuth">—</span></div>
+              <div class="line"><span class="lk">Elevation</span><span class="lv mono" id="sat_elevation">—</span></div>
+              <div class="line"><span class="lk">Signal</span><span class="lv mono" id="sat_signal">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================== TAB 3: DEVICE ===================== -->
+      <div class="tabPanel" id="tab_device">
+
+        <div class="cat">
+          <div class="catTitle">Device</div>
+          <div class="catBody">
+            <div class="line"><span class="lk">CPU</span><span class="lv mono" id="cpu">—</span></div>
+            <div class="line"><span class="lk">Build</span><span class="lv mono" id="build">—</span></div>
+          </div>
+        </div>
+
+        <div class="cat">
+          <div class="catTitle">Memory</div>
+          <div class="catBody">
+            <div class="line"><span class="lk">Free</span><span class="lv mono" id="heap_free">—</span></div>
+            <div class="line"><span class="lk">Min Free</span><span class="lv mono" id="heap_min">—</span></div>
+            <div class="line"><span class="lk">Max Alloc</span><span class="lv mono" id="heap_max">—</span></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===================== TAB 4: BLUETOOTH ===================== -->
+      <div class="tabPanel" id="tab_ble">
+
+        <div class="cat">
+          <div class="catTitle">Bluetooth</div>
+          <div class="catBody">
+            <div class="line"><span class="lk">Connected</span><span class="lv mono emoji" id="ble_connected2">—</span></div>
+            <div class="line ble-metric"><span class="lk">MTU</span><span class="lv mono" id="ble_mtu">—</span></div>
+            <div class="line ble-metric"><span class="lk">NMEA</span><span class="lv mono" id="ble_txBytes">—</span></div>
+            <div class="line ble-metric"><span class="lk">NTRIP</span><span class="lv mono" id="ble_rxBytes">—</span></div>
+            <div class="line ble-metric"><span class="lk">UART→BLE Drops</span><span class="lv mono" id="ble_uart2bleDrops">—</span></div>
+            <div class="line ble-metric"><span class="lk">BLE→UART Drops</span><span class="lv mono" id="ble_ble2uartDrops">—</span></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===================== TAB 5: WiFi ==================== -->
+      <div class="tabPanel" id="tab_wifi">
+
+        <div class="cat">
+          <div class="catTitle">Internet</div>
+          <div class="catBody">
+            <div class="line"><span class="lk">Reachable</span><span class="lv mono emoji" id="reach2">—</span></div>
+          </div>
+        </div>
+      
+        <div class="cat">
+          <div class="catTitle">Wi-Fi</div>
+          <div class="catBody">
+            <div class="line"><span class="lk">SSID</span><span class="lv mono" id="ssid">—</span></div>
+            <div class="line"><span class="lk">IP</span><span class="lv mono" id="ip2">—</span></div>
+            <div class="line"><span class="lk">Gateway</span><span class="lv mono" id="gw">—</span></div>
+            <div class="line"><span class="lk">DNS</span><span class="lv mono" id="dns">—</span></div>
+            <div class="line"><span class="lk">Subnet</span><span class="lv mono" id="subnet">—</span></div>
+            <div class="line"><span class="lk">Broadcast</span><span class="lv mono" id="bcast">—</span></div>
+            <div class="line"><span class="lk">MAC</span><span class="lv mono" id="mac">—</span></div>
+          </div>
+        </div>
+
+        <div class="cat">
+          <div class="catTitle">HTTP</div>
+          <div class="catBody">
+            <div class="line"><span class="lk">Port</span><span class="lv mono" id="port">—</span></div>
+            <div class="line"><span class="lk">Requests</span><span class="lv mono" id="reqs">—</span></div>
+            <div class="line"><span class="lk">Prev Req Age</span><span class="lv mono" id="age">—</span></div>
+          </div>
+        </div>
+
+        <div class="cat">
+          <div class="catTitle">App</div>
+          <div class="catBody">
+            <div class="line"><span class="lk">State</span><span class="lv mono" id="app_state">—</span></div>
+            <div class="line"><span class="lk">Notes</span><span class="lv mono" id="app_notes">—</span></div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <footer class="foot"></footer>
+  </div>
+
+<script src="/app.js?v=1.0.2"></script>
+</body>
+</html>
