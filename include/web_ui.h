@@ -48,7 +48,7 @@ struct WebuiTcpSnapshot {
 #define NMEA_MAX_SATS 48
 #endif
 
-// Per-satellite info for the web UI (mirrors NmeaSatInfo from nmea_gps.h).
+// Per-satellite info for the web UI (mirrors NmeaSatInfo from parsing_nmea.h).
 struct WebuiSatInfo {
   int16_t  nr;            // satellite PRN number
   int16_t  elevation;     // degrees above horizon (0-90)

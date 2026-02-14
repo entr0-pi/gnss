@@ -1,4 +1,4 @@
-#include "ntrip_config.h"
+#include "config_ntrip.h"
 
 #include <Preferences.h>
 #include "app.h"

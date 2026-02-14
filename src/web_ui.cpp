@@ -13,9 +13,9 @@
 #include <cstring>
 #include <ArduinoJson.h>
 
-#include "gnss_config.h"
-#include "ntrip_config.h"
-#include "wifi_config.h"
+#include "config_gnss.h"
+#include "config_ntrip.h"
+#include "config_wifi.h"
 #include "web_ui.h"
 
 static WebServer* s_server = nullptr;

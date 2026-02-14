@@ -1,5 +1,5 @@
 #if NMEA_ENABLE
-#include "nmea_gps.h"   // Your public snapshot struct + function declarations
+#include "parsing_nmea.h"   // Your public snapshot struct + function declarations
 #include "app.h"
 
 // minmea is a small, fast NMEA parser library (C).

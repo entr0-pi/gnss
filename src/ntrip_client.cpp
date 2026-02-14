@@ -5,9 +5,9 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include "NtripClient.h"
-#include "ntrip_config.h"
+#include "config_ntrip.h"
 #if NMEA_ENABLE
-#include "nmea_gps.h"
+#include "parsing_nmea.h"
 #endif
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

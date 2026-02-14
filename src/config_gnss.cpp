@@ -1,4 +1,4 @@
-#include "gnss_config.h"
+#include "config_gnss.h"
 
 #include <Preferences.h>
 #include "app.h"

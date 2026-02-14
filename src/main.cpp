@@ -34,9 +34,9 @@
 #define MODULE_LOG 1
 #include "logger.h"
 #include "config_bootstrap.h"
-#include "gnss_config.h"
+#include "config_gnss.h"
 #include "ntrip_client.h"
-#include "wifi_config.h"
+#include "config_wifi.h"
 
 #if WIFI_ENABLE
 #include <Preferences.h>
@@ -57,7 +57,7 @@
 // ---- NMEA ----
 // Optional NMEA parsing (compile-time). If disabled, bytes are still streamed.
 #if NMEA_ENABLE
-#include "nmea_gps.h"
+#include "parsing_nmea.h"
 #endif
 
 // ---- FreeRTOS primitives used by ESP32 Arduino ----

@@ -4,9 +4,9 @@
 
 #include "app.h"
 #include "nvs_keys.h"
-#include "gnss_config.h"
-#include "wifi_config.h"
-#include "ntrip_config.h"
+#include "config_gnss.h"
+#include "config_wifi.h"
+#include "config_ntrip.h"
 #define MODULE_LOG 1
 #include "logger.h"
 
