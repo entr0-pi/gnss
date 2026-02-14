@@ -30,17 +30,6 @@ body{
 .top{ 
   padding:6px 4px 14px;
 }
-.badge{
-  display:inline-block;
-  letter-spacing:.14em;
-  font-size:12px;
-  font-weight:800;
-  color:rgba(255,255,255,.82);
-  background:rgba(18, 43, 17, 0.06);
-  border:1px solid var(--stroke);
-  border-radius:999px;
-  padding:6px 10px;
-}
 .title{ 
   margin-top:10px; 
   font-size:26px; 
@@ -95,9 +84,6 @@ body{
 }
 .skyplot-stats{
   margin-top:4px;
-}
-.skyplot-stats .kv{
-  padding:10px 12px;
 }
 .skyplot{
   position:relative;
@@ -313,15 +299,6 @@ body{
   gap:12px;
   align-items:center;
   margin-top:14px;
-}
-.cfg-quick-card{
-  margin-top:12px;
-}
-.cfg-quick-actions{
-  margin-top:0;
-}
-.cfg-quick-actions .btn{
-  width:auto;
 }
 .btn{
   appearance:none;
