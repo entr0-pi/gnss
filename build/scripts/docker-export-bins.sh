@@ -28,7 +28,6 @@ done
 echo "[INFO] Building data.bin from data/ + data/web inside container"
 ROOT_DIR="/project" \
 OUT_BIN="${OUT_DIR}/data.bin" \
-MKLITTLEFS="${MKLITTLEFS:-/root/.platformio/packages/tool-mklittlefs/mklittlefs}" \
 /usr/local/bin/create-data-bin.sh
 
 SPIFFS_OFFSET="$(

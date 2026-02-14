@@ -2,7 +2,7 @@
 # ESP32-C3 Docker builder that exports flashable binaries
 #
 # Build: docker build -t gnss-bin-export -f build/Dockerfile .
-# Run:   docker run --rm -v "$(pwd)/build/bin:/project/build" gnss-bin-export
+# Run:   docker run --rm -v "$(pwd)/build/bin:/project/build/bin" gnss-bin-export
 
 FROM python:3.12-slim
 
@@ -16,13 +16,12 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 COPY platformio.ini ./
 COPY lib/ lib/
 
-# Pre-install PlatformIO packages with cache mount.
-# This layer stays cached unless dependency metadata changes.
-RUN --mount=type=cache,target=/root/.platformio \
-    pio pkg install -g -p "espressif32" && \
+# Pre-install PlatformIO packages (no cache mount — packages persist in image
+# so pio run at container start doesn't re-download them).
+RUN pio pkg install -g -p "espressif32" && \
     pio pkg install -g -t "toolchain-riscv32-esp" && \
     pio pkg install -g -t "tool-mklittlefs" && \
-    pio pkg install -e full || true
+    (pio pkg install -e full || true)
 
 # Copy source files after dependencies so normal code edits do not invalidate
 # dependency download/install layers.

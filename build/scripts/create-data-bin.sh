@@ -10,17 +10,27 @@ PARTITIONS_CSV="${PARTITIONS_CSV:-${ROOT_DIR}/partitions.csv}"
 OUT_BIN="${OUT_BIN:-${ROOT_DIR}/build/bin/data.bin}"
 MKLITTLEFS="${MKLITTLEFS:-}"
 
+# --- Locate mklittlefs ---
 if [[ -z "${MKLITTLEFS}" ]]; then
+  # 1) On PATH (Docker: copied to /usr/local/bin by Dockerfile)
   if command -v mklittlefs >/dev/null 2>&1; then
     MKLITTLEFS="$(command -v mklittlefs)"
+  # 2) Standard PlatformIO location (local/host builds)
   elif [[ -x "${HOME}/.platformio/packages/tool-mklittlefs/mklittlefs" ]]; then
     MKLITTLEFS="${HOME}/.platformio/packages/tool-mklittlefs/mklittlefs"
-  else
+  # 3) Search all PlatformIO packages (variant names like tool-mklittlefs-riscv32)
+  elif [[ -d "${HOME}/.platformio" ]]; then
+    MKLITTLEFS="$(find "${HOME}/.platformio" -name mklittlefs -type f -print -quit 2>/dev/null || true)"
+  fi
+
+  if [[ -z "${MKLITTLEFS}" || ! -x "${MKLITTLEFS}" ]]; then
     echo "[ERROR] mklittlefs not found. Set MKLITTLEFS=/path/to/mklittlefs" >&2
     exit 1
   fi
 fi
+echo "[INFO] Using mklittlefs: ${MKLITTLEFS}"
 
+# --- Validate inputs ---
 if [[ ! -d "${WEB_DIR}" && -d "${WEB_DIR_ALT}" ]]; then
   WEB_DIR="${WEB_DIR_ALT}"
   echo "[WARN] WEB_DIR not found, using ${WEB_DIR_ALT}"
@@ -35,6 +45,7 @@ if [[ ! -f "${PARTITIONS_CSV}" ]]; then
   exit 1
 fi
 
+# --- Resolve filesystem size from partitions.csv ---
 FS_SIZE="$(
   awk -F, '
     /^[[:space:]]*#/ { next }
@@ -57,6 +68,7 @@ if [[ -z "${FS_SIZE}" ]]; then
   exit 1
 fi
 
+# --- Stage files ---
 STAGING="$(mktemp -d)"
 trap 'rm -rf "${STAGING}"' EXIT
 
@@ -91,6 +103,7 @@ else
   echo "[WARN] WEB_DIR not found (${WEB_DIR}). Continuing without web assets."
 fi
 
+# --- Build LittleFS image ---
 echo "[INFO] Building LittleFS image: ${OUT_BIN}"
 "${MKLITTLEFS}" -c "${STAGING}" -b 4096 -p 256 -s "${FS_SIZE}" "${OUT_BIN}"
 

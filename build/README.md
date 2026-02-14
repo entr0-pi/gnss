@@ -7,7 +7,7 @@ This folder contains the Docker image and script used to build firmware and expo
 From the repository root:
 
 ```
-docker build -t gnss-build -f build/Dockerfile .
+docker build --no-cache -t gnss -f build/Dockerfile .
 ```
 
 ## Run Build and Export Binaries to Host
@@ -15,7 +15,7 @@ docker build -t gnss-build -f build/Dockerfile .
 Write generated files into the host `build/bin/` folder:
 
 ```
-docker run --rm -v "${PWD}/build/bin:/project/build" gnss-build
+docker run --rm -v "${PWD}/build/bin:/project/build" gnss
 ```
 
 Generated files include:

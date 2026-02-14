@@ -192,3 +192,5 @@ For deeper technical details:
 ├─ platformio.ini
 └─ README.md
 ```
+
+![Web UI](assets/webUI-1.png)
