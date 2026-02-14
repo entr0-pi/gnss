@@ -22,3 +22,4 @@ nvs_keys.csv
 uploaderGUI.json
 build_test_results.log
 .kilocode
+.kilocode/
