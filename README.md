@@ -193,4 +193,4 @@ For deeper technical details:
 └─ README.md
 ```
 
-![Web UI](assets/webUI-1.png)
+<img src="assets/webUI-1.png" alt="Web UI" width="400">
