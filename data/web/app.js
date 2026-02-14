@@ -500,7 +500,6 @@ async function refresh(){
     renderSkyplot(s.gps?.satellites);
 
     const reachOk = safe_ok(s.internet?.reach);
-    setIcon("reach", reachOk);
     setIcon("reach2", reachOk);
 
     $('ssid').textContent  = safe(s.wifi?.ssid);

@@ -300,6 +300,12 @@ body{
   align-items:center;
   margin-top:14px;
 }
+.actions-save-all{
+  justify-content:center;
+}
+.actions-save-all .btn{
+  width:100%;
+}
 .btn{
   appearance:none;
   border:0;

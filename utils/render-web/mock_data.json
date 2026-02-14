@@ -12,10 +12,10 @@
     "dhcp": true,
     "accesspoint": true,
     "dual_mode_supported": true,
-    "ip": "192.168.1.50",
-    "gw": "192.168.1.1",
-    "subnet": "255.255.255.0",
-    "dns": "8.8.8.8"
+    "ip": "0.0.0.0",
+    "gw": "0.0.0.0",
+    "subnet": "0.0.0.0",
+    "dns": "0.0.0.0"
   },
   "ntrip_config": {
     "locked": false,
