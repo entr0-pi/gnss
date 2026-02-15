@@ -3,6 +3,7 @@ import gzip
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -11,6 +12,11 @@ import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
+
+try:
+    from serial.tools import list_ports
+except Exception:
+    list_ports = None
 
 # Allow importing from sibling utils directories.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "nvs-tester"))
@@ -79,6 +85,7 @@ class ESPUploaderGUI:
         ])
 
         self._nvs_consistency_issues = []
+        self._chip_detect_running = False
 
         self.setup_ui()
 
@@ -124,8 +131,9 @@ class ESPUploaderGUI:
 
         ttk.Label(container, text="Main Information", font=("Segoe UI", 16, "bold")).pack(anchor=tk.W, pady=(0, 20))
 
-        self.port_var = tk.StringVar(value="/dev/ttyUSB0" if platform.system() == "Linux" else "COM8")
-        self.chip_var = tk.StringVar(value="esp32c3")
+        self.default_port = "/dev/ttyUSB0" if platform.system() == "Linux" else "COM1"
+        self.port_var = tk.StringVar(value=self.default_port)
+        self.chip_var = tk.StringVar(value="esp32")
         self.csv_path_var = tk.StringVar()
         self.mklittlefs_path_var = tk.StringVar(value=self.DEFAULT_MKLITTLEFS_PATH)
         self.nvs_gen_py_var = tk.StringVar(value=self.DEFAULT_NVS_GEN_PY)
@@ -139,8 +147,11 @@ class ESPUploaderGUI:
             row=0, column=0, columnspan=3, sticky=tk.W, pady=(0, 10)
         )
 
-        ttk.Label(grid, text="Serial Port (COM)").grid(row=1, column=0, sticky=tk.W)
-        ttk.Entry(grid, textvariable=self.port_var, width=28).grid(row=2, column=0, sticky=tk.W, padx=(0, 20), pady=(5, 10))
+        ttk.Label(grid, text="Serial Port").grid(row=1, column=0, sticky=tk.W)
+        self.port_combo = ttk.Combobox(grid, textvariable=self.port_var, width=28)
+        self.port_combo.grid(row=2, column=0, sticky=tk.W, padx=(0, 20), pady=(5, 10))
+        self.port_combo.bind("<<ComboboxSelected>>", lambda _e: self.start_chip_detect_thread())
+        self.port_combo.bind("<FocusOut>", lambda _e: self.start_chip_detect_thread())
 
         ttk.Label(grid, text="Chip Family").grid(row=1, column=1, sticky=tk.W)
         ttk.Combobox(grid, textvariable=self.chip_var, values=list(VALID_CHIPS), width=16, state="readonly").grid(row=2, column=1, sticky=tk.W, pady=(5, 10))
@@ -193,6 +204,78 @@ class ESPUploaderGUI:
         ttk.Button(btns, text="Refresh", command=self.refresh_status).pack(side=tk.LEFT)
         ttk.Button(btns, text="Save Configuration", command=self.save_config).pack(side=tk.LEFT, padx=(8, 0))
 
+    @staticmethod
+    def _detect_serial_ports():
+        if list_ports is None:
+            return []
+        ports = []
+        try:
+            ports = sorted((p.device for p in list_ports.comports() if p.device))
+        except Exception:
+            return []
+        return ports
+
+    def refresh_serial_ports(self, announce=False):
+        detected = self._detect_serial_ports()
+        current = self.port_var.get().strip()
+        values = list(detected)
+        # Keep manual overrides, but avoid injecting placeholder defaults when ports are detected.
+        if current and current not in values and not (detected and current == self.default_port):
+            values.insert(0, current)
+        self.port_combo["values"] = values
+        if detected and (not current or current == self.default_port):
+            self.port_var.set(detected[0])
+            self.start_chip_detect_thread()
+        if announce:
+            if detected:
+                self.log(f">>> Detected serial ports: {', '.join(detected)}")
+            else:
+                msg = "No serial ports detected."
+                if list_ports is None:
+                    msg += " (pyserial not available)"
+                self.log(f"[WARN] {msg}")
+
+    def start_chip_detect_thread(self):
+        if self._chip_detect_running:
+            return
+        port = self.port_var.get().strip()
+        if not port:
+            return
+        self._chip_detect_running = True
+        threading.Thread(target=self._detect_chip_family, args=(port,), daemon=True).start()
+
+    def _detect_chip_family(self, port):
+        try:
+            cmd = [sys.executable, "-m", "esptool", "--port", port, "chip_id"]
+            result = subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=12)
+            output = "\n".join([result.stdout or "", result.stderr or ""])
+            detected = self._parse_chip_from_esptool(output)
+            if detected and detected in VALID_CHIPS:
+                self.root.after(0, self._set_detected_chip, detected, port)
+        except Exception:
+            pass
+        finally:
+            self._chip_detect_running = False
+
+    @staticmethod
+    def _parse_chip_from_esptool(output):
+        patterns = [
+            r"Detecting chip type\.\.\.\s*(ESP32[\w\-]*)",
+            r"Chip is\s+(ESP32[\w\-]*)",
+        ]
+        for pat in patterns:
+            m = re.search(pat, output, flags=re.IGNORECASE)
+            if m:
+                return sanitize_chip(m.group(1))
+        return ""
+
+    def _set_detected_chip(self, chip, port):
+        current_port = self.port_var.get().strip()
+        if current_port != port:
+            return
+        if self.chip_var.get() != chip:
+            self.chip_var.set(chip)
+            self.log(f">>> Auto-detected chip family on {port}: {chip}")
 
     def _build_flash_tab(self):
         container = ttk.Frame(self.flash_tab, padding=20)
@@ -396,10 +479,12 @@ class ESPUploaderGUI:
         self.log_area.configure(state="disabled")
 
     def _set_buttons_busy(self, busy):
-        state = tk.DISABLED if busy else tk.NORMAL
-        self.run_btn.config(state=state)
-        self.nvs_write_btn.config(state=state)
-        self.nvs_erase_btn.config(state=state)
+        if busy:
+            self.run_btn.config(state=tk.DISABLED)
+            self.nvs_write_btn.config(state=tk.DISABLED)
+            self.nvs_erase_btn.config(state=tk.DISABLED)
+        else:
+            self.refresh_status()
 
     def _run_python(self, args, check=True):
         cmd = [sys.executable] + args
@@ -437,9 +522,6 @@ class ESPUploaderGUI:
 
     def save_config(self):
         chip = sanitize_chip(self.chip_var.get())
-        if chip not in VALID_CHIPS:
-            self.log(f"[WARN] Invalid chip '{self.chip_var.get()}', not saving chip field")
-            chip = sanitize_chip(self.chip_var.get())  # keep whatever was there
         c = {
             "port": self.port_var.get(),
             "chip": chip,
@@ -476,6 +558,7 @@ class ESPUploaderGUI:
                 c.get("mklittlefs_path", c.get("mklittlefs_py", self.mklittlefs_path_var.get()))
             )
             self.nvs_gen_py_var.set(c.get("nvs_gen_py", self.nvs_gen_py_var.get()))
+            self.refresh_serial_ports()
             if self.last_nvs_csv_path and os.path.isfile(self.last_nvs_csv_path):
                 self._load_nvs_csv_to_tree(self.last_nvs_csv_path)
                 self.log(f">>> Auto-imported NVS CSV: {self.last_nvs_csv_path}")
@@ -902,6 +985,7 @@ def check_dependencies():
 if __name__ == "__main__":
     check_dependencies()
     root = tk.Tk()
-    ESPUploaderGUI(root)
+    app = ESPUploaderGUI(root)
+    app.refresh_serial_ports()
     root.mainloop()
 
