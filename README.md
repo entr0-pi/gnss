@@ -13,10 +13,10 @@ Optional Web UI adds browser-based status and configuration (UART, WiFi, NTRIP) 
 This project is GNSS-agnostic firmware for ESP32 boards:
 - GNSS input/output on `Serial1` (UART)
 - Raw byte passthrough (NMEA and other serial payloads)
-- Optional BLE NUS bridge
-- Optional single-client TCP bridge
+- Optional BLE NUS bridge (both ways, an external NTRIP can feeds corrections into GNSS UART, as with SWMaps)
+- Optional single-client TCP bridge (to use QField for example)
 - Optional Web UI for config + monitoring
-- Optional NTRIP client feeding corrections into GNSS UART
+- Optional NTRIP client feeding corrections into GNSS UART (needs to be connected to a WiFi with internet access)
 
 Design intent:
 - Works with different GNSS modules and wiring
