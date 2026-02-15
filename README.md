@@ -23,63 +23,12 @@ Design intent:
 - Works across ESP32 variants supported by PlatformIO
 - Supports runtime-configurable mode and compile-time locked mode
 
-## QuickStart
+## Installation & Quickstart
 
-### A) Flashing A Prebuilt Binary
-
-Use this when you want the fastest bring-up without building locally.
-
-What you need:
-- A prebuilt binary set (`bootloader.bin`, `partitions.bin`, `firmware.bin`) matching your board/chip
-- A flash tool (`esptool.py`, PlatformIO upload, or Espressif Flash Download Tool)
-
-Typical offsets for this repo partition table:
-- `bootloader.bin` -> `0x1000`
-- `partitions.bin` -> `0x8000`
-- `firmware.bin` -> `0x10000`
-
-After flashing, the firmware immediately:
-- boots,
-- seeds NVS defaults when mutable,
-- starts enabled features from build flags.
-
-Important default behavior:
-- UART defaults to unconfigured (`rx_pin=-1`, `tx_pin=-1`, `baud=0`) unless hardcoded at build time.
-- In that unconfigured state, UART bridging is intentionally skipped until configured.
-
-Preload NVS settings (recommended for field deployment):
-- Use `utils/uploader/uploaderGUI.py` to write GNSS/WiFi/NTRIP values to NVS and flash LittleFS web assets.
-- This avoids recompiling just to change target wiring or network values.
-
-### B) Building From Source
-
-Use this when you need to:
-- change feature flags,
-- target another ESP32 board,
-- modify firmware behavior.
-
-Prerequisites:
-- PlatformIO (VS Code extension or CLI)
-
-Commands:
-```bash
-pio run
-pio run -t upload
-```
-
-Main project locations:
-- `platformio.ini` (board + build flags)
-- `src/` (firmware)
-- `include/` (feature flags/config headers)
-- `data/web/` (Web UI static files)
-
-### C) Utils
-
-Available tooling under `utils/`:
-- `utils/uploader/uploaderGUI.py`: NVS editor + writer, LittleFS builder/flasher
-- `utils/render-web/render_web.py`: local dev server for `data/web/` with mock API
-- `utils/build-tester/build_Tester.py`: build matrix tester for feature flags
-- `utils/build-tester/Dockerfile`: reproducible Docker runner for the build tester
+See `INSTALL.md` for:
+- flashing prebuilt binaries,
+- building from source,
+- utility tooling (`uploader`, `render-web`, `build-tester`).
 
 ## Architecture & Data Flow
 
