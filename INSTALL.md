@@ -21,8 +21,8 @@ OR (the all-in one)
 - `gnss.bin` -> `0x0`
 
 <p>
-  <img src="assets/esp32-flash.png" alt="Web UI 3" width="250">&nbsp;
-  <img src="assets/esp32-flash-all-in.png" alt="Web UI 3" width="250">
+  <img src="assets/esp32-flash.png" alt="Web UI 3" height="250">&nbsp;
+  <img src="assets/esp32-flash-all-in.png" alt="Web UI 3" height="250">
 </p>
 
 After flashing, the firmware immediately:
