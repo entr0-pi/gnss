@@ -33,9 +33,10 @@ build_test_results.log
 plans/
 
 # Utils
-utils/uploader/lib/
 utils/dist/
 utils/build/
+utils/uploader/lib/mklittlefs/*
+utils/uploader/lib/nvs/*
 
 # OS
 .DS_Store
