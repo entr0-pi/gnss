@@ -40,6 +40,7 @@ Important default behavior:
 **Preload NVS settings (recommended for field deployment):**
 - Use `utils/uploader/uploaderGUI.py` to write GNSS/WiFi/NTRIP values to NVS and flash LittleFS web assets.
 <img src="assets/Uploader-2.png" alt="Web UI 3" width="250">
+
 - This avoids going to the webUI just to change target wiring or network values
 - Fill with your own paths, COM and board type
 - Read the documentation to install the prerequisites
