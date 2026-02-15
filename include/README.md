@@ -10,8 +10,16 @@ Build flags (override in `platformio.ini`):
 - `NMEA_ENABLE` (default `0`): enable NMEA parsing.
 - `TCP_ENABLE` (default `0`): enable TCP mirror.
 - `NTRIP_CLIENT_ENABLE` (default `0`): enable NTRIP client support (requires `WEBUI_ENABLE=1`).
+- `BLE_ENABLE` (default `0`): enable BLE bridge.
 - `WIFI_ENABLE` (default `WEBUI_ENABLE || TCP_ENABLE || NTRIP_CLIENT_ENABLE`): enable WiFi STA (required for web UI, TCP, or NTRIP).
-- `FORCE_WIFI_SECRETS` (default `0`): force WiFi credentials from `include/secrets.h` and skip `/wifi.json`.
+- `WIFI_DUAL_MODE` (default `0`): enable STA + softAP.
+- `STA_CHANNEL` (default `0`): optional fixed STA channel (`0` = auto).
+- `SOFTAP_SSID_VALUE` (default `"GNSS-ESP32-AP"`): softAP SSID when dual mode is enabled.
+- `SOFTAP_PASS_VALUE` (default `""`): softAP password (empty = open AP).
+- `SOFTAP_CHANNEL` (default `6`): softAP channel.
+- `SOFTAP_HIDDEN` (default `0`): hide softAP SSID when set to `1`.
+- `SOFTAP_MAX_CONN` (default `2`): max softAP clients.
+- `FORCE_WIFI_SECRETS` (default `0`): force WiFi credentials from `include/secrets.h` and make WiFi config immutable at runtime.
 - `FORCE_HARDCODED_UART` (default `0`): lock UART config to compile-time pins/baud.
 - `HARD_RX_PIN` (required when `FORCE_HARDCODED_UART=1`).
 - `HARD_TX_PIN` (required when `FORCE_HARDCODED_UART=1`).
@@ -19,17 +27,20 @@ Build flags (override in `platformio.ini`):
 - `BLE_DEVICE_NAME` (default `"GNSS-BLE"`): BLE advertising name.
 - `BLE_MTU_CFG` (default `23`): requested BLE MTU.
 - `GNSS_HZ_CFG` (default `1`): GNSS output rate in Hz.
+- `NTRIP_CLIENT_ENABLE_TASK` (default `1`): run NTRIP in a dedicated task (`0` = taskless mode).
+- `NTRIP_CLIENT_ENABLE_REV1_FALLBACK` (default `1`): retry with NTRIP Rev1 when Rev2 handshake fails.
+- `NTRIP_CLIENT_PASSIVE_SCAN_BYTES` (default `128`): bytes scanned for passive RTCM health checks.
 
 TCP:
 - `TCP_PORT` (default `5000`): TCP server port.
 
 WiFi STA (when `WEBUI_ENABLE=1`, usually set in `include/secrets.h`):
-- `STA_SSID`
-- `STA_PASS`
-- `STA_IP`
-- `STA_GW`
-- `STA_SUBNET`
-- `STA_DNS`
+- `STA_SSID_VALUE`
+- `STA_PASS_VALUE`
+- `STA_IP_VALUE`
+- `STA_GW_VALUE`
+- `STA_SUBNET_VALUE`
+- `STA_DNS_VALUE`
 
 BLE/MTU derived:
 - `BLE_MTU`
