@@ -1,15 +1,13 @@
 # Installation & Quickstart
 
-## QuickStart
-
-### A) Flashing A Prebuilt Binary
+## QuickStart : Flashing A Prebuilt Binary For (ESP32-C3 ONLY)
 
 Use this when you want the fastest bring-up without building locally.
 
 What you need:
 - A GNSS (U-blox, Unicorn...). I used the UM980
 - A USB cable for flashing and powering the ESP32 board
-- An ESP32 board with minimum 4M flash memory
+- An **ESP32-C3 board** with minimum 4M flash memory
 - A prebuilt binary set (`bootloader.bin`, `partitions.bin`, `firmware.bin`, `data.bin`) provided in releases
 - A flash tool (`esptool.py`, PlatformIO upload, or Espressif Flash Download Tool)
 
@@ -27,23 +25,37 @@ After flashing, the firmware immediately:
 - starts enabled features from build flags.
 
 Important default behavior:
-- UART defaults to unconfigured (`rx_pin=-1`, `tx_pin=-1`, `baud=0`) unless hardcoded at build time
-- If you want to parse the NMEA in the webUI (and see the Skyplot...), the GNSS must output NMEA sentences to the ESP32's UART (configure the RX/TX/BAUD in the webUI)
-- In that unconfigured state, UART bridging is intentionally skipped until configured.
-- Connect to the WiFi Access Point "GNSS-ESP32-AP", then go to http://192.168.4.1 (unless you used a different set of flags)
-- After connecting, configure your GNSS UART settings, WiFi credentials, and NTRIP server details through the web interface (click on the gear)
+- UART defaults to unconfigured (`rx_pin=-1`, `tx_pin=-1`, `baud=0`)
+- If you want to parse the NMEA in the webUI (and see the Skyplot...), the GNSS must output NMEA sentences to the ESP32's UART (configure also the RX/TX/BAUD in the webUI)
+- In that unconfigured state, UART bridging is intentionally skipped until configured
+- Connect to the WiFi Access Point "GNSS-ESP32-AP", then go to http://192.168.4.1
+- After connecting, configure your GNSS UART settings, WiFi credentials, and NTRIP server details through the web interface (click on the flashing gear)
 
 **Preload NVS settings (recommended for field deployment):**
 - Use `utils/uploader/uploaderGUI.py` to write GNSS/WiFi/NTRIP values to NVS and flash LittleFS web assets.
 <img src="assets/Uploader-2.png" alt="Web UI 3" width="250">
-- This avoids recompiling just to change target wiring or network values.
+- This avoids going to the webUI just to change target wiring or network values.
 
-### B) Building From Source
+## Building From Source
 
 Use this when you need to:
+- use another board/chip,
 - change feature flags,
 - use another partition,
 - modify firmware behavior.
+
+### Step 1: Retargeting to Another Board
+
+The default build targets the Lolin C3 Mini (ESP32-C3). To switch to a different ESP32 board:
+
+1. Copy `.env.example` to `.env` at the project root
+2. Edit the four variables (`TARGET_BOARD`, `TARGET_CHIP`, `TARGET_LABEL`, `TARGET_GNSS`)
+3. Run `python utils/board/retarget.py --dry-run` to preview changes
+4. Run `python utils/board/retarget.py` to apply
+
+This updates `platformio.ini`, flash scripts, web UI strings, documentation, and bootloader offsets in one step. See `utils/board/BOARD_PORTING.md` for the full guide and available boards.
+
+### Step 2: Building From Source
 
 Prerequisites:
 - Docker installed
@@ -54,16 +66,31 @@ Prerequisites:
 - any other modifications in the codebase ***at your own risk***
 - see README in /build (full automation in a docker container). Output in /bin for the binaries and the flash commands
 
-### C) Utils
+Recommended workflow:
+- Develop and validate UI behavior with `render-web`
+- Validate firmware flag combinations with `build-tester`
+- Produce deployable config + assets with `uploader`
+
+**Preload NVS settings (recommended for field deployment):**
+- See description in the previous section
+
+## Utils 
 
 Available tooling under `utils/`:
+- `utils/board/retarget.py`: board retargeting script (see section C above)
 - `utils/uploader/uploaderGUI.py`: NVS editor + writer, LittleFS builder/flasher
 - `utils/render-web/render_web.py`: local dev server for `data/web/` with mock API
 - `utils/build-tester/build_Tester.py`: build matrix tester for feature flags
 
 Utils goals and when to use them:
 
-1. `utils/uploader/` (deployment and field configuration)
+1. `utils/board/` (board retargeting)
+- Goal: switch the entire codebase to a different ESP32 board in one command.
+- Reads `.env` and updates configs, build scripts, web UI, and docs.
+- Best for: porting to a new board, maintaining multi-board variants.
+- Expected outcome: all board-specific references are consistent after running the script.
+
+2. `utils/uploader/` (deployment and field configuration)
 - Goal: configure devices without rebuilding firmware.
 - Use it to prepare and flash:
   - NVS key/values (GNSS UART, WiFi, NTRIP),
@@ -71,19 +98,14 @@ Utils goals and when to use them:
 - Best for: production setup, installer workflow, lab technicians.
 - Expected outcome: device is flashed with firmware-compatible config and web assets in one workflow.
 
-2. `utils/render-web/` (Web UI development loop)
+3. `utils/render-web/` (Web UI development loop)
 - Goal: iterate quickly on Web UI outside embedded target constraints.
 - Serves `data/web/` with mocked API endpoints that mimic firmware routes.
 - Best for: frontend work, API contract checks, UI regression checks before flashing.
 - Expected outcome: faster UI iteration with no board required for every change.
 
-3. `utils/build-tester/` (compile-time flag validation)
+4. `utils/build-tester/` (compile-time flag validation)
 - Goal: verify feature-flag combinations still compile as the project evolves.
 - Runs tiered build matrices, including expected-failure guard tests.
 - Best for: CI validation, pre-release sanity checks, refactor safety.
 - Expected outcome: early detection of broken flag combinations and guard regressions.
-
-Recommended workflow:
-- Develop and validate UI behavior with `render-web`
-- Validate firmware flag combinations with `build-tester`
-- Produce deployable config + assets with `uploader`
