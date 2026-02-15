@@ -24,6 +24,7 @@ include/secrets.h
 secrets.h
 ntrip_config.json
 nvs_keys.csv
+.env
 
 # App-specific
 app_*.h
