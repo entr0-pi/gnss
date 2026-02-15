@@ -1,6 +1,6 @@
 # GNSS ESP32 Bridge
 
-ESP32 firmware that bridges a GNSS UART stream to wireless clients.
+ESP32 firmware that bridges a GNSS to wireless clients.
 
 It can expose raw GNSS serial data over:
 - BLE (Nordic UART Service) 🛰️
