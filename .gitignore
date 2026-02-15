@@ -37,6 +37,12 @@ utils/dist/
 utils/build/
 utils/uploader/lib/*
 !utils/uploader/lib/.gitkeep
+!utils/uploader/lib/mklittlefs/
+!utils/uploader/lib/nvs/
+utils/uploader/lib/mklittlefs/*
+utils/uploader/lib/nvs/*
+!utils/uploader/lib/mklittlefs/.gitkeep
+!utils/uploader/lib/nvs/.gitkeep
 
 # OS
 .DS_Store
