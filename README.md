@@ -26,9 +26,10 @@ Design intent:
 ## Installation & Quickstart
 
 See `INSTALL.md` for:
-- flashing prebuilt binaries,
+- flashing prebuilt binaries (ESP32-C3),
+- retargeting to another ESP32 board,
 - building from source,
-- utility tooling (`uploader`, `render-web`, `build-tester`).
+- utility tooling.
 
 ## Architecture & Data Flow
 
@@ -127,6 +128,15 @@ For deeper technical details:
 - `src/ntrip_client.cpp`
 - `utils/build-tester/README.md`
 
+## Board Retargeting
+
+The default build targets the Lolin C3 Mini (ESP32-C3). To build for a different ESP32 board:
+
+1. Copy `.env.example` to `.env` and set `TARGET_BOARD`, `TARGET_CHIP`, `TARGET_LABEL`, `TARGET_GNSS`
+2. Run `python utils/board/retarget.py`
+
+This updates `platformio.ini`, flash scripts, web UI, and documentation in one step. See `utils/board/BOARD_PORTING.md` for details and the [PlatformIO board registry](https://registry.platformio.org/platforms/platformio/espressif32/boards) for available boards.
+
 ## Repository Layout
 
 ```text
@@ -134,9 +144,11 @@ For deeper technical details:
 ├─ data/                 # LittleFS assets (web files, mock config/status)
 ├─ include/              # Config headers and module interfaces
 ├─ src/                  # Firmware implementation
+├─ utils/board/          # Board retargeting script
 ├─ utils/uploader/       # NVS + LittleFS uploader GUI
 ├─ utils/render-web/     # Web UI local dev server
 ├─ utils/build-tester/   # Build matrix tester + Dockerfile
+├─ .env.example          # Board retargeting template
 ├─ partitions.csv
 ├─ platformio.ini
 └─ README.md

@@ -1,7 +1,7 @@
 """
-ESP32-C3 Build Flag Tester
+ESP32 Build Flag Tester
 
-Tests PlatformIO builds with various compiler flag combinations for ESP32-C3.
+Tests PlatformIO builds with various compiler flag combinations for ESP32.
 Validates that different build configurations compile successfully.
 
 Usage:
@@ -214,7 +214,7 @@ def list_tests(test_flags: List[Dict]) -> None:
 def main() -> int:
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="ESP32-C3 Build Flag Tester",
+        description="ESP32 Build Flag Tester",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -297,7 +297,7 @@ Examples:
 
     # Find PlatformIO executable
     pio_cmd = find_platformio()
-    print(f"\n=== ESP32-C3 Build Flag Tester ===")
+    print(f"\n=== ESP32 Build Flag Tester ===")
     print(f"PlatformIO: {' '.join(pio_cmd)}")
     print(f"Environment: {env}")
 

@@ -12,7 +12,7 @@ What you need:
 - A flash tool (`esptool.py`, PlatformIO upload, or Espressif Flash Download Tool)
 
 Typical offsets for this repo partition table (see *partitions.csv* ):
-- `bootloader.bin` -> `0x1000`
+- `bootloader.bin` -> `0x0`
 - `partitions.bin` -> `0x8000`
 - `firmware.bin` -> `0x10000`
 - `data.bin` -> `0x310000`

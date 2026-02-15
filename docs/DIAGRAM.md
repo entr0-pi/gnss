@@ -729,7 +729,7 @@ Per-file control: define `MODULE_LOG` (0 or 1) before `#include "logger.h"` in e
 
 ## Flash Partition Layout
 
-Board: **Lolin C3 Mini** (ESP32-C3, 4 MB flash)
+Board: **ESP32-C3 LOLIN MINI** (ESP32-C3, 4 MB flash)
 
 | Name | Type | Offset | Size | Purpose |
 |------|------|--------|------|---------|
