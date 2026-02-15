@@ -339,8 +339,8 @@ class ESPUploaderGUI:
             detected = self._parse_chip_from_esptool(output)
             if detected and detected in VALID_CHIPS:
                 self.root.after(0, self._set_detected_chip, detected, port)
-        except Exception:
-            pass
+        except Exception as exc:
+            self.root.after(0, self.log, f"[WARN] Chip detection failed on {port}: {exc}")
         finally:
             self._chip_detect_running = False
 
@@ -428,7 +428,14 @@ class ESPUploaderGUI:
         self._progress_window.deiconify()
         self._progress_window.lift()
         self._progress_window.attributes("-topmost", True)
-        self._progress_window.after(150, lambda: self._progress_window.attributes("-topmost", False))
+        self._progress_window.after(
+            150,
+            lambda: (
+                self._progress_window.attributes("-topmost", False)
+                if self._progress_window is not None and self._progress_window.winfo_exists()
+                else None
+            ),
+        )
 
     def _close_progress_window(self, delay_ms=700):
         if self._progress_window is None or not self._progress_window.winfo_exists():
@@ -481,7 +488,9 @@ class ESPUploaderGUI:
             width=12,
         )
         self.nvs_encoding_combo.grid(row=2, column=3, sticky=tk.EW, padx=(0, 8))
-        ttk.Entry(top, textvariable=self.nvs_value_var).grid(row=2, column=4, sticky=tk.EW)
+        self.nvs_value_entry = ttk.Entry(top, textvariable=self.nvs_value_var)
+        self.nvs_value_entry.grid(row=2, column=4, sticky=tk.EW)
+        self.nvs_value_entry.bind("<Return>", lambda _e: self.add_or_update_nvs())
         top.columnconfigure(1, weight=1)
         top.columnconfigure(3, weight=1)
         top.columnconfigure(4, weight=1)
@@ -682,8 +691,11 @@ class ESPUploaderGUI:
             "mklittlefs_path": self.mklittlefs_path_var.get(),
             "nvs_gen_py": self.nvs_gen_py_var.get(),
         }
-        with open(self.CONFIG_FILE, "w", encoding="utf-8") as f:
-            json.dump(c, f, indent=2)
+        try:
+            with open(self.CONFIG_FILE, "w", encoding="utf-8") as f:
+                json.dump(c, f, indent=2)
+        except OSError as exc:
+            self.log(f"[WARN] Could not save config: {exc}")
 
     def load_config(self):
         self.last_nvs_csv_path = self.DEFAULT_NVS_CSV_PATH
@@ -817,8 +829,7 @@ class ESPUploaderGUI:
 
         return fs_ready
 
-    @staticmethod
-    def parse_partition_table(csv_file):
+    def parse_partition_table(self, csv_file):
         out = []
         with open(csv_file, "r", encoding="utf-8") as f:
             reader = csv.reader(row for row in f if not row.lstrip().startswith("#"))
@@ -835,7 +846,8 @@ class ESPUploaderGUI:
                             "size": int(row[4].strip(), 0),
                         }
                     )
-                except Exception:
+                except Exception as exc:
+                    self.log(f"[WARN] Skipping malformed partition row: {row} ({exc})")
                     continue
         return out
 
@@ -885,18 +897,22 @@ class ESPUploaderGUI:
                 os.makedirs(web_staging, exist_ok=True)
                 web_files = []
                 if os.path.isdir(self.WEB_DIR):
-                    web_files = sorted(f for f in os.listdir(self.WEB_DIR) if os.path.isfile(os.path.join(self.WEB_DIR, f)))
+                    web_files = sorted(
+                        f
+                        for f in os.listdir(self.WEB_DIR)
+                        if os.path.isfile(os.path.join(self.WEB_DIR, f))
+                        and os.path.splitext(f)[1].lower() in self.WEB_ALLOWED_EXTS
+                    )
                     total_web = len(web_files)
                     for idx, f in enumerate(web_files):
                         src = os.path.join(self.WEB_DIR, f)
                         ext = os.path.splitext(f)[1].lower()
-                        if ext not in self.WEB_ALLOWED_EXTS:
-                            continue
-                        shutil.copy2(src, web_staging)
                         if ext in self.WEB_GZIP_EXTS:
                             dst = os.path.join(web_staging, f + ".gz")
                             with open(src, "rb") as fin, gzip.open(dst, "wb") as fout:
                                 shutil.copyfileobj(fin, fout)
+                        else:
+                            shutil.copy2(src, web_staging)
                         progress = 50 + (idx / total_web) * 20 if total_web > 0 else 70
                         self.update_progress(progress, f"Staging web file {idx + 1}/{total_web}")
                 else:
@@ -997,6 +1013,9 @@ class ESPUploaderGUI:
         self._update_nvs_consistency_label()
 
     def clear_nvs_form(self):
+        self.nvs_namespace_var.set("storage")
+        self.nvs_type_var.set("data")
+        self.nvs_encoding_var.set("string")
         self.nvs_key_var.set("")
         self.nvs_value_var.set("")
         self.nvs_tree.selection_remove(self.nvs_tree.selection())
@@ -1099,7 +1118,6 @@ class ESPUploaderGUI:
             "ntrip": {"enabled", "host", "port", "mount", "user", "pass"}
         }
         
-        tree_data = self._tree_to_ns_keys()
         for ns, keys in required_keys.items():
             present = tree_data.get(ns, set())
             missing = keys - present
@@ -1152,10 +1170,10 @@ class ESPUploaderGUI:
 
     def _update_nvs_consistency_label(self):
         """Run the check and update the status label in the NVS tab."""
-        issues = self._check_nvs_consistency()
+        issues = self._check_nvs_consistency_enhanced()
         if issues:
             self.nvs_consistency_label.config(
-                text="\u274c NVS keys mismatch with nvs_keys.h (" + str(len(issues)) + " issue" + ("s" if len(issues) != 1 else "") + ")",
+                text="\u274c NVS validation issues (" + str(len(issues)) + " issue" + ("s" if len(issues) != 1 else "") + ")",
                 foreground="#e05555",
             )
             self._nvs_consistency_issues = issues
