@@ -1,11 +1,11 @@
 # Installation & Quickstart
 
-## QuickStart : Flashing A Prebuilt Binary For (ESP32-C3 ONLY)
+## QuickStart : Flashing A Prebuilt Binary For ESP32-C3 ONLY
 
 Use this when you want the fastest bring-up without building locally.
 
 What you need:
-- A GNSS (U-blox, Unicorn...). I used the UM980
+- A GNSS (U-blox, Unicorn...)
 - A USB cable for flashing and powering the ESP32 board
 - An **ESP32-C3 board** with minimum 4M flash memory
 - A prebuilt binary set (`bootloader.bin`, `partitions.bin`, `firmware.bin`, `data.bin`) provided in releases
@@ -21,7 +21,7 @@ Typical offsets for this repo partition table (see *partitions.csv* ):
 
 After flashing, the firmware immediately:
 - boots,
-- seeds NVS defaults when mutable,
+- seeds defaults (NVS) when mutable (i.e.: precedence of build flags),
 - starts enabled features from build flags.
 
 Important default behavior:
@@ -34,7 +34,9 @@ Important default behavior:
 **Preload NVS settings (recommended for field deployment):**
 - Use `utils/uploader/uploaderGUI.py` to write GNSS/WiFi/NTRIP values to NVS and flash LittleFS web assets.
 <img src="assets/Uploader-2.png" alt="Web UI 3" width="250">
-- This avoids going to the webUI just to change target wiring or network values.
+- This avoids going to the webUI just to change target wiring or network values
+- Fill with your own paths, COM and board type
+- Read the documentation to install the prerequisites
 
 ## Building From Source
 
@@ -44,9 +46,11 @@ Use this when you need to:
 - use another partition,
 - modify firmware behavior.
 
+The first two are low-risk (see below). The code support a partition layout (by reading in it) but there is a risk it is not comprehensive. For the last one, of course, it is risky unless you know what you do.
+
 ### Step 1: Retargeting to Another Board
 
-The default build targets the Lolin C3 Mini (ESP32-C3). To switch to a different ESP32 board:
+The default build targets the a ESP32-C3 (Lolin C3 Mini). To switch to a different ESP32 board:
 
 1. Copy `.env.example` to `.env` at the project root
 2. Edit the four variables (`TARGET_BOARD`, `TARGET_CHIP`, `TARGET_LABEL`, `TARGET_GNSS`)
@@ -64,7 +68,7 @@ Prerequisites:
 - change the flags in *platformio.ini*
 - adapt the partition in *partition.csv*
 - any other modifications in the codebase ***at your own risk***
-- see README in /build (full automation in a docker container). Output in /bin for the binaries and the flash commands
+- see README in /build (full automation in a docker container to make it platform-agnostic). Output in /bin for the binaries and the flash commands
 
 Recommended workflow:
 - Develop and validate UI behavior with `render-web`
