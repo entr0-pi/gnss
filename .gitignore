@@ -35,8 +35,8 @@ plans/
 # Utils
 utils/dist/
 utils/build/
-utils/uploader/lib/mklittlefs/*
-utils/uploader/lib/nvs/*
+utils/uploader/lib/*
+!utils/uploader/lib/.gitkeep
 
 # OS
 .DS_Store
