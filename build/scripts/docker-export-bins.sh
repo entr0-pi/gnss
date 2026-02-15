@@ -60,6 +60,13 @@ CHIP="${CHIP:-esp32c3}"
 BAUD="${BAUD:-460800}"
 SPIFFS_OFFSET="${SPIFFS_OFFSET:-__SPIFFS_OFFSET__}"
 
+for f in bootloader.bin partitions.bin firmware.bin data.bin; do
+  [[ -f "$f" ]] || { echo "[ERROR] Missing: $f"; exit 1; }
+done
+if [[ ! -e "${PORT}" ]]; then
+  echo "[ERROR] Serial port not found: ${PORT}"; exit 1
+fi
+
 python -m esptool --chip "${CHIP}" --port "${PORT}" --baud "${BAUD}" --before default-reset --after hard-reset write-flash -z \
   0x0 bootloader.bin \
   0x8000 partitions.bin \
@@ -76,6 +83,11 @@ param(
     [int]$Baud = 460800,
     [string]$SpiffsOffset = "__SPIFFS_OFFSET__"
 )
+
+foreach ($f in @("bootloader.bin","partitions.bin","firmware.bin","data.bin")) {
+    if (-not (Test-Path $f)) { Write-Error "Missing: $f"; exit 1 }
+}
+if (-not (Test-Path $Port)) { Write-Warning "Serial port not found: $Port (continuing anyway)" }
 
 python -m esptool --chip $Chip --port $Port --baud $Baud --before default-reset --after hard-reset write-flash -z `
   0x0 bootloader.bin `
@@ -95,6 +107,10 @@ set BAUD=%BAUD%
 if "%BAUD%"=="" set BAUD=460800
 set SPIFFS_OFFSET=%SPIFFS_OFFSET%
 if "%SPIFFS_OFFSET%"=="" set SPIFFS_OFFSET=__SPIFFS_OFFSET__
+
+for %%f in (bootloader.bin partitions.bin firmware.bin data.bin) do (
+  if not exist %%f (echo [ERROR] Missing: %%f & exit /b 1)
+)
 
 python -m esptool --chip %CHIP% --port %PORT% --baud %BAUD% --before default-reset --after hard-reset write-flash -z ^
   0x0 bootloader.bin ^

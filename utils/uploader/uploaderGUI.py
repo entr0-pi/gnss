@@ -31,6 +31,14 @@ def get_base_dirs():
     return bundle_dir, app_dir
 
 
+VALID_CHIPS = ("esp32", "esp32s2", "esp32s3", "esp32c2", "esp32c3", "esp32c6", "esp32h2", "esp32p4", "esp8266")
+
+
+def sanitize_chip(value: str) -> str:
+    """Normalise a chip string: lowercase, strip hyphens/spaces."""
+    return value.lower().replace("-", "").replace(" ", "").strip()
+
+
 class ESPUploaderGUI:
     def __init__(self, root):
         self.root = root
@@ -135,8 +143,7 @@ class ESPUploaderGUI:
         ttk.Entry(grid, textvariable=self.port_var, width=28).grid(row=2, column=0, sticky=tk.W, padx=(0, 20), pady=(5, 10))
 
         ttk.Label(grid, text="Chip Family").grid(row=1, column=1, sticky=tk.W)
-        chips = ["esp32", "esp32s2", "esp32s3", "esp32c2", "esp32c3", "esp32c6", "esp32h2", "esp32p4", "esp8266"]
-        ttk.Combobox(grid, textvariable=self.chip_var, values=chips, width=16).grid(row=2, column=1, sticky=tk.W, pady=(5, 10))
+        ttk.Combobox(grid, textvariable=self.chip_var, values=list(VALID_CHIPS), width=16, state="readonly").grid(row=2, column=1, sticky=tk.W, pady=(5, 10))
 
         ttk.Label(grid, text="Partitions Definition (.csv)").grid(row=3, column=0, sticky=tk.W, pady=(10, 4))
         ttk.Entry(grid, textvariable=self.csv_path_var).grid(row=4, column=0, columnspan=2, sticky=tk.EW)
@@ -429,9 +436,13 @@ class ESPUploaderGUI:
             tk_var.set(p)
 
     def save_config(self):
+        chip = sanitize_chip(self.chip_var.get())
+        if chip not in VALID_CHIPS:
+            self.log(f"[WARN] Invalid chip '{self.chip_var.get()}', not saving chip field")
+            chip = sanitize_chip(self.chip_var.get())  # keep whatever was there
         c = {
             "port": self.port_var.get(),
-            "chip": self.chip_var.get(),
+            "chip": chip,
             "csv_path": self.csv_path_var.get(),
             "nvs_csv_path": getattr(self, "last_nvs_csv_path", ""),
             "erase_fs": self.erase_fs_var.get(),
@@ -449,7 +460,14 @@ class ESPUploaderGUI:
             with open(self.CONFIG_FILE, "r", encoding="utf-8") as f:
                 c = json.load(f)
             self.port_var.set(c.get("port", self.port_var.get()))
-            self.chip_var.set(c.get("chip", self.chip_var.get()))
+            raw_chip = c.get("chip", self.chip_var.get())
+            chip = sanitize_chip(raw_chip)
+            if chip in VALID_CHIPS:
+                if chip != raw_chip:
+                    self.log(f"[WARN] Corrected chip '{raw_chip}' -> '{chip}'")
+                self.chip_var.set(chip)
+            else:
+                self.log(f"[WARN] Unknown chip '{raw_chip}' in config, keeping default '{self.chip_var.get()}'")
             self.csv_path_var.set(c.get("csv_path", ""))
             self.last_nvs_csv_path = c.get("nvs_csv_path", "")
             self.erase_fs_var.set(c.get("erase_fs", False))
@@ -528,9 +546,12 @@ class ESPUploaderGUI:
             self.status_labels["data"].config(text=f"/data: {data_count} {data_label}", foreground=ok_color)
             self.status_labels["data_files"].config(text=", ".join(data_files))
 
-        ready = checks["mklittlefs"] and checks["nvsgen"] and checks["csv"]
-        self.run_btn.config(state=(tk.NORMAL if ready else tk.DISABLED))
-        return ready
+        fs_ready = checks["mklittlefs"] and checks["csv"]
+        nvs_ready = checks["nvsgen"] and checks["csv"]
+        self.run_btn.config(state=(tk.NORMAL if fs_ready else tk.DISABLED))
+        self.nvs_write_btn.config(state=(tk.NORMAL if nvs_ready else tk.DISABLED))
+        self.nvs_erase_btn.config(state=(tk.NORMAL if checks["csv"] else tk.DISABLED))
+        return fs_ready
 
     @staticmethod
     def parse_partition_table(csv_file):
