@@ -17,7 +17,13 @@ Typical offsets for this repo partition table (see *partitions.csv* ):
 - `firmware.bin` -> `0x10000`
 - `data.bin` -> `0x310000`
 
-<img src="assets/esp32-flash.png" alt="Web UI 3" width="250">
+OR (the all-in one)
+- `gnss.bin` -> `0x0`
+
+<p>
+  <img src="assets/esp32-flash.png" alt="Web UI 3" width="250">&nbsp;
+  <img src="assets/esp32-flash-all-in.png" alt="Web UI 3" width="250">
+</p>
 
 After flashing, the firmware immediately:
 - boots,
@@ -50,7 +56,7 @@ The first two are low-risk (see below). The code support a partition layout (by 
 
 ### Step 1: Retargeting to Another Board
 
-The default build targets the a ESP32-C3 (Lolin C3 Mini). To switch to a different ESP32 board:
+The default build targets a ESP32-C3 (Lolin C3 Mini). To switch to a different ESP32 board:
 
 1. Copy `.env.example` to `.env` at the project root
 2. Edit the four variables (`TARGET_BOARD`, `TARGET_CHIP`, `TARGET_LABEL`, `TARGET_GNSS`)
