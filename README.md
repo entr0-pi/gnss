@@ -157,7 +157,7 @@ This updates `platformio.ini`, flash scripts, web UI, and documentation in one s
 ## Some pictures...
 
 <p>
-  <img src="assets/webUI-1.png" alt="Web UI 1" width="250">&nbsp;
-  <img src="assets/webUI-3.png" alt="Web UI 2" width="250">&nbsp;
-  <img src="assets/Uploader-2.png" alt="Web UI 3" width="250">
+  <img src="assets/webUI-1.png" alt="Web UI 1" height="350">&nbsp;
+  <img src="assets/webUI-3.png" alt="Web UI 2" height="350">&nbsp;
+  <img src="assets/Uploader-2.png" alt="Web UI 3" height="350">
 </p>
