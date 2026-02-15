@@ -11,6 +11,7 @@ import tempfile
 import threading
 import tkinter as tk
 import webbrowser
+from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
@@ -44,6 +45,70 @@ VALID_CHIPS = ("esp32", "esp32s2", "esp32s3", "esp32c2", "esp32c3", "esp32c6", "
 def sanitize_chip(value: str) -> str:
     """Normalise a chip string: lowercase, strip hyphens/spaces."""
     return value.lower().replace("-", "").replace(" ", "").strip()
+
+
+def validate_ipv4(value: str) -> tuple[bool, str]:
+    """Validate IPv4 address format."""
+    pattern = r"^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$"
+    match = re.match(pattern, value)
+    if not match:
+        return False, "Invalid IPv4 format (expected: x.x.x.x)"
+    octets = [int(g) for g in match.groups()]
+    if any(o > 255 for o in octets):
+        return False, "IPv4 octets must be 0-255"
+    return True, ""
+
+
+def validate_baud_rate(value: str) -> tuple[bool, str]:
+    """Validate baud rate is a standard rate."""
+    standard_rates = {50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 500000, 576000, 921600, 1000000, 2000000}
+    try:
+        rate = int(value)
+        if rate in standard_rates:
+            return True, ""
+        return False, f"Non-standard baud rate. Use one of: {', '.join(str(r) for r in sorted(standard_rates))}"
+    except ValueError:
+        return False, "Baud rate must be a number"
+
+
+def validate_pin_number(value: str) -> tuple[bool, str]:
+    """Validate ESP32 pin number (0-48)."""
+    try:
+        pin = int(value)
+        if 0 <= pin <= 48:
+            return True, ""
+        return False, "Pin number must be 0-48"
+    except ValueError:
+        return False, "Pin number must be a number"
+
+
+def validate_positive_int(value: str) -> tuple[bool, str]:
+    """Validate positive integer."""
+    try:
+        val = int(value)
+        if val > 0:
+            return True, ""
+        return False, "Value must be a positive integer"
+    except ValueError:
+        return False, "Value must be a number"
+
+
+def validate_boolean(value: str) -> tuple[bool, str]:
+    """Validate boolean (0 or 1)."""
+    if value in ("0", "1"):
+        return True, ""
+    return False, "Boolean value must be 0 or 1"
+
+
+def validate_port(value: str) -> tuple[bool, str]:
+    """Validate port number (1-65535)."""
+    try:
+        port = int(value)
+        if 1 <= port <= 65535:
+            return True, ""
+        return False, "Port must be 1-65535"
+    except ValueError:
+        return False, "Port must be a number"
 
 
 class ESPUploaderGUI:
@@ -99,6 +164,11 @@ class ESPUploaderGUI:
 
         self._nvs_consistency_issues = []
         self._chip_detect_running = False
+        self._progress_var = tk.DoubleVar(value=0)
+        self._progress_message_var = tk.StringVar(value="Ready")
+        self._progress_window = None
+        self._progress_label = None
+        self._progress_bar = None
 
         self.setup_ui()
 
@@ -323,6 +393,54 @@ class ESPUploaderGUI:
         )
         self.run_btn.pack(side=tk.LEFT)
 
+    def _ensure_progress_window(self):
+        if self._progress_window is not None and self._progress_window.winfo_exists():
+            return
+        self._progress_window = tk.Toplevel(self.root)
+        self._progress_window.title("Operation Progress")
+        self._progress_window.geometry("420x82")
+        self._progress_window.resizable(False, False)
+        self._progress_window.transient(self.root)
+
+        frame = ttk.Frame(self._progress_window, padding=8)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        self._progress_bar = ttk.Progressbar(frame, variable=self._progress_var, maximum=100, mode="determinate")
+        self._progress_bar.pack(fill=tk.X)
+        self._progress_label = ttk.Label(frame, textvariable=self._progress_message_var, font=("Segoe UI", 9))
+        self._progress_label.pack(anchor=tk.W, pady=(4, 0))
+
+        # Hide window instead of destroying it when user closes it.
+        self._progress_window.protocol("WM_DELETE_WINDOW", self._progress_window.withdraw)
+
+    def _show_progress_window(self, title="Operation Progress"):
+        self._ensure_progress_window()
+        self._progress_window.title(title)
+        # Center floating progress window on current screen.
+        self._progress_window.update_idletasks()
+        w = self._progress_window.winfo_width()
+        h = self._progress_window.winfo_height()
+        sw = self._progress_window.winfo_screenwidth()
+        sh = self._progress_window.winfo_screenheight()
+        x = max(0, (sw - w) // 2)
+        y = max(0, (sh - h) // 2)
+        self._progress_window.geometry(f"{w}x{h}+{x}+{y}")
+        self._progress_window.deiconify()
+        self._progress_window.lift()
+        self._progress_window.attributes("-topmost", True)
+        self._progress_window.after(150, lambda: self._progress_window.attributes("-topmost", False))
+
+    def _close_progress_window(self, delay_ms=700):
+        if self._progress_window is None or not self._progress_window.winfo_exists():
+            return
+        self._progress_window.after(delay_ms, self._progress_window.withdraw)
+
+    def _set_progress_ui(self, percent: float, message: str):
+        pct = max(0.0, min(100.0, float(percent)))
+        self._progress_var.set(pct)
+        if message:
+            self._progress_message_var.set(message)
+
     def _build_nvs_tab(self):
         container = ttk.Frame(self.nvs_tab, padding=16)
         container.pack(fill=tk.BOTH, expand=True)
@@ -419,21 +537,6 @@ class ESPUploaderGUI:
 
         row_write = ttk.Frame(container)
         row_write.pack(fill=tk.X, pady=(8, 0))
-        self.nvs_erase_btn = tk.Button(
-            row_write,
-            text="Erase NVS (No Write)",
-            command=self.start_nvs_erase_thread,
-            bg="#b06b2a",
-            fg="#ffffff",
-            activebackground="#935821",
-            activeforeground="#ffffff",
-            relief=tk.FLAT,
-            bd=0,
-            padx=12,
-            pady=4,
-            cursor="hand2",
-        )
-        self.nvs_erase_btn.pack(side=tk.LEFT)
         self.nvs_write_btn = tk.Button(
             row_write,
             text="Write to Device",
@@ -505,20 +608,31 @@ class ESPUploaderGUI:
 
         help_text.configure(state="disabled")
 
-    def log(self, message):
+    def log(self, message, level="INFO"):
         if threading.current_thread() is not threading.main_thread():
-            self.root.after(0, self.log, message)
+            self.root.after(0, self.log, message, level)
             return
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        formatted = f"[{timestamp}] [{level}] {message}"
         self.log_area.configure(state="normal")
-        self.log_area.insert(tk.END, message + "\n")
+        self.log_area.insert(tk.END, formatted + "\n")
         self.log_area.see(tk.END)
         self.log_area.configure(state="disabled")
+
+    def update_progress(self, percent: float, message: str = ""):
+        """Update progress bar and label."""
+        if threading.current_thread() is not threading.main_thread():
+            self.root.after(0, self.update_progress, percent, message)
+            return
+        self._set_progress_ui(percent, message)
+        if message:
+            self.log(f"[PROGRESS] {message}")
+        self.root.update_idletasks()
 
     def _set_buttons_busy(self, busy):
         if busy:
             self.run_btn.config(state=tk.DISABLED)
             self.nvs_write_btn.config(state=tk.DISABLED)
-            self.nvs_erase_btn.config(state=tk.DISABLED)
         else:
             self.refresh_status()
 
@@ -689,7 +803,6 @@ class ESPUploaderGUI:
         nvs_ready = checks["nvsgen"] and checks["csv"]
         self.run_btn.config(state=(tk.NORMAL if fs_ready else tk.DISABLED))
         self.nvs_write_btn.config(state=(tk.NORMAL if nvs_ready else tk.DISABLED))
-        self.nvs_erase_btn.config(state=(tk.NORMAL if checks["csv"] else tk.DISABLED))
 
         if not checks["csv"]:
             self.readiness_label.config(text="\u274c Not ready — partitions.csv is required", foreground=err_color)
@@ -740,45 +853,57 @@ class ESPUploaderGUI:
             self.log("[ERROR] Environment checks are not ready.")
             return
         self.save_config()
+        self._show_progress_window("LittleFS Flash Progress")
+        self._set_progress_ui(0, "Starting LittleFS operation...")
         self._set_buttons_busy(True)
-        self.tabs.select(self.terminal_tab)
         threading.Thread(target=self.run_flash, daemon=True).start()
 
     def run_flash(self):
         try:
             fs = self.get_partition("spiffs")
             self.log(f">>> LittleFS partition offset={hex(fs['offset'])}, size={hex(fs['size'])}")
+            self.update_progress(5, "Partition info loaded")
 
             staging = tempfile.mkdtemp(prefix="littlefs_staging_")
             try:
+                # Stage data files
+                data_files = []
                 if os.path.isdir(self.DATA_DIR):
-                    for f in os.listdir(self.DATA_DIR):
+                    data_files = [f for f in os.listdir(self.DATA_DIR) if os.path.isfile(os.path.join(self.DATA_DIR, f))]
+                    total_data = len(data_files)
+                    for idx, f in enumerate(data_files):
                         src = os.path.join(self.DATA_DIR, f)
-                        if os.path.isfile(src):
-                            shutil.copy2(src, staging)
+                        shutil.copy2(src, staging)
+                        progress = 10 + (idx / total_data) * 20 if total_data > 0 else 30
+                        self.update_progress(progress, f"Staging data file {idx + 1}/{total_data}")
                 else:
                     self.log("[WARN] data/ folder not found. Building image without data files.")
+                    self.update_progress(30, "No data files to stage")
 
+                # Stage web files
                 web_staging = os.path.join(staging, "web")
                 os.makedirs(web_staging, exist_ok=True)
+                web_files = []
                 if os.path.isdir(self.WEB_DIR):
-                    for f in sorted(os.listdir(self.WEB_DIR)):
+                    web_files = sorted(f for f in os.listdir(self.WEB_DIR) if os.path.isfile(os.path.join(self.WEB_DIR, f)))
+                    total_web = len(web_files)
+                    for idx, f in enumerate(web_files):
                         src = os.path.join(self.WEB_DIR, f)
-                        if not os.path.isfile(src):
-                            continue
                         ext = os.path.splitext(f)[1].lower()
                         if ext not in self.WEB_ALLOWED_EXTS:
                             continue
-                        # Always stage plain assets so clients without gzip support still work.
                         shutil.copy2(src, web_staging)
-                        # Also stage compressed versions for compressible text assets.
                         if ext in self.WEB_GZIP_EXTS:
                             dst = os.path.join(web_staging, f + ".gz")
                             with open(src, "rb") as fin, gzip.open(dst, "wb") as fout:
                                 shutil.copyfileobj(fin, fout)
+                        progress = 50 + (idx / total_web) * 20 if total_web > 0 else 70
+                        self.update_progress(progress, f"Staging web file {idx + 1}/{total_web}")
                 else:
                     self.log("[WARN] web/ folder not found. Building image without web files.")
+                    self.update_progress(70, "No web files to stage")
 
+                # Build LittleFS image
                 mkl_cmd = [
                     self.mklittlefs_path_var.get(),
                     "-c",
@@ -792,21 +917,30 @@ class ESPUploaderGUI:
                     self.IMAGE_NAME,
                 ]
                 self.log(f">>> {' '.join(mkl_cmd)}")
+                self.update_progress(75, "Building LittleFS image...")
                 subprocess.run(mkl_cmd, check=True, capture_output=True, text=True)
+                self.update_progress(85, "LittleFS image built")
             finally:
                 shutil.rmtree(staging, ignore_errors=True)
 
+            # Erase if requested
             if self.erase_fs_var.get():
+                self.log(">>> Erasing FS partition...")
+                self.update_progress(90, "Erasing FS partition")
                 self._run_python([
                     "-m", "esptool", "--chip", self.chip_var.get(), "--port", self.port_var.get(), "--baud", ESPTOOL_BAUD,
                     "erase-region", hex(fs["offset"]), hex(fs["size"]),
                 ])
 
+            # Flash LittleFS
+            self.log(">>> Flashing LittleFS...")
+            self.update_progress(95, "Flashing LittleFS to device")
             self._run_python([
                 "-m", "esptool", "--chip", self.chip_var.get(), "--port", self.port_var.get(), "--baud", ESPTOOL_BAUD,
                 "write-flash", hex(fs["offset"]), self.IMAGE_NAME,
             ])
             self.log("[SUCCESS] LittleFS flashed successfully.")
+            self.update_progress(100, "Flash complete!")
             self.root.after(0, messagebox.showinfo, "Success", "Filesystem flashed successfully.")
         except Exception as e:
             self.log(f"[ERROR] {e}")
@@ -814,6 +948,7 @@ class ESPUploaderGUI:
         finally:
             if os.path.isfile(self.IMAGE_NAME):
                 os.remove(self.IMAGE_NAME)
+            self.root.after(0, self._close_progress_window)
             self.root.after(0, self._set_buttons_busy, False)
 
     def _on_nvs_select(self, _event):
@@ -945,6 +1080,76 @@ class ESPUploaderGUI:
         tree_data = self._tree_to_ns_keys()
         return nvs_compare(h_data, tree_data, "NVS editor")
 
+    def _check_nvs_consistency_enhanced(self):
+        """Enhanced consistency check: validates required keys, types, and values."""
+        issues = []
+        
+        # Get required keys from nvs_keys.h
+        h_path = self._find_nvs_keys_h()
+        if h_path:
+            h_data = nvs_parse_header(h_path)
+            tree_data = self._tree_to_ns_keys()
+            base_issues = nvs_compare(h_data, tree_data, "NVS editor")
+            issues.extend(base_issues)
+        
+        # Additional validation: check required keys per namespace
+        required_keys = {
+            "gnss": {"rx_pin", "tx_pin", "baud"},
+            "wifi": {"ssid", "pass", "dhcp", "ip", "gw", "subnet", "dns", "accesspoint"},
+            "ntrip": {"enabled", "host", "port", "mount", "user", "pass"}
+        }
+        
+        tree_data = self._tree_to_ns_keys()
+        for ns, keys in required_keys.items():
+            present = tree_data.get(ns, set())
+            missing = keys - present
+            if missing:
+                issues.append(f"Namespace '{ns}' missing required keys: {', '.join(sorted(missing))}")
+        
+        # Validate NVS values
+        for row in self._tree_rows():
+            key = row["key"]
+            value = row["value"]
+            encoding = row["encoding"]
+            
+            # Validate pin numbers
+            if key.endswith("_pin"):
+                valid, msg = validate_pin_number(value)
+                if not valid:
+                    issues.append(f"Key '{key}': {msg}")
+            
+            # Validate baud rates
+            if key == "baud":
+                valid, msg = validate_baud_rate(value)
+                if not valid:
+                    issues.append(f"Key 'baud': {msg}")
+            
+            # Validate IP addresses
+            if key in ("ip", "gw", "subnet", "dns"):
+                valid, msg = validate_ipv4(value)
+                if not valid:
+                    issues.append(f"Key '{key}': {msg}")
+            
+            # Validate port numbers
+            if key == "port":
+                valid, msg = validate_port(value)
+                if not valid:
+                    issues.append(f"Key '{key}': {msg}")
+            
+            # Validate boolean values
+            if key in ("enabled", "dhcp", "accesspoint"):
+                valid, msg = validate_boolean(value)
+                if not valid:
+                    issues.append(f"Key '{key}': {msg}")
+            
+            # Validate timeout/delay values (positive integers)
+            if any(suffix in key for suffix in ("_timeout", "_delay", "_ms", "_tries", "_size", "_attempts", "_abandoned", "_valid")):
+                valid, msg = validate_positive_int(value)
+                if not valid:
+                    issues.append(f"Key '{key}': {msg}")
+        
+        return issues
+
     def _update_nvs_consistency_label(self):
         """Run the check and update the status label in the NVS tab."""
         issues = self._check_nvs_consistency()
@@ -963,21 +1168,15 @@ class ESPUploaderGUI:
             self._nvs_consistency_issues = []
 
     def start_nvs_write_thread(self):
-        issues = self._check_nvs_consistency()
+        issues = self._check_nvs_consistency_enhanced()
         if issues:
-            msg = "NVS keys mismatch with nvs_keys.h:\n\n" + "\n".join(issues) + "\n\nProceed anyway?"
-            if not messagebox.askyesno("NVS Consistency Warning", msg):
+            msg = "NVS validation issues:\n\n" + "\n".join(issues) + "\n\nProceed anyway?"
+            if not messagebox.askyesno("NVS Validation Warning", msg):
                 return
+        self._show_progress_window("NVS Write Progress")
+        self._set_progress_ui(0, "Starting NVS write...")
         self._set_buttons_busy(True)
-        self.tabs.select(self.terminal_tab)
         threading.Thread(target=self.write_nvs_to_device, daemon=True).start()
-
-    def start_nvs_erase_thread(self):
-        if not messagebox.askyesno("Confirm erase", "Erase the full NVS partition without writing new data?"):
-            return
-        self._set_buttons_busy(True)
-        self.tabs.select(self.terminal_tab)
-        threading.Thread(target=self.erase_nvs_partition, daemon=True).start()
 
     def write_nvs_to_device(self):
         try:
@@ -985,50 +1184,45 @@ class ESPUploaderGUI:
             if not self._tree_rows():
                 raise ValueError("NVS table is empty.")
 
+            self.update_progress(10, "Preparing NVS CSV...")
             with tempfile.TemporaryDirectory(prefix="nvs_write_") as tmp:
                 csv_path = os.path.join(tmp, "nvs.csv")
                 bin_path = os.path.join(tmp, "nvs.bin")
                 self._write_nvs_csv(csv_path)
 
+                self.update_progress(30, "Generating NVS binary...")
                 self._run_with_fallbacks([
                     [self.nvs_gen_py_var.get(), "generate", csv_path, bin_path, str(nvs["size"])],
                     [self.nvs_gen_py_var.get(), "generate", "--input", csv_path, "--output", bin_path, "--size", str(nvs["size"])],
                 ])
+
                 if self.erase_nvs_var.get():
+                    self.update_progress(60, "Erasing NVS partition...")
                     self._run_python([
                         "-m", "esptool", "--chip", self.chip_var.get(), "--port", self.port_var.get(), "--baud", ESPTOOL_BAUD,
                         "erase-region", hex(nvs["offset"]), hex(nvs["size"]),
                     ])
+
+                self.update_progress(80, "Flashing NVS to device...")
                 self._run_python([
                     "-m", "esptool", "--chip", self.chip_var.get(), "--port", self.port_var.get(), "--baud", ESPTOOL_BAUD,
                     "write-flash", hex(nvs["offset"]), bin_path,
                 ])
 
             self.log("[SUCCESS] NVS partition flashed successfully.")
+            self.update_progress(100, "NVS write complete!")
             self.root.after(0, messagebox.showinfo, "Success", "NVS variables written successfully.")
         except Exception as e:
             self.log(f"[ERROR] {e}")
             self.root.after(0, messagebox.showerror, "NVS write failed", str(e))
         finally:
-            self.root.after(0, self._set_buttons_busy, False)
-
-    def erase_nvs_partition(self):
-        try:
-            nvs = self.get_partition("nvs")
-            self._run_python([
-                "-m", "esptool", "--chip", self.chip_var.get(), "--port", self.port_var.get(), "--baud", ESPTOOL_BAUD,
-                "erase-region", hex(nvs["offset"]), hex(nvs["size"]),
-            ])
-            self.log("[SUCCESS] NVS partition erased.")
-            self.root.after(0, messagebox.showinfo, "Success", "NVS partition erased successfully.")
-        except Exception as e:
-            self.log(f"[ERROR] {e}")
-            self.root.after(0, messagebox.showerror, "NVS erase failed", str(e))
-        finally:
+            self.root.after(0, self._close_progress_window)
             self.root.after(0, self._set_buttons_busy, False)
 
     def on_close(self):
         self.save_config()
+        if self._progress_window is not None and self._progress_window.winfo_exists():
+            self._progress_window.destroy()
         self.root.destroy()
 
 
