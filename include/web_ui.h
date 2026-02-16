@@ -13,7 +13,7 @@ class WebServer;
 
 void webui_begin(WebServer& server, const IPAddress& sta_dns);
 
-// Last known internet reachability from /api/status probes.
+// Last known internet reachability from shared WiFi probe state.
 #if WEBUI_ENABLE
 bool webui_get_internet_reachable();
 #else

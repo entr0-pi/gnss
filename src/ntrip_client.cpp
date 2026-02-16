@@ -14,9 +14,7 @@
 #define MODULE_LOG 1
 #include "logger.h"
 
-#if WEBUI_ENABLE
-#include "web_ui.h"
-#endif
+#include "internet_probe.h"
 
 namespace {
 NtripClient g_ntripClient;
@@ -89,14 +87,7 @@ String configHash(const NtripConfig& cfg) {
 }
 
 bool isInternetReachable() {
-#if WEBUI_ENABLE
-  // Web UI probe state is only updated when /api/status is called.
-  // Fall back to WiFi link status so NTRIP can attempt connections
-  // even if the dashboard has not been opened yet.
-  return webui_get_internet_reachable() || (WiFi.status() == WL_CONNECTED);
-#else
-  return WiFi.status() == WL_CONNECTED;
-#endif
+  return internet_probe_is_reachable();
 }
 
 void saveLockout(int attempts, bool abandoned, const String& hash) {

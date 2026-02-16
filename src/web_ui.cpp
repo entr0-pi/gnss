@@ -8,7 +8,6 @@
 
 #include <WiFi.h>
 #include <WiFiClient.h>
-#include <HTTPClient.h>
 #include <LittleFS.h>
 #include <cstring>
 #include <ArduinoJson.h>
@@ -17,6 +16,7 @@
 #include "config_ntrip.h"
 #include "config_wifi.h"
 #include "web_ui.h"
+#include "internet_probe.h"
 
 static WebServer* s_server = nullptr;
 static IPAddress s_sta_dns;
@@ -24,13 +24,10 @@ static IPAddress s_sta_dns;
 static uint32_t g_http_req_total   = 0;
 static uint32_t g_http_last_req_ms = 0;
 
-static bool     g_internet_reachable = false;
-static uint32_t g_internet_probe_ms  = 0;
-
 static const char* const kPassMask = "********";
 
 bool webui_get_internet_reachable() {
-  return g_internet_reachable;
+  return internet_probe_is_reachable();
 }
 
 static uint32_t markRequestAndGetPrevAgeMs() {
@@ -90,58 +87,13 @@ static void sendFileFromLittleFs(const char* path,
   file.close();
 }
 
-// ---------------- Internet reachability ----------------
-
-static bool logInternetHTTP() {
-  if (WiFi.status() != WL_CONNECTED) {
-    LOG_W("NET", "WiFi not connected");
-    return false;
-  }
-
-  WiFiClient client;
-  HTTPClient http;
-  http.setTimeout(1000);
-  http.setReuse(false);
-
-  const char* url = "http://connectivitycheck.gstatic.com/generate_204";
-  if (!http.begin(client, url)) {
-    LOG_E("NET", "http.begin() failed");
-    return false;
-  }
-
-  int code = http.GET();
-  LOG_I("NET", "HTTP code: %d", code);
-
-  bool ok = false;
-  if (code == 204) {
-    LOG_I("NET", "Internet reachable");
-    ok = true;
-  } else if (code > 0) {
-    LOG_W("NET", "Reached server, but unexpected code");
-  } else {
-    LOG_W("NET", "HTTP GET failed, err=%s", http.errorToString(code).c_str());
-  }
-
-  http.end();
-  return ok;
-}
-
-static bool getInternetReachabilityCached() {
-  const uint32_t now = millis();
-  if (g_internet_probe_ms == 0 || (now - g_internet_probe_ms) >= 10000) {
-    g_internet_reachable = logInternetHTTP();
-    g_internet_probe_ms = now;
-  }
-  return g_internet_reachable;
-}
-
 // ------------- API: /api/status -------------
 
 static void handleStatus() {
   const uint32_t prev_age_ms = markRequestAndGetPrevAgeMs();
   const uint32_t now = millis();
 
-  const bool internet = getInternetReachabilityCached();
+  const bool internet = internet_probe_is_reachable();
 
   WebuiBleSnapshot ble{};
   const bool has_ble = webui_get_ble_snapshot(ble);
@@ -722,6 +674,7 @@ void webui_begin(WebServer& server, const IPAddress& sta_dns) {
 #else
 
 #include "web_ui.h"
+#include "internet_probe.h"
 
 void webui_begin(WebServer& server, const IPAddress& sta_dns) {
   (void)server;

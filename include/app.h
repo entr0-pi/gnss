@@ -124,9 +124,9 @@ static const char* SOFTAP_PASS = SOFTAP_PASS_VALUE;
   #define NMEA_ENABLE 0
 #endif
 
-// NTRIP depends on WiFi + Web UI (for internet reachability checks).
-#if NTRIP_CLIENT_ENABLE != 0 && WEBUI_ENABLE == 0
-  #error "NTRIP_CLIENT_ENABLE requires WEBUI_ENABLE=1"
+// NTRIP depends on WiFi.
+#if NTRIP_CLIENT_ENABLE != 0 && WIFI_ENABLE == 0
+  #error "NTRIP_CLIENT_ENABLE requires WIFI_ENABLE=1"
 #endif
 
 #if WIFI_ENABLE && FORCE_WIFI_SECRETS
