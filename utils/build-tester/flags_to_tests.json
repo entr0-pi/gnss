@@ -21,13 +21,12 @@
     {"id": 26, "tier": "B", "name": "WiFi dual mode + STA channel", "flags": ["-DWEBUI_ENABLE=1", "-DWIFI_DUAL_MODE=1", "-DSTA_CHANNEL=6"]},
     {"id": 27, "tier": "B", "name": "WiFi dual mode + custom SoftAP", "flags": ["-DWEBUI_ENABLE=1", "-DWIFI_DUAL_MODE=1", "-DSOFTAP_SSID_VALUE=\\\"GNSS-LAB\\\"", "-DSOFTAP_PASS_VALUE=\\\"pass12345\\\"", "-DSOFTAP_CHANNEL=11", "-DSOFTAP_HIDDEN=0", "-DSOFTAP_MAX_CONN=4"]},
 
-    {"id": 30, "tier": "C", "name": "NTRIP without WEBUI (must fail)",        "flags": ["-DNTRIP_CLIENT_ENABLE=1"], "expect": "fail"},
-    {"id": 31, "tier": "C", "name": "Hardcoded UART without pins (must fail)", "flags": ["-DFORCE_HARDCODED_UART=1"], "expect": "fail"},
-    {"id": 32, "tier": "C", "name": "Hardcoded UART missing HARD_BAUD (must fail)", "flags": ["-DFORCE_HARDCODED_UART=1", "-DHARD_RX_PIN=20", "-DHARD_TX_PIN=21"], "expect": "fail"},
-    {"id": 33, "tier": "C", "name": "Hardcoded UART missing HARD_TX_PIN (must fail)", "flags": ["-DFORCE_HARDCODED_UART=1", "-DHARD_RX_PIN=20", "-DHARD_BAUD=115200"], "expect": "fail"},
-    {"id": 34, "tier": "C", "name": "Hardcoded UART missing HARD_RX_PIN (must fail)", "flags": ["-DFORCE_HARDCODED_UART=1", "-DHARD_TX_PIN=21", "-DHARD_BAUD=115200"], "expect": "fail"},
-    {"id": 35, "tier": "C", "name": "NTRIP task flag without WEBUI (must fail)", "flags": ["-DNTRIP_CLIENT_ENABLE=1", "-DNTRIP_CLIENT_ENABLE_TASK=0"], "expect": "fail"},
-    {"id": 36, "tier": "C", "name": "NTRIP rev1 fallback flag without WEBUI (must fail)", "flags": ["-DNTRIP_CLIENT_ENABLE=1", "-DNTRIP_CLIENT_ENABLE_REV1_FALLBACK=0"], "expect": "fail"},
-    {"id": 37, "tier": "C", "name": "NTRIP passive scan flag without WEBUI (must fail)", "flags": ["-DNTRIP_CLIENT_ENABLE=1", "-DNTRIP_CLIENT_PASSIVE_SCAN_BYTES=64"], "expect": "fail"}
+    {"id": 30, "tier": "C", "name": "NTRIP with WiFi forced off (must fail)", "flags": ["-DNTRIP_CLIENT_ENABLE=1", "-DWIFI_ENABLE=0"], "expect": "fail"},
+    {"id": 31, "tier": "C", "name": "TCP with WiFi forced off (must fail)", "flags": ["-DTCP_ENABLE=1", "-DWIFI_ENABLE=0"], "expect": "fail"},
+    {"id": 32, "tier": "C", "name": "WEBUI with WiFi forced off (must fail)", "flags": ["-DWEBUI_ENABLE=1", "-DWIFI_ENABLE=0"], "expect": "fail"},
+    {"id": 33, "tier": "C", "name": "Hardcoded UART without pins (must fail)", "flags": ["-DFORCE_HARDCODED_UART=1"], "expect": "fail"},
+    {"id": 34, "tier": "C", "name": "Hardcoded UART missing HARD_BAUD (must fail)", "flags": ["-DFORCE_HARDCODED_UART=1", "-DHARD_RX_PIN=20", "-DHARD_TX_PIN=21"], "expect": "fail"},
+    {"id": 35, "tier": "C", "name": "Hardcoded UART missing HARD_TX_PIN (must fail)", "flags": ["-DFORCE_HARDCODED_UART=1", "-DHARD_RX_PIN=20", "-DHARD_BAUD=115200"], "expect": "fail"},
+    {"id": 36, "tier": "C", "name": "Hardcoded UART missing HARD_RX_PIN (must fail)", "flags": ["-DFORCE_HARDCODED_UART=1", "-DHARD_TX_PIN=21", "-DHARD_BAUD=115200"], "expect": "fail"}
   ]
 }

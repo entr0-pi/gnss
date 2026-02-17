@@ -1,8 +1,0 @@
-2026-02-12 20:59:51 - INFO - Running 1 build tests for lolin_c3_mini (tiers: A).
-2026-02-12 20:59:51 - ERROR - Exception during testing: [WinError 5] Accès refusé: 'D:\\4_GitHub\\gnss\\platformio.ini'
-2026-02-12 21:06:33 - INFO - Running 1 build tests for lolin_c3_mini (tiers: A).
-2026-02-12 21:06:35 - INFO - Running tests sequentially...
-2026-02-12 21:08:45 - INFO - [1/1] PASS: #0 Default (no flags)
-2026-02-12 21:08:45 - INFO - Summary: 1/1 tests met expectations.
-2026-02-13 19:10:09 - INFO - Running 4 build tests for lolin_c3_mini (tiers: A, B).
-2026-02-13 19:10:09 - ERROR - Exception during testing: [WinError 5] Accès refusé: 'D:\\4_GitHub\\gnss\\platformio.ini'

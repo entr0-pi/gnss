@@ -22,7 +22,7 @@ Tests are organized in three tiers:
 | **C** | Negative | 2 | Constraint violations that must fail to compile |
 
 **Tier A + B** together provide complete pairwise coverage of the 5 binary feature toggles (`BLE_ENABLE`, `WEBUI_ENABLE`, `NMEA_ENABLE`, `TCP_ENABLE`, `NTRIP_CLIENT_ENABLE`), respecting the constraints:
-- `NTRIP_CLIENT_ENABLE` requires `WEBUI_ENABLE` (hard `#error`)
+- `NTRIP_CLIENT_ENABLE` auto-enables `WIFI_ENABLE`; forcing `WIFI_ENABLE=0` with NTRIP is a hard `#error`
 - `NMEA_ENABLE` requires `WEBUI_ENABLE` (soft — silently forced to 0)
 
 **Tier C** validates that the `#error` guards actually fire on invalid combos.

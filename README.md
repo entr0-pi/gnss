@@ -107,7 +107,7 @@ WiFi behavior supported by firmware:
 | `WEBUI_ENABLE` | Enable Web UI + HTTP API |
 | `TCP_ENABLE` | Enable single-client TCP bridge |
 | `NMEA_ENABLE` | Enable NMEA parsing for UI (forced off if Web UI off) |
-| `NTRIP_CLIENT_ENABLE` | Enable NTRIP client (requires Web UI) |
+| `NTRIP_CLIENT_ENABLE` | Enable NTRIP client (auto-enables WiFi; build error if `WIFI_ENABLE=0`) |
 | `TCP_PORT` | TCP listening port |
 | `FORCE_HARDCODED_UART` | Lock UART to build-time pins/baud |
 | `FORCE_WIFI_SECRETS` | Lock WiFi settings to `secrets.h` |

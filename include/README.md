@@ -9,7 +9,7 @@ Build flags (override in `platformio.ini`):
 - `WEBUI_ENABLE` (default `0`): enable WiFi/Web UI.
 - `NMEA_ENABLE` (default `0`): enable NMEA parsing.
 - `TCP_ENABLE` (default `0`): enable TCP mirror.
-- `NTRIP_CLIENT_ENABLE` (default `0`): enable NTRIP client support (requires `WEBUI_ENABLE=1`).
+- `NTRIP_CLIENT_ENABLE` (default `0`): enable NTRIP client support (auto-enables WiFi; compile error if `WIFI_ENABLE=0`).
 - `BLE_ENABLE` (default `0`): enable BLE bridge.
 - `WIFI_ENABLE` (default `WEBUI_ENABLE || TCP_ENABLE || NTRIP_CLIENT_ENABLE`): enable WiFi STA (required for web UI, TCP, or NTRIP).
 - `WIFI_DUAL_MODE` (default `0`): enable STA + softAP.
