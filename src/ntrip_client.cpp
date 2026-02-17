@@ -17,6 +17,10 @@
 #include "internet_probe.h"
 
 namespace {
+// --- State owned exclusively by configMonitorTask (core 1) ---
+// These must NOT be accessed from ntrip_client_loop() or other contexts.
+// ntrip_client_loop() reads only NtripClient state (which has its own
+// internal volatile/mutex protection).
 NtripClient g_ntripClient;
 NtripConfig g_ntripCfg;
 NtripLockout g_lockout;

@@ -64,6 +64,42 @@ bool ntrip_config_validate(const NtripConfig& cfg, String* error) {
     if (error) *error = "connect_timeout_ms must be non-zero";
     return false;
   }
+  if (cfg.buffer_size > 16384) {
+    if (error) *error = "buffer_size must be <= 16384";
+    return false;
+  }
+  if (cfg.retry_delay_ms > 300000) {
+    if (error) *error = "retry_delay_ms must be <= 300000 (5 min)";
+    return false;
+  }
+  if (cfg.health_timeout_ms > 300000) {
+    if (error) *error = "health_timeout_ms must be <= 300000 (5 min)";
+    return false;
+  }
+  if (cfg.connect_timeout_ms > 60000) {
+    if (error) *error = "connect_timeout_ms must be <= 60000 (1 min)";
+    return false;
+  }
+  if (cfg.required_valid_frames == 0 || cfg.required_valid_frames > 100) {
+    if (error) *error = "required_valid_frames must be 1-100";
+    return false;
+  }
+  if (cfg.max_tries > 50) {
+    if (error) *error = "max_tries must be <= 50";
+    return false;
+  }
+  if (cfg.host.length() > 128) {
+    if (error) *error = "host must be <= 128 characters";
+    return false;
+  }
+  if (cfg.mount.length() > 64) {
+    if (error) *error = "mount must be <= 64 characters";
+    return false;
+  }
+  if (cfg.user.length() > 128 || cfg.pass.length() > 128) {
+    if (error) *error = "user and pass must be <= 128 characters";
+    return false;
+  }
   return true;
 }
 

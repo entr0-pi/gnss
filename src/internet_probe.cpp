@@ -10,8 +10,8 @@
 
 #include "internet_probe.h"
 
-static bool     g_internet_reachable = false;
-static uint32_t g_internet_probe_ms  = 0;
+static volatile bool     g_internet_reachable = false;
+static volatile uint32_t g_internet_probe_ms  = 0;
 
 static bool runInternetHttpProbe() {
   if (WiFi.status() != WL_CONNECTED) {

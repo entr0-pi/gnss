@@ -90,8 +90,8 @@ static NimBLECharacteristic* g_txChar    = nullptr;
 // Connection/subscription state gates the BLE TX task.
 // g_connected: true when a central is connected.
 // g_notifyEn:  true when the central enabled notifications on the TX characteristic.
-static bool                  g_connected = false;
-static bool                  g_notifyEn  = false;
+static volatile bool         g_connected = false;
+static volatile bool         g_notifyEn  = false;
 #endif
 
 #if BLE_ENABLE
@@ -141,8 +141,8 @@ static StreamBufferHandle_t  g_sb_ntrip2uart = nullptr;
 struct BleStatus {
   volatile bool     connected      = false;  // last known connected state
   volatile uint16_t mtu            = 0;      // last negotiated MTU (from connInfo)
-  volatile uint64_t txBytes        = 0;      // bytes successfully notified (device -> phone)
-  volatile uint64_t rxBytes        = 0;      // bytes received from phone writes (phone -> device)
+  volatile uint32_t txBytes        = 0;      // bytes successfully notified (device -> phone)
+  volatile uint32_t rxBytes        = 0;      // bytes received from phone writes (phone -> device)
   volatile uint32_t uart2bleDrops  = 0;      // drops when UART->BLE buffer is full
   volatile uint32_t ble2uartDrops  = 0;      // drops when BLE->UART buffer is full
 
@@ -154,7 +154,7 @@ struct BleStatus {
 };
 
 static BleStatus g_bleStatus;
-static uint16_t g_ble_mtu = BLE_MTU;
+static volatile uint16_t g_ble_mtu = BLE_MTU;
 // ======================= END BLE STATUS (BLOCK) =======================
 #endif
 
@@ -163,8 +163,8 @@ static uint16_t g_ble_mtu = BLE_MTU;
 // Simple TCP status accumulator used by the web UI snapshots.
 struct TcpStatus {
   volatile bool     connected      = false;  // last known connected state
-  volatile uint64_t txBytes        = 0;      // bytes sent to client
-  volatile uint64_t rxBytes        = 0;      // bytes received from client
+  volatile uint32_t txBytes        = 0;      // bytes sent to client
+  volatile uint32_t rxBytes        = 0;      // bytes received from client
   volatile uint32_t uart2tcpDrops  = 0;      // drops when UART->TCP buffer is full
   volatile uint32_t tcp2uartDrops  = 0;      // drops when TCP->UART buffer is full
 
@@ -190,8 +190,8 @@ bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
 
   // Keep JSON compact: truncate counters to 32-bit here.
   // If you want exact long-running counters, change WebuiBleSnapshot to uint64_t.
-  out.txBytes = (uint32_t)g_bleStatus.txBytes;
-  out.rxBytes = (uint32_t)g_bleStatus.rxBytes;
+  out.txBytes = g_bleStatus.txBytes;
+  out.rxBytes = g_bleStatus.rxBytes;
   out.uart2bleDrops = g_bleStatus.uart2bleDrops;
   out.ble2uartDrops = g_bleStatus.ble2uartDrops;
 
@@ -206,8 +206,8 @@ bool webui_get_ble_snapshot(WebuiBleSnapshot& out) {
 #if WEBUI_ENABLE && TCP_ENABLE
 bool webui_get_tcp_snapshot(WebuiTcpSnapshot& out) {
   out.connected     = g_tcpStatus.connected;
-  out.txBytes       = (uint32_t)g_tcpStatus.txBytes;
-  out.rxBytes       = (uint32_t)g_tcpStatus.rxBytes;
+  out.txBytes       = g_tcpStatus.txBytes;
+  out.rxBytes       = g_tcpStatus.rxBytes;
   out.uart2tcpDrops = g_tcpStatus.uart2tcpDrops;
   out.tcp2uartDrops = g_tcpStatus.tcp2uartDrops;
   return true;

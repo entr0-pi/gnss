@@ -24,9 +24,15 @@ GnssConfig gnss_config_defaults() {
 }
 
 bool gnss_config_validate(const GnssConfig& cfg, String* error) {
-  // Allow -1/0 as "unconfigured" state
-  if (cfg.rx_pin == -1 || cfg.tx_pin == -1 || cfg.baud == 0) {
-    return true; // Unconfigured is valid (will skip UART init)
+  const bool rxUncfg   = (cfg.rx_pin == -1);
+  const bool txUncfg   = (cfg.tx_pin == -1);
+  const bool baudUncfg = (cfg.baud == 0);
+
+  // All-or-nothing: either fully unconfigured or fully configured
+  if (rxUncfg || txUncfg || baudUncfg) {
+    if (rxUncfg && txUncfg && baudUncfg) return true;
+    if (error) *error = "rx_pin, tx_pin, and baud must all be set or all be -1/-1/0.";
+    return false;
   }
 
   if (cfg.rx_pin < 0 || cfg.tx_pin < 0) {
