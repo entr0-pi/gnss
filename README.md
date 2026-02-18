@@ -82,7 +82,7 @@ Write device config without recompiling:
 - WiFi namespace: `ssid`, `pass`, `dhcp`, `ip`, `gw`, `subnet`, `dns`, `accesspoint`
 - NTRIP namespace: caster + lockout fields
 
-Use `utils/uploader/uploaderGUI.py` to manage and flash these values.
+Use `utils/uploader/` to manage and flash these values.
 
 ### C) Runtime (Web UI)
 

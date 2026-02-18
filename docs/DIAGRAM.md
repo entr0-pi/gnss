@@ -167,7 +167,7 @@ Useful files/tools:
 
 - `build/Dockerfile`
 - `build/bin/flash.ps1`, `build/bin/flash.sh`, `build/bin/flash.cmd`
-- `utils/uploader/uploaderGUI.py`
+- `utils/uploader/`
 
 ## 11. Practical Debug Checklist
 

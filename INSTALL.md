@@ -38,7 +38,8 @@ Important default behavior:
 - After connecting, configure your GNSS UART settings, WiFi credentials, and NTRIP server details through the web interface (click on the flashing gear)
 
 **Preload NVS settings (recommended for field deployment):**
-- Use `utils/uploader/uploaderGUI.py` to write GNSS/WiFi/NTRIP values to NVS and flash LittleFS web assets.
+- Use `utils/uploader/` to write GNSS/WiFi/NTRIP values to NVS and flash LittleFS web assets.
+- See: https://github.com/entr0-pi/arduino-uploader.git
 <img src="assets/Uploader-2.png" alt="Web UI 3" width="250">
 
 - This avoids going to the webUI just to change target wiring or network values
@@ -89,7 +90,7 @@ Recommended workflow:
 
 Available tooling under `utils/`:
 - `utils/board/retarget.py`: board retargeting script (see section C above)
-- `utils/uploader/uploaderGUI.py`: NVS editor + writer, LittleFS builder/flasher
+- `utils/uploader`: NVS editor + writer, LittleFS builder/flasher
 - `utils/render-web/render_web.py`: local dev server for `data/web/` with mock API
 - `utils/build-tester/build_Tester.py`: build matrix tester for feature flags
 
