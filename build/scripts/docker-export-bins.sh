@@ -125,6 +125,6 @@ ls -1 "${OUT_DIR}"/*.bin
 
 echo "[INFO] Flash helpers generated: flash.sh, flash.ps1, flash.cmd"
 echo "[INFO] SPIFFS offset for data.bin: ${SPIFFS_OFFSET}"
-echo "[INFO] Linux/macOS: cd ${OUT_DIR} && ./flash.sh /dev/ttyUSB0"
-echo "[INFO] Windows PowerShell: cd ${OUT_DIR}; ./flash.ps1 -Port COM8"
-echo "[INFO] Windows CMD: cd ${OUT_DIR} && flash.cmd COM8"
+echo "[INFO] Linux/macOS: cd ${OUT_DIR}/bin && ./flash.sh /dev/ttyUSB0"
+echo "[INFO] Windows PowerShell: cd ${OUT_DIR}/bin; ./flash.ps1 -Port COM8"
+echo "[INFO] Windows CMD: cd ${OUT_DIR}/bin && flash.cmd COM8"
