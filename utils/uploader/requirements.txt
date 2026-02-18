@@ -1,3 +1,0 @@
-esptool
-sv_ttk
-esp_idf_nvs_partition_gen

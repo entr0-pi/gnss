@@ -39,7 +39,6 @@ Browse available boards at: https://registry.platformio.org/platforms/platformio
 **Functional files:**
 - `platformio.ini` — board ID
 - `utils/build-tester/platformio.ini.test` — env name and board ID
-- `utils/uploader/uploaderGUI.py` — default chip selection
 - `build/scripts/docker-export-bins.sh` — chip defaults and bootloader offset in flash helpers
 - `data/web/index.html` — page title and subtitle
 - `data/web/app.js` — restart confirmation dialog

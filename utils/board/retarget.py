@@ -132,13 +132,7 @@ def build_rules(root: Path, env: dict) -> list[tuple[Path, list]]:
              rf"\g<1>{B}"),
         ]),
 
-        # ── 3. uploader default chip ────────────────────────────────
-        (root / "utils" / "uploader" / "uploaderGUI.py", [
-            (re.compile(r'(chip_var\s*=\s*tk\.StringVar\(value=")\w+(")'),
-             rf"\g<1>{C}\g<2>"),
-        ]),
-
-        # ── 4. docker-export-bins.sh (flash script templates) ───────
+        # ── 3. docker-export-bins.sh (flash script templates) ───────
         (root / "build" / "scripts" / "docker-export-bins.sh", [
             # Bash: CHIP="${CHIP:-esp32c3}"
             (re.compile(r'(CHIP="\$\{CHIP:-)\w+(\}")'),
@@ -154,7 +148,7 @@ def build_rules(root: Path, env: dict) -> list[tuple[Path, list]]:
              rf"\g<1>{O}\g<2>"),
         ]),
 
-        # ── 5. Web UI index.html ────────────────────────────────────
+        # ── 4. Web UI index.html ────────────────────────────────────
         (root / "data" / "web" / "index.html", [
             (re.compile(r"(<title>).*?(</title>)"),
              rf"\g<1>{CSN} Status\g<2>"),
@@ -162,19 +156,19 @@ def build_rules(root: Path, env: dict) -> list[tuple[Path, list]]:
              rf"\g<1>Web Server on {Le} with {Ge}\g<2>"),
         ]),
 
-        # ── 6. Web UI app.js ────────────────────────────────────────
+        # ── 5. Web UI app.js ────────────────────────────────────────
         (root / "data" / "web" / "app.js", [
             (re.compile(r'(confirm\("Restart ).*?( now\?"\))'),
              rf"\g<1>{CSN}\g<2>"),
         ]),
 
-        # ── 7. INSTALL.md (bootloader offset) ───────────────────────
+        # ── 6. INSTALL.md (bootloader offset) ───────────────────────
         (root / "INSTALL.md", [
             (re.compile(r"(`bootloader\.bin`\s*->\s*`)0x[0-9a-fA-F]+"),
              rf"\g<1>{O}"),
         ]),
 
-        # ── 8. docs/DIAGRAM.md ──────────────────────────────────────
+        # ── 7. docs/DIAGRAM.md ──────────────────────────────────────
         (root / "docs" / "DIAGRAM.md", [
             # Line 3: "> ESP32-C3 GNSS RTK system ..."
             (re.compile(r"^(>\s*)\S+(\s+GNSS RTK)", re.MULTILINE),
@@ -187,7 +181,7 @@ def build_rules(root: Path, env: dict) -> list[tuple[Path, list]]:
              rf"\g<1>{Le}\g<2>"),
         ]),
 
-        # ── 9. build-tester README.md ────────────────────────────────
+        # ── 8. build-tester README.md ────────────────────────────────
         (root / "utils" / "build-tester" / "README.md", [
             # Title: "# ESP32-C3 Build Flag Tester"
             (re.compile(r"^(#\s*)\S+(\s+Build Flag Tester)", re.MULTILINE),
@@ -197,7 +191,7 @@ def build_rules(root: Path, env: dict) -> list[tuple[Path, list]]:
              rf"\g<1>{CSN}\g<2>"),
         ]),
 
-        # ── 10. build-tester build_Tester.py ─────────────────────────
+        # ── 9. build-tester build_Tester.py ─────────────────────────
         (root / "utils" / "build-tester" / "build_Tester.py", [
             # Docstring / help / print: "ESP32-C3 Build Flag Tester"
             (re.compile(r"ESP32-\S+(\s+Build Flag Tester)"),
