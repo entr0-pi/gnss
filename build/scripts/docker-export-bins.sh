@@ -5,6 +5,7 @@ ENV_NAME="${PIO_ENV:-full}"
 OUT_DIR="${OUT_DIR:-build}"
 BUILD_DIR=".pio/build/${ENV_NAME}"
 PARTITIONS_CSV="${PARTITIONS_CSV:-partitions.csv}"
+CHIP="${CHIP:-esp32c3}"
 BIN_UTILS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/bin_utils" && pwd)"
 
 mkdir -p "${OUT_DIR}"
@@ -58,42 +59,16 @@ if [[ ! -d "${BIN_UTILS_DIR}" ]]; then
   exit 1
 fi
 
-for script in flash.sh flash.ps1 flash.cmd; do
-  src="${BIN_UTILS_DIR}/${script}"
-  dst="${OUT_DIR}/${script}"
-  if [[ ! -f "${src}" ]]; then
-    echo "[ERROR] Missing script template: ${src}" >&2
-    exit 1
-  fi
-  cp "${src}" "${dst}"
-  sed -i "s/__SPIFFS_OFFSET__/${SPIFFS_OFFSET}/g" "${dst}"
-  if [[ "${script}" == "flash.sh" ]]; then
-    chmod +x "${dst}"
-  fi
-done
-
-for script in merge.sh merge.ps1 merge.cmd; do
-  src="${BIN_UTILS_DIR}/${script}"
-  dst="${OUT_DIR}/${script}"
-  if [[ ! -f "${src}" ]]; then
-    echo "[ERROR] Missing merge script: ${src}" >&2
-    exit 1
-  fi
-  cp "${src}" "${dst}"
-  if [[ "${script}" == "merge.sh" ]]; then
-    chmod +x "${dst}"
-  fi
-done
+echo "[INFO] Merging binaries into gnss_${CHIP}.bin"
+python -m esptool --chip "${CHIP}" merge-bin \
+  -o "${OUT_DIR}/gnss_${CHIP}.bin" \
+  0x0 "${OUT_DIR}/bootloader.bin" \
+  0x8000 "${OUT_DIR}/partitions.bin" \
+  0x10000 "${OUT_DIR}/firmware.bin" \
+  "${SPIFFS_OFFSET}" "${OUT_DIR}/data.bin"
 
 echo "[INFO] Exported binaries to ${OUT_DIR}:"
 ls -1 "${OUT_DIR}"/*.bin
 
-echo "[INFO] Scripts generated:"
-echo "[INFO]   Flash helpers: flash.sh, flash.ps1, flash.cmd"
-echo "[INFO]   Merge helpers: merge.sh, merge.ps1, merge.cmd"
-echo "[INFO] SPIFFS offset for data.bin: ${SPIFFS_OFFSET}"
-echo "[INFO] To flash binaries directly:"
-echo "[INFO]   Linux/macOS: cd ${OUT_DIR} && ./flash.sh /dev/ttyUSB0"
-echo "[INFO]   Windows PowerShell: cd ${OUT_DIR}; ./flash.ps1 -Port COM8"
-echo "[INFO]   Windows CMD: cd ${OUT_DIR} && flash.cmd COM8"
-echo "[INFO] To merge binaries into gnss.bin, use merge.* scripts from ${OUT_DIR}"
+echo "[SUCCESS] Build complete. Merged binary ready to flash:"
+ls -1 "${OUT_DIR}"/gnss_*.bin

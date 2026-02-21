@@ -177,27 +177,6 @@ def build_rules(root: Path, env: dict) -> list[tuple[Path, list]]:
             (re.compile(r"(for the\s+)[\w\-]+(,?\s+validating)"),
              rf"\g<1>{CSN}\g<2>"),
         ]),
-
-        # ── 8. build/scripts/bin_utils/merge.sh ──────────────────────────
-        (root / "build" / "scripts" / "bin_utils" / "merge.sh", [
-            # Bash: CHIP="${CHIP:-esp32c3}"
-            (re.compile(r'(CHIP="\$\{CHIP:-)\w+(\}")'),
-             rf"\g<1>{C}\g<2>"),
-        ]),
-
-        # ── 9. build/scripts/bin_utils/merge.ps1 ─────────────────────────
-        (root / "build" / "scripts" / "bin_utils" / "merge.ps1", [
-            # PowerShell: [string]$Chip = "esp32c3"
-            (re.compile(r'(\[string\]\$Chip\s*=\s*")\w+(")'),
-             rf"\g<1>{C}\g<2>"),
-        ]),
-
-        # ── 10. build/scripts/bin_utils/merge.cmd ────────────────────────
-        (root / "build" / "scripts" / "bin_utils" / "merge.cmd", [
-            # Batch: set "CHIP=esp32c3"
-            (re.compile(r'(set "CHIP=)\w+(")', re.MULTILINE),
-             rf"\g<1>{C}\g<2>"),
-        ]),
     ]
 
 # ── Report ───────────────────────────────────────────────────────────

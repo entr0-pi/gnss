@@ -1,6 +1,6 @@
 # Binary Utility Scripts (`bin_utils/`)
 
-Collection of platform-agnostic utility scripts for building, flashing, and merging GNSS firmware binaries.
+Platform-agnostic utility scripts for building and flashing GNSS firmware binaries.
 
 ## Architecture & Design Principles
 
@@ -12,7 +12,6 @@ VAR="${VAR:-default_value}"
 
 - **create-data-bin.sh**: Uses `ROOT_DIR`, `DATA_DIR`, `WEB_DIR`, `OUT_BIN`, `MKLITTLEFS`
 - **flash.sh/ps1/cmd**: Uses `CHIP`, `PORT/HOST`, `BAUD`, `SPIFFS_OFFSET`
-- **merge.sh/ps1/cmd**: Uses `CHIP`, `BIN_DIR`, `OUTPUT`, `SPIFFS_OFFSET`
 
 ### 2. Error Handling
 Consistent error reporting across all platforms:
@@ -74,17 +73,7 @@ All scripts use tagged output:
 - Reads from current directory (where binaries are located)
 - Uses esptool to write directly to device
 - Requires pyserial and esptool packages installed
-- SPIFFS_OFFSET is substituted by docker-export-bins.sh
-
-**merge.sh / merge.ps1 / merge.cmd:**
-- Reads from `${BIN_DIR}` (default: build/bin/)
-- Merges 4 binaries at hardcoded offsets:
-  - `0x0` → bootloader.bin
-  - `0x8000` → partitions.bin
-  - `0x10000` → firmware.bin
-  - `${SPIFFS_OFFSET}` → data.bin
-- Uses esptool merge-bin (not merge_bin, which is deprecated)
-- Outputs to `${OUTPUT}` (default includes chip name)
+- Available for manual flashing if needed
 
 ## Script Cross-Reference
 
@@ -94,9 +83,6 @@ All scripts use tagged output:
 | `flash.sh` | Flash to device (Bash) | `*.bin` files | Direct write to device | esptool, python |
 | `flash.ps1` | Flash to device (PowerShell) | `*.bin` files | Direct write to device | esptool, python |
 | `flash.cmd` | Flash to device (Batch) | `*.bin` files | Direct write to device | esptool, python |
-| `merge.sh` | Merge bins (Bash) | `*.bin` files | `gnss_*.bin` | esptool, python |
-| `merge.ps1` | Merge bins (PowerShell) | `*.bin` files | `gnss_*.bin` | esptool, python |
-| `merge.cmd` | Merge bins (Batch) | `*.bin` files | `gnss_*.bin` | esptool, python |
 
 ## Environment Variables Reference
 
@@ -125,12 +111,6 @@ All scripts use tagged output:
 - `PORT`: Serial port (default: `COM8`)
 - `BAUD`: Baud rate (default: `460800`)
 - `SPIFFS_OFFSET`: Data partition offset (substituted by docker-export-bins.sh)
-
-### merge.sh / merge.ps1 / merge.cmd
-- `CHIP`: ESP32 variant (default: `esp32c3`)
-- `BIN_DIR`: Binary directory (default: `build/bin`)
-- `OUTPUT`: Output file path (default: `${BIN_DIR}/gnss_${CHIP}.bin`)
-- `SPIFFS_OFFSET`: Data partition offset (default: `0x310000`)
 
 ## Testing
 
