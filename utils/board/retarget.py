@@ -168,36 +168,13 @@ def build_rules(root: Path, env: dict) -> list[tuple[Path, list]]:
              rf"\g<1>{O}"),
         ]),
 
-        # ── 7. docs/DIAGRAM.md ──────────────────────────────────────
-        (root / "docs" / "DIAGRAM.md", [
-            # Line 3: "> ESP32-C3 GNSS RTK system ..."
-            (re.compile(r"^(>\s*)\S+(\s+GNSS RTK)", re.MULTILINE),
-             rf"\g<1>{CSN}\g<2>"),
-            # Line 82: subgraph ESP["ESP32-C3"]
-            (re.compile(r'(subgraph ESP\[").*?("\])'),
-             rf"\g<1>{CSN}\g<2>"),
-            # Line 732: Board: **Lolin C3 Mini** (...)
-            (re.compile(r"(Board:\s*\*\*).*?(\*\*)"),
-             rf"\g<1>{Le}\g<2>"),
-        ]),
-
-        # ── 8. build-tester README.md ────────────────────────────────
+        # ── 7. build-tester README.md ────────────────────────────────────
         (root / "utils" / "build-tester" / "README.md", [
             # Title: "# ESP32-C3 Build Flag Tester"
             (re.compile(r"^(#\s*)\S+(\s+Build Flag Tester)", re.MULTILINE),
              rf"\g<1>{CSN}\g<2>"),
             # Body: "for the ESP32-C3, validating..."
             (re.compile(r"(for the\s+)[\w\-]+(,?\s+validating)"),
-             rf"\g<1>{CSN}\g<2>"),
-        ]),
-
-        # ── 9. build-tester build_Tester.py ─────────────────────────
-        (root / "utils" / "build-tester" / "build_Tester.py", [
-            # Docstring / help / print: "ESP32-C3 Build Flag Tester"
-            (re.compile(r"ESP32-\S+(\s+Build Flag Tester)"),
-             rf"{CSN}\g<1>"),
-            # Docstring: "for ESP32-C3."
-            (re.compile(r"(for\s+)ESP32-[\w\-]+(\.?)"),
              rf"\g<1>{CSN}\g<2>"),
         ]),
     ]
