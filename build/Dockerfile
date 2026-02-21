@@ -1,6 +1,6 @@
 # build/Dockerfile
 # Use the custom base image instead of python:3.12-slim
-FROM gnss-base:latest
+FROM gnss-base
 
 WORKDIR /project
 

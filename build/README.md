@@ -8,7 +8,7 @@ From the repository root:
 
 ### Step 1 (only once, take some time as needs to install the full package, >1.5G)
 ```
-docker build -t gnss-base:latest -f build/Dockerfile.base .
+docker build -t gnss-base -f build/Dockerfile.base .
 ```
 
 ### Step 2 (Build)
