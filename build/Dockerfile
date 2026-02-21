@@ -10,7 +10,7 @@ WORKDIR /project
 
 # Install tooling with pip cache mount.
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir platformio
+    pip install --no-cache-dir platformio esptool
 
 # Copy dependency metadata first, before source files, to maximize cache reuse.
 COPY platformio.ini ./
