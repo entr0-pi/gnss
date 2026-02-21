@@ -6,7 +6,7 @@ if "%CHIP%"=="" set CHIP=esp32c3
 set BAUD=%BAUD%
 if "%BAUD%"=="" set BAUD=460800
 set SPIFFS_OFFSET=%SPIFFS_OFFSET%
-if "%SPIFFS_OFFSET%"=="" set SPIFFS_OFFSET=0x310000
+if "%SPIFFS_OFFSET%"=="" set SPIFFS_OFFSET=__SPIFFS_OFFSET__
 
 for %%f in (bootloader.bin partitions.bin firmware.bin data.bin) do (
   if not exist %%f (echo [ERROR] Missing: %%f & exit /b 1)

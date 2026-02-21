@@ -2,7 +2,7 @@ param(
     [string]$Port = "COM8",
     [string]$Chip = "esp32c3",
     [int]$Baud = 460800,
-    [string]$SpiffsOffset = "0x310000"
+    [string]$SpiffsOffset = "__SPIFFS_OFFSET__"
 )
 
 foreach ($f in @("bootloader.bin","partitions.bin","firmware.bin","data.bin")) {

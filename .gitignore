@@ -8,6 +8,7 @@
 .kilocode/
 
 # Build artifacts
+build/bin/
 *.bin
 *.elf
 *.o

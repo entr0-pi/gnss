@@ -3,7 +3,7 @@ set -euo pipefail
 PORT="${1:-/dev/ttyUSB0}"
 CHIP="${CHIP:-esp32c3}"
 BAUD="${BAUD:-460800}"
-SPIFFS_OFFSET="${SPIFFS_OFFSET:-0x310000}"
+SPIFFS_OFFSET="${SPIFFS_OFFSET:-__SPIFFS_OFFSET__}"
 
 for f in bootloader.bin partitions.bin firmware.bin data.bin; do
   [[ -f "$f" ]] || { echo "[ERROR] Missing: $f"; exit 1; }

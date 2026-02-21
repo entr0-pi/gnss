@@ -30,10 +30,10 @@ COPY src/ src/
 COPY include/ include/
 COPY data/ data/
 COPY build/scripts/docker-export-bins.sh /usr/local/bin/docker-export-bins.sh
-COPY build/scripts/create-data-bin.sh /usr/local/bin/create-data-bin.sh
+COPY build/scripts/bin_utils/ /usr/local/bin/bin_utils/
 RUN sed -i 's/\r$//' /usr/local/bin/docker-export-bins.sh && \
-    sed -i 's/\r$//' /usr/local/bin/create-data-bin.sh && \
-    chmod +x /usr/local/bin/create-data-bin.sh && \
+    find /usr/local/bin/bin_utils/ -type f -name "*.sh" -o -name "*.ps1" -o -name "*.cmd" | xargs sed -i 's/\r$//' && \
+    chmod +x /usr/local/bin/bin_utils/*.sh && \
     chmod +x /usr/local/bin/docker-export-bins.sh
 
 ENTRYPOINT ["/usr/local/bin/docker-export-bins.sh"]

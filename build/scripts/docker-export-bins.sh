@@ -5,6 +5,7 @@ ENV_NAME="${PIO_ENV:-full}"
 OUT_DIR="${OUT_DIR:-build}"
 BUILD_DIR=".pio/build/${ENV_NAME}"
 PARTITIONS_CSV="${PARTITIONS_CSV:-partitions.csv}"
+BIN_UTILS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/bin_utils" && pwd)"
 
 mkdir -p "${OUT_DIR}"
 
@@ -28,7 +29,7 @@ done
 echo "[INFO] Building data.bin from data/ + data/web inside container"
 ROOT_DIR="/project" \
 OUT_BIN="${OUT_DIR}/data.bin" \
-/usr/local/bin/create-data-bin.sh
+"${BIN_UTILS_DIR}/create-data-bin.sh"
 
 SPIFFS_OFFSET="$(
   awk -F, '
@@ -52,79 +53,47 @@ if [[ -z "${SPIFFS_OFFSET}" ]]; then
   exit 1
 fi
 
-cat > "${OUT_DIR}/flash.sh" <<'SCRIPT'
-#!/usr/bin/env bash
-set -euo pipefail
-PORT="${1:-/dev/ttyUSB0}"
-CHIP="${CHIP:-esp32c3}"
-BAUD="${BAUD:-460800}"
-SPIFFS_OFFSET="${SPIFFS_OFFSET:-__SPIFFS_OFFSET__}"
-
-for f in bootloader.bin partitions.bin firmware.bin data.bin; do
-  [[ -f "$f" ]] || { echo "[ERROR] Missing: $f"; exit 1; }
-done
-if [[ ! -e "${PORT}" ]]; then
-  echo "[ERROR] Serial port not found: ${PORT}"; exit 1
+if [[ ! -d "${BIN_UTILS_DIR}" ]]; then
+  echo "[ERROR] Binary utilities directory not found: ${BIN_UTILS_DIR}" >&2
+  exit 1
 fi
 
-python -m esptool --chip "${CHIP}" --port "${PORT}" --baud "${BAUD}" --before default-reset --after hard-reset write-flash -z \
-  0x0 bootloader.bin \
-  0x8000 partitions.bin \
-  0x10000 firmware.bin \
-  "${SPIFFS_OFFSET}" data.bin
-SCRIPT
-sed -i "s/__SPIFFS_OFFSET__/${SPIFFS_OFFSET}/g" "${OUT_DIR}/flash.sh"
-chmod +x "${OUT_DIR}/flash.sh"
+for script in flash.sh flash.ps1 flash.cmd; do
+  src="${BIN_UTILS_DIR}/${script}"
+  dst="${OUT_DIR}/${script}"
+  if [[ ! -f "${src}" ]]; then
+    echo "[ERROR] Missing script template: ${src}" >&2
+    exit 1
+  fi
+  cp "${src}" "${dst}"
+  sed -i "s/__SPIFFS_OFFSET__/${SPIFFS_OFFSET}/g" "${dst}"
+  if [[ "${script}" == "flash.sh" ]]; then
+    chmod +x "${dst}"
+  fi
+done
 
-cat > "${OUT_DIR}/flash.ps1" <<'SCRIPT'
-param(
-    [string]$Port = "COM8",
-    [string]$Chip = "esp32c3",
-    [int]$Baud = 460800,
-    [string]$SpiffsOffset = "__SPIFFS_OFFSET__"
-)
-
-foreach ($f in @("bootloader.bin","partitions.bin","firmware.bin","data.bin")) {
-    if (-not (Test-Path $f)) { Write-Error "Missing: $f"; exit 1 }
-}
-if (-not (Test-Path $Port)) { Write-Warning "Serial port not found: $Port (continuing anyway)" }
-
-python -m esptool --chip $Chip --port $Port --baud $Baud --before default-reset --after hard-reset write-flash -z `
-  0x0 bootloader.bin `
-  0x8000 partitions.bin `
-  0x10000 firmware.bin `
-  $SpiffsOffset data.bin
-SCRIPT
-sed -i "s/__SPIFFS_OFFSET__/${SPIFFS_OFFSET}/g" "${OUT_DIR}/flash.ps1"
-
-cat > "${OUT_DIR}/flash.cmd" <<'SCRIPT'
-@echo off
-set PORT=%1
-if "%PORT%"=="" set PORT=COM8
-set CHIP=%CHIP%
-if "%CHIP%"=="" set CHIP=esp32c3
-set BAUD=%BAUD%
-if "%BAUD%"=="" set BAUD=460800
-set SPIFFS_OFFSET=%SPIFFS_OFFSET%
-if "%SPIFFS_OFFSET%"=="" set SPIFFS_OFFSET=__SPIFFS_OFFSET__
-
-for %%f in (bootloader.bin partitions.bin firmware.bin data.bin) do (
-  if not exist %%f (echo [ERROR] Missing: %%f & exit /b 1)
-)
-
-python -m esptool --chip %CHIP% --port %PORT% --baud %BAUD% --before default-reset --after hard-reset write-flash -z ^
-  0x0 bootloader.bin ^
-  0x8000 partitions.bin ^
-  0x10000 firmware.bin ^
-  %SPIFFS_OFFSET% data.bin
-SCRIPT
-sed -i "s/__SPIFFS_OFFSET__/${SPIFFS_OFFSET}/g" "${OUT_DIR}/flash.cmd"
+for script in merge.sh merge.ps1 merge.cmd; do
+  src="${BIN_UTILS_DIR}/${script}"
+  dst="${OUT_DIR}/${script}"
+  if [[ ! -f "${src}" ]]; then
+    echo "[ERROR] Missing merge script: ${src}" >&2
+    exit 1
+  fi
+  cp "${src}" "${dst}"
+  if [[ "${script}" == "merge.sh" ]]; then
+    chmod +x "${dst}"
+  fi
+done
 
 echo "[INFO] Exported binaries to ${OUT_DIR}:"
 ls -1 "${OUT_DIR}"/*.bin
 
-echo "[INFO] Flash helpers generated: flash.sh, flash.ps1, flash.cmd"
+echo "[INFO] Scripts generated:"
+echo "[INFO]   Flash helpers: flash.sh, flash.ps1, flash.cmd"
+echo "[INFO]   Merge helpers: merge.sh, merge.ps1, merge.cmd"
 echo "[INFO] SPIFFS offset for data.bin: ${SPIFFS_OFFSET}"
-echo "[INFO] Linux/macOS: cd ${OUT_DIR}/bin && ./flash.sh /dev/ttyUSB0"
-echo "[INFO] Windows PowerShell: cd ${OUT_DIR}/bin; ./flash.ps1 -Port COM8"
-echo "[INFO] Windows CMD: cd ${OUT_DIR}/bin && flash.cmd COM8"
+echo "[INFO] To flash binaries directly:"
+echo "[INFO]   Linux/macOS: cd ${OUT_DIR} && ./flash.sh /dev/ttyUSB0"
+echo "[INFO]   Windows PowerShell: cd ${OUT_DIR}; ./flash.ps1 -Port COM8"
+echo "[INFO]   Windows CMD: cd ${OUT_DIR} && flash.cmd COM8"
+echo "[INFO] To merge binaries into gnss.bin, use merge.* scripts from ${OUT_DIR}"
