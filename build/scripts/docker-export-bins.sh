@@ -70,5 +70,13 @@ python -m esptool --chip "${CHIP}" merge-bin \
 echo "[INFO] Exported binaries to ${OUT_DIR}:"
 ls -1 "${OUT_DIR}"/*.bin
 
+echo "[INFO] Copying utility scripts to ${OUT_DIR}"
+for script in flash.cmd flash.ps1 flash.sh; do
+  src="${BIN_UTILS_DIR}/${script}"
+  if [[ -f "${src}" ]]; then
+    cp "${src}" "${OUT_DIR}/${script}"
+  fi
+done
+
 echo "[SUCCESS] Build complete. Merged binary ready to flash:"
 ls -1 "${OUT_DIR}"/gnss_*.bin

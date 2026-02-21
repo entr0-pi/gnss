@@ -1,67 +1,61 @@
 # GNSS Docker Build Export
 
-This folder contains the Docker image and script used to build firmware and export flashable binaries.
+This folder contains a two-image Docker workflow to build firmware and export flashable binaries.
 
-## Build Image
+## Dockerfiles
 
-From the repository root:
+- `build/Dockerfile.base`
+  - Starts from `python:3.12-slim`
+  - Installs `platformio` and `esptool`
+  - Pre-installs heavy global PlatformIO toolchains/packages (cached in the `gnss-base` image)
 
-### Step 1 (only once, take some time as needs to install the full package, >1.5G)
-```
+- `build/Dockerfile`
+  - Starts from `gnss-base`
+  - Copies `platformio.ini` and installs project dependencies (`pio pkg install`, plus `full` env when present)
+  - Copies source/data/scripts and sets:
+    - `ENTRYPOINT ["/usr/local/bin/docker-export-bins.sh"]`
+
+## Build Images
+
+Run from repository root.
+
+### 1. Build base image (infrequent; heavy layer)
+
+```bash
 docker build -t gnss-base -f build/Dockerfile.base .
 ```
 
-### Step 2 (Build)
-```
+### 2. Build project image
+
+```bash
 docker build -t gnss -f build/Dockerfile .
 ```
 
-### Step 3 (Run and Export Binaries to Host)
+## Run Export
 
-Build the firmware and export all binaries to `build/bin/`:
+Build firmware and export binaries to `build/bin/` on host:
 
 ```bash
 docker run --rm -v "${PWD}/build/bin:/project/build" gnss
 ```
 
-**Generated files:**
-- **Binaries:** `bootloader.bin`, `partitions.bin`, `firmware.bin`, `data.bin`
-- **Merged binary:** `gnss_esp32c3.bin` (combines all 4 at correct offsets)
+Generated files:
+- `bootloader.bin`
+- `partitions.bin`
+- `firmware.bin`
+- `data.bin`
+- `gnss_esp32c3.bin` (merged image)
 
-## Flash the Merged Binary
-
-The Docker export automatically creates a merged `gnss_*.bin` file. Flash it directly:
+## Flash Merged Binary
 
 ```bash
 python -m esptool --chip esp32c3 --port <PORT> write-flash 0x0 build/bin/gnss_esp32c3.bin
 ```
 
-Adapt <PORT> to your specific case
+Replace `<PORT>` with your serial port.
 
-The merged binary contains all 4 components at their correct offsets:
-- `0x0` → bootloader
-- `0x8000` → partitions
-- `0x10000` → firmware
-- `0x310000` → data (LittleFS)
-
----
-
-## Directory Structure
-
-```
-build/
-├── Dockerfile                    (Docker image definition)
-├── README.md                     (this file)
-├── bin/                          (output directory, created by docker-export-bins.sh)
-│   └── *.bin                    (bootloader, partitions, firmware, data, gnss_merged)
-└── scripts/
-    ├── docker-export-bins.sh    (orchestrator: builds & exports)
-    └── bin_utils/               (utility scripts used internally by docker-export-bins.sh)
-        ├── create-data-bin.sh   (builds data.bin from data/)
-        ├── merge.sh             (merges bins into single file)
-        ├── merge.ps1            (PowerShell variant - for manual merging)
-        ├── merge.cmd            (Windows CMD variant - for manual merging)
-        ├── flash.sh             (flashes binaries to device - for manual use)
-        ├── flash.ps1            (PowerShell variant - for manual use)
-        └── flash.cmd            (Windows CMD variant - for manual use)
-```
+Offsets inside merged binary:
+- `0x0` bootloader
+- `0x8000` partitions
+- `0x10000` firmware
+- `0x310000` data (LittleFS)
