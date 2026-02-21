@@ -6,11 +6,17 @@ This folder contains the Docker image and script used to build firmware and expo
 
 From the repository root:
 
+### Step 1 (only once, take some time as needs to install the full package, >1.5G)
+```
+docker build -t gnss-base:latest -f build/Dockerfile.base .
+```
+
+### Step 2 (Build)
 ```
 docker build -t gnss -f build/Dockerfile .
 ```
 
-## Run Build and Export Binaries to Host
+### Step 3 (Run and Export Binaries to Host)
 
 Build the firmware and export all binaries to `build/bin/`:
 
@@ -27,8 +33,10 @@ docker run --rm -v "${PWD}/build/bin:/project/build" gnss
 The Docker export automatically creates a merged `gnss_*.bin` file. Flash it directly:
 
 ```bash
-python -m esptool --chip esp32c3 --port /dev/ttyUSB0 write-flash 0x0 build/bin/gnss_esp32c3.bin
+python -m esptool --chip esp32c3 --port <PORT> write-flash 0x0 build/bin/gnss_esp32c3.bin
 ```
+
+Adapt <PORT> to your specific case
 
 The merged binary contains all 4 components at their correct offsets:
 - `0x0` → bootloader

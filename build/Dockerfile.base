@@ -1,0 +1,18 @@
+# build/Dockerfile.base
+FROM python:3.12-slim
+
+WORKDIR /project
+
+# Install PlatformIO Core
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir platformio esptool
+
+# Install Global Toolchains (The heavy part)
+# This layer is now baked into the 'gnss-base' image
+RUN --mount=type=cache,target=/root/.platformio/.cache \
+    pio pkg install -g -p "espressif32 @ 6.12.0" && \
+    pio pkg install -g -t "toolchain-riscv32-esp @ 8.4.0+2021r2-patch5" && \
+    pio pkg install -g -t "tool-esptoolpy @ 2.40900.250804" && \
+    pio pkg install -g -t "tool-mklittlefs @ 1.203.210628"
+
+# No ENTRYPOINT yet, this is just an environment
