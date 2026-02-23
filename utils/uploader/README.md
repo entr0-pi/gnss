@@ -1,1 +1,1 @@
-See: https://github.com/entr0-pi/arduino-uploader.git
+See: https://github.com/entr0-pi/arduino-uploader
