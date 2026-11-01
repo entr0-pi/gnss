@@ -438,6 +438,9 @@ void ntrip_client_loop() {
     case NtripState::LOCKED_OUT:
       LOG_W("NTRIP", "LOCKED_OUT");
       break;
+    case NtripState::STOPPED:
+      LOG_I("NTRIP", "STOPPED");
+      break;
   }
 
   if (streaming) {

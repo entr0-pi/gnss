@@ -18,7 +18,7 @@ Connects to an NTRIP caster, validates RTCM stream quality, forwards corrections
 
 ## Thread-safety contract
 
-- `begin()`, `startTask()`, `stopTask()` must be called from the same context (typically Arduino setup/loop). Never call `begin()` while the task is running.
+- `begin()`, `startTask()`, `stopTask()` must be called from the same context (typically Arduino setup/loop). Calling `begin()` while the task is running is allowed: the task is stopped, reconfigured and restarted on the same core.
 - Query methods — `state()`, `isStreaming()`, `isHealthy()`, `getStats()`, `getLastError()`, `getErrorMessage()` — are safe from any task.
 - Control methods — `stop()`, `reset()`, `reconnect()` — are safe from any task.
 - Scalar state uses `volatile` for lock-free single-writer access. `NtripStats` is protected by mutex.
@@ -38,7 +38,7 @@ Override via build_flags (e.g. `-DNTRIP_CLIENT_ENABLE_TASK=0`):
 Types in `include/NtripClient.h`:
 
 - `NtripClientConfig` — caster and behavior settings
-- `NtripState` — `DISCONNECTED | CONNECTING | STREAMING | LOCKED_OUT`
+- `NtripState` — `DISCONNECTED | CONNECTING | STREAMING | LOCKED_OUT | STOPPED`
 - `NtripError` — failure categories (includes `INVALID_CONFIG`)
 - `NtripStats` — counters + last error/frame info
 - `NtripClient` — client class
@@ -47,12 +47,12 @@ Methods:
 
 | Method | Description |
 |--------|-------------|
-| `begin(cfg, gnss)` | Initialize with config and output stream. Validates config. |
+| `begin(cfg, gnss)` | Initialize with config and output stream. Validates config. Safe to call again to reconfigure a running task. |
 | `startTask(core)` | Start FreeRTOS task. Returns `false` if already running. |
 | `stopTask()` | Signal task to stop, wait for clean exit, free resources. |
 | `isTaskRunning()` | Check if background task is active. |
-| `stop()` | Enter lockout state. |
-| `reset()` | Clear lockout, allow reconnection. |
+| `stop()` | Disconnect and pause (`STOPPED`). Not a lockout. |
+| `reset()` | Clear lockout/failure count and resume connecting (also leaves `STOPPED`). |
 | `reconnect()` | Force immediate reconnection attempt. |
 | `state()` | Current `NtripState`. |
 | `isStreaming()` | True if actively streaming. |

@@ -92,6 +92,7 @@ void loop() {
       Serial.print(ntrip.isHealthy() ? "STREAMING (healthy)" : "STREAMING (validating)");
       break;
     case NtripState::LOCKED_OUT:   Serial.print("LOCKED OUT");   break;
+    case NtripState::STOPPED:      Serial.print("STOPPED");      break;
   }
 
   if (st == NtripState::STREAMING || stats.totalFrames > 0) {

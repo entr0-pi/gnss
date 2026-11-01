@@ -25,7 +25,7 @@
 #include <WiFiClient.h>
 #include <Arduino.h>
 
-#define NTRIP_CLIENT_VERSION "2.1.0"
+#define NTRIP_CLIENT_VERSION "2.2.0"
 
 // ─── Log levels ─────────────────────────────────────────────────────────────
 
@@ -62,7 +62,8 @@ enum class NtripState {
   DISCONNECTED,
   CONNECTING,
   STREAMING,
-  LOCKED_OUT
+  LOCKED_OUT,   // Too many failures; cleared by reset()
+  STOPPED       // Paused by stop(); resumed by reset(), reconnect() or begin()
 };
 
 enum class NtripError {
@@ -99,7 +100,8 @@ struct NtripStats {
 // Thread-safety contract
 // ~~~~~~~~~~~~~~~~~~~~~~
 // - begin() and startTask()/stopTask() must be called from the same context
-//   (typically Arduino setup/loop). Never call begin() while the task runs.
+//   (typically Arduino setup/loop). Calling begin() while the task runs is
+//   allowed: the task is stopped, reconfigured and restarted on the same core.
 // - Query methods — state(), isStreaming(), isHealthy(), getStats(),
 //   getLastError(), getErrorMessage() — are safe from any task.
 // - Control methods — stop(), reset(), reconnect() — are safe from any task.
@@ -111,6 +113,7 @@ class NtripClient {
 public:
   // ── Lifecycle ──────────────────────────────────────────────────────────
   // Required call order: begin() → startTask() → … → stopTask()
+  // begin() may be called again at any time to apply a new configuration.
 
   bool begin(const NtripClientConfig& cfg, Print& gnss);
   bool begin(const NtripClientConfig& cfg, HardwareSerial& gnss);
@@ -135,8 +138,11 @@ public:
 
   // ── Control (thread-safe) ─────────────────────────────────────────────
 
+  /// Disconnect and pause (STOPPED). Not a lockout.
   void stop();
+  /// Clear lockout/failure count and resume connecting.
   void reset();
+  /// Drop the current connection and retry immediately.
   void reconnect();
 
   // ── Configuration ─────────────────────────────────────────────────────
@@ -174,6 +180,7 @@ private:
 
 #if NTRIP_CLIENT_ENABLE_TASK
   TaskHandle_t _taskHandle = nullptr;
+  uint8_t _taskCore = 0;
 #endif
 
   NtripLogFn logFn = nullptr;

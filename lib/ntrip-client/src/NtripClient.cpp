@@ -35,6 +35,15 @@ bool NtripClient::begin(const NtripClientConfig& cfg, Print& gnss) {
     return false;
   }
 
+#if NTRIP_CLIENT_ENABLE_TASK
+  // Reconfiguring a live task: stop it first so it no longer reads config or
+  // owns a buffer sized for the old bufferSize, then restart it below.
+  const bool restartTask = (_taskHandle != nullptr);
+  if (restartTask) {
+    stopTask();
+  }
+#endif
+
   config = cfg;
   gnssOutput = &gnss;
   failures = 0;
@@ -53,6 +62,12 @@ bool NtripClient::begin(const NtripClientConfig& cfg, Print& gnss) {
 
   _stats = NtripStats();
   NTRIP_LOGI("Initialized (v" NTRIP_CLIENT_VERSION ")");
+
+#if NTRIP_CLIENT_ENABLE_TASK
+  if (restartTask) {
+    return startTask(_taskCore);
+  }
+#endif
   return true;
 }
 
@@ -71,6 +86,7 @@ bool NtripClient::startTask(uint8_t core) {
   }
 
   _running = true;
+  _taskCore = core;
   BaseType_t result = xTaskCreatePinnedToCore(
       taskEntry, "NtripClient", 8192, this, 1, &_taskHandle, core);
 
@@ -176,7 +192,15 @@ void NtripClient::taskLoop() {
             config.host.c_str(), config.port, config.mount.c_str(),
             failures + 1, config.maxTries);
 
-      if (connectCaster(config)) {
+      const bool connected = connectCaster(config);
+
+      // stop() may have been called during the handshake — honour it.
+      if (_state != NtripState::CONNECTING) {
+        if (connected) client.stop();
+        continue;
+      }
+
+      if (connected) {
         failures = 0;
         parser.reset();
         validFrames = 0;
@@ -212,6 +236,8 @@ void NtripClient::taskLoop() {
     // ── STREAMING: read data, validate, monitor health ───────────────────
     if (_state == NtripState::STREAMING) {
       if (!client.connected()) {
+        // Socket closed by stop(), not by the caster.
+        if (_state != NtripState::STREAMING) continue;
         NTRIP_LOGW("Connection lost");
         setError(NtripError::TCP_CONNECT_FAILED, "Socket closed by " + config.host);
         disconnect();
@@ -287,8 +313,8 @@ void NtripClient::taskLoop() {
       }
     }
 
-    // ── LOCKED_OUT: idle until user calls reset()/reconnect() ────────────
-    if (_state == NtripState::LOCKED_OUT) {
+    // ── LOCKED_OUT / STOPPED: idle until reset()/reconnect()/begin() ─────
+    if (_state == NtripState::LOCKED_OUT || _state == NtripState::STOPPED) {
       vTaskDelay(pdMS_TO_TICKS(500));
       continue;
     }
@@ -525,9 +551,15 @@ String NtripClient::getErrorMessage() const {
 }
 
 void NtripClient::stop() {
-  disconnect();
-  failures = config.maxTries;
-  _state = NtripState::LOCKED_OUT;
+  // Set the state before closing the socket so taskLoop sees STOPPED rather
+  // than treating the closed socket as a lost connection.
+  _state = NtripState::STOPPED;
+  if (client.connected()) client.stop();
+  _healthy = false;
+  if (statsMutex != nullptr && xSemaphoreTake(statsMutex, portMAX_DELAY)) {
+    _stats.protocolVersion = 0;
+    xSemaphoreGive(statsMutex);
+  }
   NTRIP_LOGI("Stopped");
 }
 
