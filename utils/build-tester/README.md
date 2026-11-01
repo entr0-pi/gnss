@@ -44,11 +44,15 @@ python utils/build-tester/build_Tester.py --list        # list all tests
 
 ## Quick start (Docker)
 
-No host dependencies required beyond Docker.
+No host dependencies required beyond Docker. The image builds on top of `gnss-base` (see [build/README.md](../../build/README.md)), which already contains the toolchains, framework and libraries.
 
 ```bash
-# Build the image (run from the project root)
+# Step 1
+
+# Build the tester image
 docker build -t gnss-build-tester -f utils/build-tester/Dockerfile .
+
+# Step 2
 
 # Run all tests
 docker run --rm gnss-build-tester
@@ -63,9 +67,13 @@ docker run --rm gnss-build-tester --list
 To extract the log file from a run:
 
 ```bash
-docker run --rm -v ./results:/project/utils/build-tester gnss-build-tester
+docker run --rm -v "${PWD}/results:/results" gnss-build-tester
 # Log available at ./results/build_test_results.log
 ```
+
+Locally the log is written to `utils/build-tester/build_test_results.log`; set `BUILD_TESTER_LOG` to change the path.
+
+Keep `platformio.ini.test` on the same platform, framework and library versions as `platformio.ini` and `build/Dockerfile.base`, otherwise the tester compiles against different packages than the production build.
 
 ## How it works
 

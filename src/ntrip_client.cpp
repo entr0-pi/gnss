@@ -29,6 +29,10 @@ bool g_ntripTaskStarted = false;
 
 unsigned long g_lastConfigCheck = 0;
 constexpr unsigned long kConfigCheckInterval = 5000;
+constexpr unsigned long kLockoutResetMs = 120000;
+
+// Start of a lockout restored from NVS (0 = none pending)
+unsigned long g_persistedLockoutStart = 0;
 
 class NtripStreamWriter : public Print {
  public:
@@ -126,9 +130,24 @@ bool loadAndValidateConfig(NtripClientConfig& config) {
   }
 
   if (g_lockout.abandoned) {
-    LOG_W("NTRIP", "Locked out due to repeated failures");
-    return false;
+    // An in-session lockout leaves the client in LOCKED_OUT and is cleared by
+    // handleLockout(). A lockout restored from NVS after reboot never reaches
+    // that state (begin() is not called), so time it out here instead.
+    if (g_ntripClient.state() == NtripState::LOCKED_OUT) {
+      return false;
+    }
+    if (g_persistedLockoutStart == 0) {
+      g_persistedLockoutStart = millis();
+      LOG_W("NTRIP", "Locked out due to repeated failures (auto-reset in 2 minutes)");
+      return false;
+    }
+    if (millis() - g_persistedLockoutStart < kLockoutResetMs) {
+      return false;
+    }
+    LOG_I("NTRIP", "Auto-resetting persisted lockout...");
+    saveLockout(0, false, currentHash_);
   }
+  g_persistedLockoutStart = 0;
 
   config.host               = g_ntripCfg.host;
   config.port               = g_ntripCfg.port;
@@ -270,7 +289,7 @@ void handleLockout() {
     lockoutStart = millis();
   }
 
-  if (millis() - lockoutStart > 120000) {
+  if (millis() - lockoutStart > kLockoutResetMs) {
     LOG_I("NTRIP", "Auto-resetting lockout...");
     g_ntripClient.reset();
     saveLockout(0, false, configHash(g_ntripCfg));

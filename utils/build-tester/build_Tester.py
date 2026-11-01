@@ -52,8 +52,8 @@ PLATFORMIO_INI = PROJECT_ROOT / "platformio.ini"
 PLATFORMIO_INI_STANDBY = PROJECT_ROOT / "platformio.ini.standby"
 PLATFORMIO_TEST_INI = SCRIPT_DIR / "platformio.ini.test"
 
-# Log file path
-LOG_FILE = SCRIPT_DIR / "build_test_results.log"
+# Log file path (overridable via BUILD_TESTER_LOG, used by the Docker image)
+LOG_FILE = Path(os.environ.get("BUILD_TESTER_LOG", SCRIPT_DIR / "build_test_results.log"))
 
 
 def find_platformio() -> List[str]:
