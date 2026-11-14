@@ -37,6 +37,9 @@
 #include "config_gnss.h"
 #include "ntrip_client.h"
 #include "config_wifi.h"
+#if SERIAL_CONFIG_ENABLE
+#include "serial_config.h"
+#endif
 
 #if WIFI_ENABLE
 #include <Preferences.h>
@@ -479,6 +482,11 @@ void loop() {
   // Log a one-time banner on first iteration to indicate loop has started.
   logLoopEntryOnce();
 
+  #if SERIAL_CONFIG_ENABLE
+  // Handle framed USB-serial config requests from the desktop tool.
+  serial_config_poll();
+  #endif
+
   #if WIFI_ENABLE
   // Attempt WiFi reconnection if disconnected (throttled to every 5 seconds).
   maybeReconnectWiFi();
@@ -509,10 +517,16 @@ void loop() {
  * scheduler to stabilize after boot.
  */
 static void initSerialAndConfig() {
+#if SERIAL_CONFIG_ENABLE
+  Serial.setRxBufferSize(SERIAL_CONFIG_RX_BUFFER);  // must precede begin()
+#endif
   Serial.begin(SERIAL_BAUD);
   vTaskDelay(pdMS_TO_TICKS(200));
   LOG_I("SETUP", "Bootstrapping config...");
   config_bootstrap();
+#if SERIAL_CONFIG_ENABLE
+  serial_config_setup();  // after bootstrap: defaults are already seeded
+#endif
 }
 
 /**

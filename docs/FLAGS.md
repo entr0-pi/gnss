@@ -14,6 +14,7 @@ Defaults are defined in [`include/app.h`](../include/app.h) unless noted otherwi
 | `TCP_ENABLE` | bool | `0` | Enable a raw TCP server for GNSS data streaming. |
 | `NTRIP_CLIENT_ENABLE` | bool | `0` | Enable the NTRIP corrections client. |
 | `BLE_ENABLE` | bool | `0` | Enable Bluetooth Low Energy GNSS streaming. |
+| `SERIAL_CONFIG_ENABLE` | bool | `0` | Enable the framed USB-serial NVS config protocol (`hello`/`set`/`get`/`erase`) used by the desktop tool. Keep `GLOBAL_LOG_LEVEL=0` with it. See [graph.md](graph.md). |
 
 ### Dependencies
 

@@ -104,6 +104,15 @@ static const char* SOFTAP_PASS = SOFTAP_PASS_VALUE;
 #define GLOBAL_LOG_LEVEL 0
 #endif
 
+// USB-serial NVS config protocol for the desktop tool (src/serial_config.cpp).
+#ifndef SERIAL_CONFIG_ENABLE
+#define SERIAL_CONFIG_ENABLE 0
+#endif
+
+#if SERIAL_CONFIG_ENABLE && GLOBAL_LOG_LEVEL > 0
+  #warning "Logs share Serial with the config protocol; replies may be corrupted"
+#endif
+
 #ifndef LOG_USE_COLOR
 #define LOG_USE_COLOR 0
 #endif
