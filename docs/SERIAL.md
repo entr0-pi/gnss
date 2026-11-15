@@ -1,17 +1,5 @@
 # ESP32 GNSS configuration: integrated communication flow
 
-> **Status: integrated design reference.** This document summarizes the version specified by the guides below. It replaces the standalone, single-`config`-namespace graph; it does not certify implementation or hardware acceptance. `arduino.cpp` remains the standalone source to adapt, and `wails.go` / `schema.go` supply the backend source to split and reuse.
-
-| Reference | Responsibility |
-|---|---|
-| [GNSS_INTEGRATION.md](GNSS_INTEGRATION.md) | Firmware module, validation policy, when changes take effect, and firmware acceptance |
-| [FIRMWARE_TESTER.md](FIRMWARE_TESTER.md) | Wails-free shared Go backend and `nvstest` tester |
-| [WAILS_GO.md](WAILS_GO.md) | App API, schema, namespace save, errors, and connection |
-| [WAILS_FRONTEND.md](WAILS_FRONTEND.md) | Wails v3 / React UI, native file flows, events, and user confirmation |
-| [Implementation prompts](Others/IMPLEMENTATION_PROMPTS.md) | Execution order: stage 1 GNSS integration → stage 2 Go backend/tester and firmware acceptance → stage 3 full Wails app |
-
-Backend semantics follow WAILS_GO.md; Wails host integration follows the v3 frontend guide. The shared-package layout in FIRMWARE_TESTER.md supersedes the earlier monolithic desktop layout. Firmware assumptions and approval workflow remain in GNSS_INTEGRATION.md.
-
 ## Shared architecture
 
 ```mermaid
@@ -34,7 +22,6 @@ flowchart LR
     ADAPTER -. "event.data / method results" .-> UI
 ```
 
-The firmware receives requests only, never the CSV/JSON schema. The shared `nvs/` package owns protocol, schema, and save logic; `cmd/nvstest/` uses it without an App service or frontend. The full app later adds `app.go`, `main.go`, and `frontend/`, preserving the same backend and tester. See FIRMWARE_TESTER.md for exports, layout, version pins, and tests.
 
 Firmware integration is gated by `SERIAL_CONFIG_ENABLE` (default `0`). When enabled, existing initialization sets the 1024-byte RX buffer before `Serial.begin()`, runs `config_bootstrap()`, then `serial_config_setup()`; the existing loop calls `serial_config_poll()`. No second Arduino `setup()`, `loop()`, or `Serial.begin()` is added.
 
