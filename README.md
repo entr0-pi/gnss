@@ -224,5 +224,4 @@ To build ESP32, ESP32-S3 and ESP32-C3 in one run, use `utils/mass-build/` (see `
 <p>
   <img src="assets/webUI-1.png" alt="Web UI 1" height="250">&nbsp;
   <img src="assets/webUI-3.png" alt="Web UI 2" height="250">&nbsp;
-  <img src="assets/Uploader-2.png" alt="Web UI 3" height="250">
 </p>
