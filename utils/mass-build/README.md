@@ -41,24 +41,44 @@ python utils/mass-build/mass_build.py
 
 ### `boards.json` (default)
 
-One reference build per chip that `build/Dockerfile.base` can build with the
-default `platformio.ini` flags. Each entry uses the most widely used board for
-its chip:
+One reference build per chip and USB port type that `build/Dockerfile.base`
+can build with the default `platformio.ini` flags:
 
-| NAME | Reference board | Chip | Bootloader |
-|------|-----------------|------|------------|
-| `esp32` | `esp32dev` | `esp32` | `0x1000` |
-| `esp32s3` | `esp32-s3-devkitc-1` | `esp32s3` | `0x0` |
-| `esp32c3` | `esp32-c3-devkitm-1` | `esp32c3` | `0x0` |
+| NAME | Reference board | Chip | USB port type | Extra `BUILD_FLAGS` | Bootloader |
+|------|-----------------|------|---------------|---------------------|------------|
+| `esp32` | `esp32dev` | `esp32` | UART (only type) | | `0x1000` |
+| `esp32s3_uart` | `esp32-s3-devkitc-1` | `esp32s3` | UART | | `0x0` |
+| `esp32s3_usb` | `esp32-s3-devkitc-1` | `esp32s3` | Native USB | `-DARDUINO_USB_CDC_ON_BOOT=1` | `0x0` |
+| `esp32c3_uart` | `esp32-c3-devkitm-1` | `esp32c3` | UART | | `0x0` |
+| `esp32c3_usb` | `lolin_c3_mini` | `esp32c3` | Native USB | | `0x0` |
+
+`esp32s3_usb` reuses the generic DevKitC-1 definition with only USB CDC turned
+on. Most native-USB S3 board definitions also set 8-16 MB of flash or octal
+PSRAM, which would not boot on every S3 board. The DevKitC-1 has both a **UART**
+and a **USB** port, so you can test both S3 images on one board.
+
+When you publish, rename each merged image to `gnss_<VARIANT>_<NAME>.bin`, for
+example `build/bin/esp32c3_usb/gnss_esp32c3.bin` becomes
+`gnss_BLE_esp32c3_usb.bin`. Users pick their file with the guide in
+[INSTALL.md](../../INSTALL.md#2-find-your-usb-port-type-esp32-s3-and-esp32-c3-only).
 
 The ESP32-S2 is not listed. It has no Bluetooth, and the default `platformio.ini`
 sets `-DBLE_ENABLE=1`, so its build fails in NimBLE-Arduino. None of the listed
 chips uses the `0x2000` offset (see [Bootloader Offset](../board/BOARD_PORTING.md#bootloader-offset)).
 
 > A firmware image only runs on the chip it was built for, which is why each
-> chip has its own entry. Any board with the same chip and at least 4 MB of
-> flash can run that chip's image. Boards that need different board-level
-> settings, such as USB CDC on boot or the flash mode, need their own entry.
+> chip has its own entry. Boards with the same chip still differ in how their
+> USB port is wired, and the board definition decides where `Serial` (logs and
+> USB configuration) goes:
+>
+> | USB port on the board | Board definition must set | Examples |
+> |-----------------------|---------------------------|----------|
+> | Chip's native USB (no USB-to-UART chip) | `ARDUINO_USB_CDC_ON_BOOT=1` | `lolin_c3_mini`, `seeed_xiao_esp32c3` |
+> | USB-to-UART bridge (CP210x, CH340...) | nothing (`Serial` on UART0) | `esp32-c3-devkitm-1`, `esp32dev` |
+>
+> An image built for one type runs on the other, but its USB port stays silent:
+> no logs, and the desktop app can't connect. That is why the ESP32-S3 and the
+> ESP32-C3 each have one entry per type.
 
 ### `boards_all.json`
 
@@ -77,6 +97,7 @@ Entries use the same keys as the `.env` used by `retarget.py`, plus an optional 
 | Key | Required | Description |
 |-----|----------|-------------|
 | `NAME` | No | Output folder, image tag and name for `--only` (default: `TARGET_BOARD`) |
+| `BUILD_FLAGS` | No | Extra compiler flags for this entry only, passed to the container as `PLATFORMIO_BUILD_FLAGS` (appended to `build_flags`) |
 | `TARGET_BOARD` | Yes | Real PlatformIO board ID |
 | `TARGET_CHIP` | Yes | Chip family, sets the bootloader offset |
 | `TARGET_LABEL` | Yes | Human-readable name (web UI, docs) |
@@ -85,9 +106,11 @@ Entries use the same keys as the `.env` used by `retarget.py`, plus an optional 
 ```json
 {
   "boards": [
-    {"NAME": "esp32",   "TARGET_BOARD": "esp32dev",           "TARGET_CHIP": "esp32",   "TARGET_LABEL": "ESP32 Dev Module",   "TARGET_GNSS": "MyGNSS"},
-    {"NAME": "esp32s3", "TARGET_BOARD": "esp32-s3-devkitc-1", "TARGET_CHIP": "esp32s3", "TARGET_LABEL": "ESP32-S3 DevKitC-1", "TARGET_GNSS": "MyGNSS"},
-    {"NAME": "esp32c3", "TARGET_BOARD": "esp32-c3-devkitm-1", "TARGET_CHIP": "esp32c3", "TARGET_LABEL": "ESP32-C3 DevKitM-1", "TARGET_GNSS": "MyGNSS"}
+    {"NAME": "esp32",        "TARGET_BOARD": "esp32dev",           "TARGET_CHIP": "esp32",   "TARGET_LABEL": "ESP32 Dev Module",    "TARGET_GNSS": "MyGNSS"},
+    {"NAME": "esp32s3_uart", "TARGET_BOARD": "esp32-s3-devkitc-1", "TARGET_CHIP": "esp32s3", "TARGET_LABEL": "ESP32-S3 DevKitC-1",  "TARGET_GNSS": "MyGNSS"},
+    {"NAME": "esp32s3_usb",  "TARGET_BOARD": "esp32-s3-devkitc-1", "TARGET_CHIP": "esp32s3", "TARGET_LABEL": "ESP32-S3 DevKitC-1",  "TARGET_GNSS": "MyGNSS", "BUILD_FLAGS": "-DARDUINO_USB_CDC_ON_BOOT=1"},
+    {"NAME": "esp32c3_uart", "TARGET_BOARD": "esp32-c3-devkitm-1", "TARGET_CHIP": "esp32c3", "TARGET_LABEL": "ESP32-C3 DevKitM-1",  "TARGET_GNSS": "MyGNSS"},
+    {"NAME": "esp32c3_usb",  "TARGET_BOARD": "lolin_c3_mini",      "TARGET_CHIP": "esp32c3", "TARGET_LABEL": "ESP32-C3 LOLIN MINI", "TARGET_GNSS": "MyGNSS"}
   ]
 }
 ```
@@ -109,7 +132,7 @@ no file changed.
 |--------|-------------|
 | `--boards FILE` | JSON board list (default: `utils/mass-build/boards.json`) |
 | `--env-files F [F ...]` | Use `.env`-style files instead of JSON |
-| `--only N [N ...]` | Build only these entries, by `NAME` (or `TARGET_BOARD` when no `NAME`), e.g. `--only esp32 esp32c3` |
+| `--only N [N ...]` | Build only these entries, by `NAME` (or `TARGET_BOARD` when no `NAME`), e.g. `--only esp32c3_usb esp32c3_uart` |
 | `--out DIR` | Output root (default: `build/bin`) |
 | `--rebuild-base` | Rebuild `gnss-base` even if it exists |
 | `--no-cache` | Pass `--no-cache` to each per-board `docker build` |
@@ -127,8 +150,10 @@ build/bin/
 │   ├── flash.sh  flash.ps1  flash.cmd   # bootloader written at 0x1000
 │   ├── board.json                # board definition used for this build
 │   └── build.log                 # full docker build + run log
-├── esp32s3/                      # gnss_esp32s3.bin, bootloader at 0x0
-└── esp32c3/                      # gnss_esp32c3.bin, bootloader at 0x0
+├── esp32s3_uart/                 # gnss_esp32s3.bin, bootloader at 0x0
+├── esp32s3_usb/                  # gnss_esp32s3.bin, bootloader at 0x0
+├── esp32c3_uart/                 # gnss_esp32c3.bin, bootloader at 0x0
+└── esp32c3_usb/                  # gnss_esp32c3.bin, bootloader at 0x0
 ```
 
 The merged image already contains the bootloader at the right offset, so you

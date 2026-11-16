@@ -1,12 +1,18 @@
 # GNSS ESP32 Bridge
 
-ESP32 firmware that bridges a GNSS to wireless clients.
+Turn a low-cost ESP32 board into a **wireless bridge for your GNSS receiver**: stream positions over
+Bluetooth LE or Wi-Fi, feed RTK corrections from an NTRIP caster, and watch your fix live in the browser.
 
 It can expose raw GNSS serial data over:
 - BLE (Nordic UART Service) 🛰️
 - TCP socket 🌐
 
-Optional Web UI adds browser-based status and configuration (UART, WiFi, NTRIP) for flexible prototyping and locked production builds.
+An optional Web UI adds browser-based status and configuration (UART, Wi-Fi, NTRIP). Since v4.0, the board
+can also be configured **over USB** with a desktop app, with no Wi-Fi, Web UI or reflash needed.
+
+> **v4.0: ready-to-flash binaries** for ESP32, ESP32-S3 and ESP32-C3, each in a **BLE only** and a
+> **Wi-Fi** variant. Get them from the [latest release](https://github.com/entr0-pi/gnss/releases/latest)
+> and follow the [QuickStart](INSTALL.md#quickstart-flashing-a-prebuilt-binary).
 
 ## Project Overview
 
@@ -17,16 +23,40 @@ This project is GNSS-agnostic firmware for ESP32 boards:
 - Optional single-client TCP bridge (to use QField for example)
 - Optional Web UI for config + monitoring
 - Optional NTRIP client feeding corrections into GNSS UART (needs to be connected to a WiFi with internet access)
+- Optional USB serial configuration with the [ESP32 NVS Key-Pair Manager](https://github.com/entr0-pi/arduino-nvs-desktop/releases) desktop app
 
 Design intent:
 - Works with different GNSS modules and wiring
-- Works across ESP32 variants supported by PlatformIO
+- Works across ESP32 variants (ESP32, ESP32-S3 and ESP32-C3 prebuilt; see [Board Retargeting](#board-retargeting))
 - Supports runtime-configurable mode and compile-time locked mode
 
 ## Installation & Quickstart
 
+### Prebuilt binaries
+
+Choose by **chip**, then by **USB port type** (ESP32-S3 and ESP32-C3 only), then by **variant**:
+
+| Chip | USB port type | Bootloader offset | 🔵 BLE only | 📶 Wi-Fi |
+|------|---------------|-------------------|-------------|----------|
+| ESP32 | (only one) | `0x1000` | `gnss_BLE_esp32.bin` | `gnss_WIFI_esp32.bin` |
+| ESP32-S3 | UART (USB-to-UART chip) | `0x0` | `gnss_BLE_esp32s3_uart.bin` | `gnss_WIFI_esp32s3_uart.bin` |
+| ESP32-S3 | Native USB | `0x0` | `gnss_BLE_esp32s3_usb.bin` | `gnss_WIFI_esp32s3_usb.bin` |
+| ESP32-C3 | UART (USB-to-UART chip) | `0x0` | `gnss_BLE_esp32c3_uart.bin` | `gnss_WIFI_esp32c3_uart.bin` |
+| ESP32-C3 | Native USB | `0x0` | `gnss_BLE_esp32c3_usb.bin` | `gnss_WIFI_esp32c3_usb.bin` |
+
+- **BLE only**: BLE bridge + USB config.
+- **Wi-Fi**: TCP (port 52148), Web UI, NMEA parsing, NTRIP client + USB config.
+- **USB port type**: if a small USB-to-UART chip (CP2102, CH340...) sits between the USB connector
+  and the ESP32, take `_uart`. If the connector goes straight to the ESP32 (Lolin C3 Mini, XIAO...),
+  take `_usb`. With the wrong one the board boots, but the USB port stays silent. See
+  [how to check](INSTALL.md#2-find-your-usb-port-type-esp32-s3-and-esp32-c3-only).
+
+Each file is a merged image: flash it at `0x0`, for example
+`python -m esptool --chip esp32c3 --port <PORT> write-flash 0x0 gnss_BLE_esp32c3_usb.bin`.
+
 See `INSTALL.md` for:
-- flashing prebuilt binaries (ESP32-C3),
+- [choosing and flashing a prebuilt binary](INSTALL.md#quickstart-flashing-a-prebuilt-binary) and the first start,
+- [USB configuration](INSTALL.md#usb-configuration),
 - retargeting to another ESP32 board,
 - building from source,
 - utility tooling.
@@ -37,6 +67,9 @@ See `INSTALL.md` for:
 flowchart LR
   USER[User App] <-->|BLE NUS / TCP| ESP32[ESP32 Firmware]
   ESP32 <-->|UART RX/TX| GNSS[GNSS Receiver]
+  CASTER[NTRIP Caster] -->|RTCM over Wi-Fi| ESP32
+  DESK[Desktop App] <-->|USB serial config| ESP32
+  BROWSER[Browser] <-->|Web UI / HTTP API| ESP32
 ```
 
 Implemented data paths:
@@ -46,6 +79,7 @@ Implemented data paths:
 - ESP32 -> TCP client: mirrored raw stream via single TCP client server
 - TCP client -> ESP32 -> GNSS: inbound TCP bytes forwarded to UART
 - NTRIP client (optional): RTCM stream forwarded to UART
+- Desktop app <-> ESP32 over USB (optional): framed NVS config protocol, sharing the port with logs
 
 ## GNSS & NMEA Requirements
 
@@ -99,6 +133,18 @@ WiFi behavior supported by firmware:
 - STA mode
 - Optional STA+SoftAP dual mode (with NVS flag `wifi/accesspoint`)
 
+### D) Runtime (USB serial)
+
+When `SERIAL_CONFIG_ENABLE=1` (both prebuilt variants), the [ESP32 NVS Key-Pair Manager](https://github.com/entr0-pi/arduino-nvs-desktop/releases)
+desktop app (Windows, Linux, macOS) reads, changes and erases the `gnss`, `ntrip` and `wifi` settings over the USB cable:
+- `hello` / `get` / `set` / `erase` commands in frames with a CRC16 checksum and a size limit
+- Sequence numbers, so a resent request is not applied twice
+- Protected settings are refused with clear error codes (read-only, forbidden, not found)
+- Log output is ignored by the protocol, so logs and configuration share one port
+- NTRIP changes apply within about 5 s. GNSS UART and Wi-Fi changes apply at the next boot (press reset; nothing reboots the board automatically)
+
+See [INSTALL.md](INSTALL.md#usb-configuration) for the steps and [docs/SERIAL.md](docs/SERIAL.md) for the protocol.
+
 ## Build Flags Quick Reference
 
 | Flag | Meaning |
@@ -108,12 +154,17 @@ WiFi behavior supported by firmware:
 | `TCP_ENABLE` | Enable single-client TCP bridge |
 | `NMEA_ENABLE` | Enable NMEA parsing for UI (forced off if Web UI off) |
 | `NTRIP_CLIENT_ENABLE` | Enable NTRIP client (auto-enables WiFi; build error if `WIFI_ENABLE=0`) |
+| `SERIAL_CONFIG_ENABLE` | Enable USB serial configuration for the desktop app |
 | `TCP_PORT` | TCP listening port |
 | `FORCE_HARDCODED_UART` | Lock UART to build-time pins/baud |
 | `FORCE_WIFI_SECRETS` | Lock WiFi settings to `secrets.h` |
 | `WIFI_DUAL_MODE` | Enable STA + SoftAP mode |
 
-For the full parameter list and defaults, see `include/README.md` and `include/app.h`.
+For the full parameter list and defaults, see `docs/FLAGS.md`, `include/README.md` and `include/app.h`.
+
+The prebuilt variants use these flags:
+- **BLE only**: `BLE_ENABLE=1`, `SERIAL_CONFIG_ENABLE=1`
+- **Wi-Fi**: `WEBUI_ENABLE=1`, `NMEA_ENABLE=1`, `TCP_ENABLE=1`, `TCP_PORT=52148`, `NTRIP_CLIENT_ENABLE=1`, `SERIAL_CONFIG_ENABLE=1`
 
 ## Documentation References
 
@@ -126,7 +177,10 @@ For deeper technical details:
 - `src/gnss_config.cpp`
 - `src/wifi_config.cpp`
 - `src/ntrip_client.cpp`
+- `src/serial_config.cpp`
+- `docs/SERIAL.md`, `docs/SERIAL COMPANION.md`
 - `utils/build-tester/README.md`
+- `utils/mass-build/README.md`
 
 ## Board Retargeting
 

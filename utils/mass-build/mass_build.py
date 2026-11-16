@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Mass build: build firmware for every board entry using the Docker flow.
 
-Default boards.json holds one reference build per supported chip
-(esp32, esp32s3, esp32c3). <name> is the entry's NAME,
+Default boards.json holds one reference build per supported chip and USB type
+(esp32, esp32s3_uart, esp32s3_usb, esp32c3_uart, esp32c3_usb).
+Optional BUILD_FLAGS are passed as PLATFORMIO_BUILD_FLAGS. <name> is the entry's NAME,
 or TARGET_BOARD when NAME is absent.
 
 For each entry:
@@ -17,7 +18,7 @@ Usage:
     python utils/mass-build/mass_build.py                         # boards.json
     python utils/mass-build/mass_build.py --boards my_boards.json
     python utils/mass-build/mass_build.py --env-files .env.example1 .env.example2
-    python utils/mass-build/mass_build.py --only esp32 esp32c3
+    python utils/mass-build/mass_build.py --only esp32c3_usb esp32c3_uart
     python utils/mass-build/mass_build.py --boards utils/mass-build/boards_all.json
     python utils/mass-build/mass_build.py --dry-run               # print plan only
 """
@@ -181,9 +182,11 @@ def build_board(board: dict, out_root: Path, args) -> tuple[bool, str]:
         if run(build_cmd, log, args.dry_run) != 0:
             return False, "docker build failed"
 
-        run_cmd = ["docker", "run", "--rm",
-                   "-e", f"CHIP={chip}",
-                   "-v", f"{out_dir}:/project/build", tag]
+        run_cmd = ["docker", "run", "--rm", "-e", f"CHIP={chip}"]
+        if board.get("BUILD_FLAGS"):
+            # PlatformIO appends PLATFORMIO_BUILD_FLAGS to build_flags
+            run_cmd += ["-e", f"PLATFORMIO_BUILD_FLAGS={board['BUILD_FLAGS']}"]
+        run_cmd += ["-v", f"{out_dir}:/project/build", tag]
         if run(run_cmd, log, args.dry_run) != 0:
             return False, "docker run failed"
 
@@ -237,7 +240,8 @@ def main():
     print(f"{tag}Boards ({len(boards)}):")
     for b in boards:
         print(f"  - {build_name(b):<16} {b['TARGET_BOARD']:<24} {b['TARGET_CHIP']:<9} "
-              f"boot@{retarget.BOOTLOADER_OFFSETS[b['TARGET_CHIP']]:<7} {b['TARGET_LABEL']}")
+              f"boot@{retarget.BOOTLOADER_OFFSETS[b['TARGET_CHIP']]:<7} {b['TARGET_LABEL']}"
+              + (f"  [+{b['BUILD_FLAGS']}]" if b.get("BUILD_FLAGS") else ""))
     print(f"{tag}Output: {out_root}\\<board>\\" if os.name == "nt"
           else f"{tag}Output: {out_root}/<board>/")
 

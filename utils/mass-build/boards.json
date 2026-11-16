@@ -1,7 +1,9 @@
 {
   "boards": [
-    {"NAME": "esp32",   "TARGET_BOARD": "esp32dev",           "TARGET_CHIP": "esp32",   "TARGET_LABEL": "ESP32 Dev Module",    "TARGET_GNSS": "MyGNSS"},
-    {"NAME": "esp32s3", "TARGET_BOARD": "esp32-s3-devkitc-1", "TARGET_CHIP": "esp32s3", "TARGET_LABEL": "ESP32-S3 DevKitC-1",  "TARGET_GNSS": "MyGNSS"},
-    {"NAME": "esp32c3", "TARGET_BOARD": "esp32-c3-devkitm-1", "TARGET_CHIP": "esp32c3", "TARGET_LABEL": "ESP32-C3 DevKitM-1",  "TARGET_GNSS": "MyGNSS"}
+    {"NAME": "esp32",        "TARGET_BOARD": "esp32dev",           "TARGET_CHIP": "esp32",   "TARGET_LABEL": "ESP32 Dev Module",     "TARGET_GNSS": "MyGNSS"},
+    {"NAME": "esp32s3_uart", "TARGET_BOARD": "esp32-s3-devkitc-1", "TARGET_CHIP": "esp32s3", "TARGET_LABEL": "ESP32-S3 DevKitC-1",   "TARGET_GNSS": "MyGNSS"},
+    {"NAME": "esp32s3_usb",  "TARGET_BOARD": "esp32-s3-devkitc-1", "TARGET_CHIP": "esp32s3", "TARGET_LABEL": "ESP32-S3 DevKitC-1",   "TARGET_GNSS": "MyGNSS", "BUILD_FLAGS": "-DARDUINO_USB_CDC_ON_BOOT=1"},
+    {"NAME": "esp32c3_uart", "TARGET_BOARD": "esp32-c3-devkitm-1", "TARGET_CHIP": "esp32c3", "TARGET_LABEL": "ESP32-C3 DevKitM-1",   "TARGET_GNSS": "MyGNSS"},
+    {"NAME": "esp32c3_usb",  "TARGET_BOARD": "lolin_c3_mini",      "TARGET_CHIP": "esp32c3", "TARGET_LABEL": "ESP32-C3 LOLIN MINI",  "TARGET_GNSS": "MyGNSS"}
   ]
 }
