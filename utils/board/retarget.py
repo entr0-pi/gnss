@@ -16,22 +16,42 @@ from pathlib import Path
 
 # ── Known chip families ──────────────────────────────────────────────
 
-KNOWN_CHIPS = {
-    "esp32", "esp32s2", "esp32s3",
-    "esp32c2", "esp32c3", "esp32c6",
-    "esp32h2", "esp32p4",
+BOOTLOADER_OFFSETS = {
+    # 0x1000
+    "esp32":    "0x1000",
+    "esp32s2":  "0x1000",
+    # 0x0
+    "esp32s3":  "0x0",
+    "esp32c2":  "0x0",
+    "esp32c3":  "0x0",
+    "esp32c6":  "0x0",
+    "esp32c61": "0x0",
+    "esp32h2":  "0x0",
+    # 0x2000
+    "esp32c5":  "0x2000",
+    "esp32p4":  "0x2000",
+    "esp32h4":  "0x2000",
+    "esp32s31": "0x2000",
 }
 
-BOOTLOADER_OFFSETS = {
-    "esp32":   "0x1000",
-    "esp32s2": "0x1000",
-    "esp32s3": "0x0",
-    "esp32c2": "0x0",
-    "esp32c3": "0x0",
-    "esp32c6": "0x0",
-    "esp32h2": "0x0",
-    "esp32p4": "0x0",
-}
+KNOWN_CHIPS = set(BOOTLOADER_OFFSETS)
+
+# Chips buildable with build/Dockerfile.base
+# (espressif32 @ 6.13.0 + Arduino core 2.0.17). Others need Arduino core 3.x.
+SUPPORTED_CHIPS = {"esp32", "esp32s2", "esp32s3", "esp32c3"}
+DOCKER_STACK = "build/Dockerfile.base (espressif32 6.13.0 / Arduino core 2.0.17)"
+
+
+def check_chip(chip: str):
+    """Return an error message if `chip` cannot be built, else None."""
+    supported = ", ".join(sorted(SUPPORTED_CHIPS))
+    if chip not in KNOWN_CHIPS:
+        return f"TARGET_CHIP='{chip}' is not recognised. Supported: {supported}"
+    if chip not in SUPPORTED_CHIPS:
+        return (f"TARGET_CHIP='{chip}' (bootloader {BOOTLOADER_OFFSETS[chip]}) is not "
+                f"supported by {DOCKER_STACK}; it needs Arduino core 3.x.\n"
+                f"  Supported: {supported}")
+    return None
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -61,11 +81,9 @@ def validate(env: dict) -> None:
     for key in required:
         if not env.get(key):
             sys.exit(f"[ERROR] {key} is missing or empty in .env")
-    if env["TARGET_CHIP"] not in KNOWN_CHIPS:
-        sys.exit(
-            f"[ERROR] TARGET_CHIP='{env['TARGET_CHIP']}' is not recognised.\n"
-            f"  Known chips: {', '.join(sorted(KNOWN_CHIPS))}"
-        )
+    err = check_chip(env["TARGET_CHIP"])
+    if err:
+        sys.exit(f"[ERROR] {err}")
 
 # ── Replacement engine ───────────────────────────────────────────────
 
@@ -78,7 +96,9 @@ class FileReplacer:
         self.files_modified: set[str] = set()
 
     def process(self, filepath: Path, rules: list[tuple[re.Pattern, str]]) -> None:
-        text = filepath.read_text(encoding="utf-8")
+        # newline="" preserves original line endings (LF for .sh, CRLF for .cmd)
+        with open(filepath, encoding="utf-8", newline="") as f:
+            text = f.read()
         lines = text.splitlines(keepends=True)
         modified = False
 
@@ -100,7 +120,8 @@ class FileReplacer:
             rel = filepath.name
             self.files_modified.add(rel)
             if not self.dry_run:
-                filepath.write_text("".join(lines), encoding="utf-8")
+                with open(filepath, "w", encoding="utf-8", newline="") as f:
+                    f.write("".join(lines))
 
 # ── Rule definitions ─────────────────────────────────────────────────
 
@@ -132,21 +153,34 @@ def build_rules(root: Path, env: dict) -> list[tuple[Path, list]]:
              rf"\g<1>{B}"),
         ]),
 
-        # ── 3. docker-export-bins.sh (flash script templates) ───────
-        (root / "build" / "scripts" / "docker-export-bins.sh", [
-            # Bash: CHIP="${CHIP:-esp32c3}"
-            (re.compile(r'(CHIP="\$\{CHIP:-)\w+(\}")'),
-             rf"\g<1>{C}\g<2>"),
-            # PowerShell: [string]$Chip = "esp32c3"
-            (re.compile(r'(\[string\]\$Chip\s*=\s*")\w+(")'),
-             rf"\g<1>{C}\g<2>"),
-            # CMD: if "%CHIP%"=="" set CHIP=esp32c3
-            (re.compile(r"(set CHIP=)\w+", re.MULTILINE),
-             rf"\g<1>{C}"),
-            # Bootloader offset in flash commands (all three templates)
-            (re.compile(r"^(\s*)0x[0-9a-fA-F]+(\s+bootloader\.bin)", re.MULTILINE),
-             rf"\g<1>{O}\g<2>"),
-        ]),
+        # ── 3. docker-export-bins.sh + bin_utils flash scripts ──────
+        # Bootloader offset line, e.g.:
+        #   0x0 "${OUT_DIR}/bootloader.bin" \     (merge-bin)
+        #   0x0 bootloader.bin ^                  (flash helpers)
+        *[
+            (path, [
+                # Bash: CHIP="${CHIP:-esp32c3}"
+                (re.compile(r'(CHIP="\$\{CHIP:-)\w+(\}")'),
+                 rf"\g<1>{C}\g<2>"),
+                # PowerShell: [string]$Chip = "esp32c3"
+                (re.compile(r'(\[string\]\$Chip\s*=\s*")\w+(")'),
+                 rf"\g<1>{C}\g<2>"),
+                # CMD: if "!CHIP!"=="" set "CHIP=esp32c3"
+                (re.compile(r'(set "?CHIP=)\w+'),
+                 rf"\g<1>{C}"),
+                # Help text: "ESP32 variant (default: esp32c3)"
+                (re.compile(r"(ESP32 variant \(default:\s*)\w+(\))"),
+                 rf"\g<1>{C}\g<2>"),
+                (re.compile(r"^(\s*)0x[0-9a-fA-F]+(\s+\S*bootloader\.bin)"),
+                 rf"\g<1>{O}\g<2>"),
+            ])
+            for path in (
+                root / "build" / "scripts" / "docker-export-bins.sh",
+                root / "build" / "scripts" / "bin_utils" / "flash.sh",
+                root / "build" / "scripts" / "bin_utils" / "flash.ps1",
+                root / "build" / "scripts" / "bin_utils" / "flash.cmd",
+            )
+        ],
 
         # ── 4. Web UI index.html ────────────────────────────────────
         (root / "data" / "web" / "index.html", [

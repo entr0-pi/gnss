@@ -37,6 +37,14 @@ Important default behavior:
 - Connect to the WiFi Access Point "GNSS-ESP32-AP", then go to http://192.168.4.1
 - After connecting, configure your GNSS UART settings, WiFi credentials, and NTRIP server details through the web interface (click on the flashing gear)
 
+**Or configure over USB, without Wi-Fi (firmware built with `SERIAL_CONFIG_ENABLE=1`):**
+- Download the [ESP32 NVS Key-Pair Manager](https://github.com/entr0-pi/arduino-nvs-desktop/releases) for Windows, Linux or macOS. It is a single binary with no install.
+- Close any serial monitor or flash tool that holds the port.
+- Plug in the board, start the app, pick its COM port and click **Connect**. The app reads the board after a short boot delay.
+- Load a schema (`.csv`) or configuration (`.json`), edit the `gnss`, `ntrip` and `wifi` values, review and click **Write to ESP32**.
+- NTRIP changes apply within about 5 s. GNSS UART and Wi-Fi changes apply at the next boot, so press reset afterwards.
+- On Linux, add your user to the `dialout` group to open the port.
+
 **Preload NVS settings (recommended for field deployment):**
 - Use `utils/uploader/` to write GNSS/WiFi/NTRIP values to NVS and flash LittleFS web assets.
 - See: https://github.com/entr0-pi/arduino-uploader.git

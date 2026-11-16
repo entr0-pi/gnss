@@ -137,6 +137,16 @@ The default build targets the Lolin C3 Mini (ESP32-C3). To build for a different
 
 This updates `platformio.ini`, flash scripts, web UI, and documentation in one step. See `utils/board/BOARD_PORTING.md` for details and the [PlatformIO board registry](https://registry.platformio.org/platforms/platformio/espressif32/boards) for available boards.
 
+| Available Chip Family | Buildable with |
+|-----------------------|----------------|
+| ESP32 | `build/Dockerfile.base` (`espressif32 @ 6.13.0`, Arduino core 2.0.17) |
+| ESP32-S2 | `build/Dockerfile.base`, only with `BLE_ENABLE` off (no Bluetooth on this chip). Not in mass build |
+| ESP32-S3 | `build/Dockerfile.base` (`espressif32 @ 6.13.0`, Arduino core 2.0.17) |
+| ESP32-C3 | `build/Dockerfile.base` (`espressif32 @ 6.13.0`, Arduino core 2.0.17) |
+| ESP32-C2, ESP32-C5, ESP32-C6, ESP32-C61, ESP32-H2, ESP32-H4, ESP32-P4, ESP32-S31 | Not supported yet (needs Arduino core 3.x) |
+
+To build ESP32, ESP32-S3 and ESP32-C3 in one run, use `utils/mass-build/` (see `utils/mass-build/README.md`).
+
 ## Repository Layout
 
 ```text
@@ -145,6 +155,7 @@ This updates `platformio.ini`, flash scripts, web UI, and documentation in one s
 ├─ include/              # Config headers and module interfaces
 ├─ src/                  # Firmware implementation
 ├─ utils/board/          # Board retargeting script
+├─ utils/mass-build/     # Docker build of every supported chip in one run
 ├─ utils/uploader/       # NVS + LittleFS uploader GUI
 ├─ utils/render-web/     # Web UI local dev server
 ├─ utils/build-tester/   # Build matrix tester + Dockerfile
