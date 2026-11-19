@@ -1,0 +1,4159 @@
+{
+  "boards": [
+    {
+      "TARGET_BOARD": "lolin_c3_mini",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "WEMOS LOLIN C3 Mini",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "WEMOS"
+    },
+    {
+      "TARGET_BOARD": "adafruit_qtpy_esp32c3",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "Adafruit QT Py ESP32-C3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "airm2m_core_esp32c3",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "AirM2M CORE ESP32C3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "AirM2M"
+    },
+    {
+      "TARGET_BOARD": "bee_motion_mini",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "Smart Bee Motion Mini",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Smart Bee"
+    },
+    {
+      "TARGET_BOARD": "deneyapkartg",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "Deneyap Kart G",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "T3 Foundation"
+    },
+    {
+      "TARGET_BOARD": "dfrobot_beetle_esp32c3",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "DFRobot Beetle ESP32-C3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "DFRobot"
+    },
+    {
+      "TARGET_BOARD": "esp32-c3-devkitc-02",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "Espressif ESP32-C3-DevKitC-02",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Espressif"
+    },
+    {
+      "TARGET_BOARD": "esp32-c3-devkitm-1",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "Espressif ESP32-C3-DevKitM-1",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "medium",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Espressif"
+    },
+    {
+      "TARGET_BOARD": "esp32-c3-m1i-kit",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "Ai-Thinker ESP-C3-M1-I-Kit",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "medium",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Ai-Thinker"
+    },
+    {
+      "TARGET_BOARD": "rymcu-esp32-c3-devkitm-1",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "RYMCU ESP32-C3-DevKitM-1",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "medium",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "RYMCU"
+    },
+    {
+      "TARGET_BOARD": "seeed_xiao_esp32c3",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "Seeed Studio XIAO ESP32C3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Seeed Studio"
+    },
+    {
+      "TARGET_BOARD": "ttgo-t-oi-plus",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "TTGO T-OI PLUS RISC-V ESP32-C3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "TTGO"
+    },
+    {
+      "TARGET_BOARD": "valtrack_v4_mfw_esp32_c3",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "Valetron Systems VALTRACK-V4MVF",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Valetron Systems"
+    },
+    {
+      "TARGET_BOARD": "valtrack_v4_vts_esp32_c3",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "Valetron Systems VALTRACK-V4VTS",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Valetron Systems"
+    },
+    {
+      "TARGET_BOARD": "weactstudio_esp32c3coreboard",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "WeAct Studio ESP32C3CoreBoard",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "400KB",
+      "VENDOR": "WeAct Studio"
+    },
+    {
+      "TARGET_BOARD": "wifiduino32c3",
+      "TARGET_CHIP": "esp32c3",
+      "TARGET_LABEL": "Blinker WiFiduinoV2 (ESP32-C3)",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32c3_uart.bin",
+        "_esp32c3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32c3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32C3",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Blinker"
+    },
+    {
+      "TARGET_BOARD": "adafruit_feather_esp32_v2",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Adafruit Feather ESP32 V2",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_itsybitsy_esp32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Adafruit ItsyBitsy ESP32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_qtpy_esp32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Adafruit QT Py ESP32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "alksesp32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "ALKS ESP32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "RoboticsBrno"
+    },
+    {
+      "TARGET_BOARD": "az-delivery-devkit-v4",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "AZ-Delivery ESP-32 Dev Kit C V4",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "520KB",
+      "VENDOR": "AZ-Delivery"
+    },
+    {
+      "TARGET_BOARD": "bpi-bit",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "BPI-Bit",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "BPI Tech"
+    },
+    {
+      "TARGET_BOARD": "cnrs_aw2eth",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "CNRS AW2ETH",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "CNRS"
+    },
+    {
+      "TARGET_BOARD": "connaxio_espoir",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Connaxio's Espoir",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Connaxio"
+    },
+    {
+      "TARGET_BOARD": "d-duino-32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "D-duino-32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "DSTIKE"
+    },
+    {
+      "TARGET_BOARD": "deneyapkart",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Deneyap Kart",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "T3 Foundation"
+    },
+    {
+      "TARGET_BOARD": "deneyapkart1A",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Deneyap Kart 1A",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "T3 Foundation"
+    },
+    {
+      "TARGET_BOARD": "denky32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Denky32 (WROOM32)",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Denky"
+    },
+    {
+      "TARGET_BOARD": "denky_d4",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Denky D4 (PICO-V3-02)",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Denky"
+    },
+    {
+      "TARGET_BOARD": "dfrobot_firebeetle2_esp32e",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "DFRobot Firebeetle 2 ESP32-E",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "DFRobot"
+    },
+    {
+      "TARGET_BOARD": "dpu_esp32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "TAMC DPU ESP32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "TAMC"
+    },
+    {
+      "TARGET_BOARD": "esp-wrover-kit",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Espressif ESP-WROVER-KIT",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Espressif"
+    },
+    {
+      "TARGET_BOARD": "esp32-devkitlipo",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "OLIMEX ESP32-DevKit-LiPo",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "OLIMEX"
+    },
+    {
+      "TARGET_BOARD": "esp32-evb",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "OLIMEX ESP32-EVB",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "OLIMEX"
+    },
+    {
+      "TARGET_BOARD": "esp32-gateway",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "OLIMEX ESP32-GATEWAY",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "OLIMEX"
+    },
+    {
+      "TARGET_BOARD": "esp32-pico-devkitm-2",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Espressif ESP32-PICO-DevKitM-2",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Espressif Systems"
+    },
+    {
+      "TARGET_BOARD": "esp32-poe",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "OLIMEX ESP32-PoE",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "OLIMEX"
+    },
+    {
+      "TARGET_BOARD": "esp32-poe-iso",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "OLIMEX ESP32-PoE-ISO",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "OLIMEX"
+    },
+    {
+      "TARGET_BOARD": "esp32-pro",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "OLIMEX ESP32-PRO",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "OLIMEX"
+    },
+    {
+      "TARGET_BOARD": "esp320",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Electronic SweetPeas ESP320",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Electronic SweetPeas"
+    },
+    {
+      "TARGET_BOARD": "esp32cam",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "AI Thinker ESP32-CAM",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "AI Thinker"
+    },
+    {
+      "TARGET_BOARD": "esp32dev",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Espressif ESP32 Dev Module",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Espressif"
+    },
+    {
+      "TARGET_BOARD": "esp32doit-devkit-v1",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "DOIT ESP32 DEVKIT V1",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "DOIT"
+    },
+    {
+      "TARGET_BOARD": "esp32doit-espduino",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "DOIT ESPduino32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "DOIT"
+    },
+    {
+      "TARGET_BOARD": "esp32thing",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "SparkFun ESP32 Thing",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "SparkFun Electronics"
+    },
+    {
+      "TARGET_BOARD": "esp32thing_plus",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "SparkFun ESP32 Thing Plus",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "SparkFun Electronics"
+    },
+    {
+      "TARGET_BOARD": "esp32vn-iot-uno",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "ESP32vn IoT Uno",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "ESP32vn"
+    },
+    {
+      "TARGET_BOARD": "espea32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "April Brother ESPea32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "April Brother"
+    },
+    {
+      "TARGET_BOARD": "espectro32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "ESPectro32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "DycodeX"
+    },
+    {
+      "TARGET_BOARD": "espino32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "ESPino32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "ThaiEasyElec"
+    },
+    {
+      "TARGET_BOARD": "etboard",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "ETBoard",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "ETBoard"
+    },
+    {
+      "TARGET_BOARD": "featheresp32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Adafruit ESP32 Feather",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "firebeetle32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "FireBeetle-ESP32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "520KB",
+      "VENDOR": "DFRobot"
+    },
+    {
+      "TARGET_BOARD": "fm-devkit",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "ESP32 FM DevKit",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Unknown"
+    },
+    {
+      "TARGET_BOARD": "freenove_esp32_wrover",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Freenove ESP32-Wrover",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Freenove"
+    },
+    {
+      "TARGET_BOARD": "frogboard",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Frog Board ESP32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Fred"
+    },
+    {
+      "TARGET_BOARD": "healthypi4",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "ProtoCentral HealthyPi 4",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "ProtoCentral"
+    },
+    {
+      "TARGET_BOARD": "heltec_wifi_kit_32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Heltec WiFi Kit 32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Heltec Automation"
+    },
+    {
+      "TARGET_BOARD": "heltec_wifi_kit_32_v2",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Heltec WiFi Kit 32 (V2)",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Heltec Automation"
+    },
+    {
+      "TARGET_BOARD": "heltec_wifi_lora_32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Heltec WiFi LoRa 32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Heltec Automation"
+    },
+    {
+      "TARGET_BOARD": "heltec_wifi_lora_32_V2",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Heltec WiFi LoRa 32 (V2)",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Heltec Automation"
+    },
+    {
+      "TARGET_BOARD": "heltec_wireless_stick",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Heltec Wireless Stick",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Heltec Automation"
+    },
+    {
+      "TARGET_BOARD": "heltec_wireless_stick_lite",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Heltec Wireless Stick Lite",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Heltec Automation"
+    },
+    {
+      "TARGET_BOARD": "honeylemon",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "HONEYLemon",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "HONEYLemon"
+    },
+    {
+      "TARGET_BOARD": "hornbill32dev",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Hornbill ESP32 Dev",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Hornbill"
+    },
+    {
+      "TARGET_BOARD": "hornbill32minima",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Hornbill ESP32 Minima",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Hornbill"
+    },
+    {
+      "TARGET_BOARD": "imbrios-logsens-v1p1",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Imbrios LogSens V1P1",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Imbrios"
+    },
+    {
+      "TARGET_BOARD": "inex_openkb",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "INEX OpenKB",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "INEX"
+    },
+    {
+      "TARGET_BOARD": "intorobot",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "IntoRobot Fig",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "IntoRobot"
+    },
+    {
+      "TARGET_BOARD": "iotaap_magnolia",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "IoTaaP Magnolia",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "IoTaaP"
+    },
+    {
+      "TARGET_BOARD": "iotbusio",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "oddWires IoT-Bus Io",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "oddWires"
+    },
+    {
+      "TARGET_BOARD": "iotbusproteus",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "oddWires IoT-Bus Proteus",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "oddWires"
+    },
+    {
+      "TARGET_BOARD": "ioxesp32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "ArtronShop IOXESP32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "ArtronShop"
+    },
+    {
+      "TARGET_BOARD": "ioxesp32ps",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "ArtronShop IOXESP32PS",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "ArtronShop"
+    },
+    {
+      "TARGET_BOARD": "kb32-ft",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "MakerAsia KB32-FT",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "MakerAsia"
+    },
+    {
+      "TARGET_BOARD": "kits-edu",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "KITS ESP32 EDU",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "KITS"
+    },
+    {
+      "TARGET_BOARD": "labplus_mpython",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Labplus mPython",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Labplus"
+    },
+    {
+      "TARGET_BOARD": "lilygo-t-display",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "LilyGo T-Display",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "LilyGo"
+    },
+    {
+      "TARGET_BOARD": "lionbit",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Lion:Bit Dev Board",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Lion:Bit"
+    },
+    {
+      "TARGET_BOARD": "lolin32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "WEMOS LOLIN32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "WEMOS"
+    },
+    {
+      "TARGET_BOARD": "lolin32_lite",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "WEMOS LOLIN32 Lite",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "WEMOS"
+    },
+    {
+      "TARGET_BOARD": "lolin_d32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "WEMOS LOLIN D32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "WEMOS"
+    },
+    {
+      "TARGET_BOARD": "lolin_d32_pro",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "WEMOS LOLIN D32 PRO",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "WEMOS"
+    },
+    {
+      "TARGET_BOARD": "lopy",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Pycom LoPy",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Pycom Ltd."
+    },
+    {
+      "TARGET_BOARD": "lopy4",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Pycom LoPy4",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "1280KB",
+      "VENDOR": "Pycom Ltd."
+    },
+    {
+      "TARGET_BOARD": "m5stack-atom",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "M5Stack-ATOM",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "M5Stack"
+    },
+    {
+      "TARGET_BOARD": "m5stack-core-esp32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "M5Stack Core ESP32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "M5Stack"
+    },
+    {
+      "TARGET_BOARD": "m5stack-core-esp32-16M",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "M5Stack Core ESP32 16M",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "520KB",
+      "VENDOR": "M5Stack"
+    },
+    {
+      "TARGET_BOARD": "m5stack-core2",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "M5Stack Core2",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "4416KB",
+      "VENDOR": "M5Stack"
+    },
+    {
+      "TARGET_BOARD": "m5stack-coreink",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "M5Stack-Core Ink",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "M5Stack"
+    },
+    {
+      "TARGET_BOARD": "m5stack-fire",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "M5Stack FIRE",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "4416KB",
+      "VENDOR": "M5Stack"
+    },
+    {
+      "TARGET_BOARD": "m5stack-grey",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "M5Stack GREY ESP32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "520KB",
+      "VENDOR": "M5Stack"
+    },
+    {
+      "TARGET_BOARD": "m5stack-station",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "M5Stack Station",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "4416KB",
+      "VENDOR": "M5Stack"
+    },
+    {
+      "TARGET_BOARD": "m5stack-timer-cam",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "M5Stack Timer CAM",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "M5Stack"
+    },
+    {
+      "TARGET_BOARD": "m5stamp-pico",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "M5Stamp-Pico",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "M5Stack"
+    },
+    {
+      "TARGET_BOARD": "m5stick-c",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "M5Stick-C",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "M5Stack"
+    },
+    {
+      "TARGET_BOARD": "magicbit",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "MagicBit",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Magicblocks.io"
+    },
+    {
+      "TARGET_BOARD": "mgbot-iotik32a",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "MGBOT IOTIK 32A",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "MGBOT"
+    },
+    {
+      "TARGET_BOARD": "mgbot-iotik32b",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "MGBOT IOTIK 32B",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "MGBOT"
+    },
+    {
+      "TARGET_BOARD": "mhetesp32devkit",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "MH ET LIVE ESP32DevKIT",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "MH-ET Live"
+    },
+    {
+      "TARGET_BOARD": "mhetesp32minikit",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "MH ET LIVE ESP32MiniKit",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "MH-ET Live"
+    },
+    {
+      "TARGET_BOARD": "microduino-core-esp32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Microduino Core ESP32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Microduino"
+    },
+    {
+      "TARGET_BOARD": "nano32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "MakerAsia Nano32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "MakerAsia"
+    },
+    {
+      "TARGET_BOARD": "node32s",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Node32s",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Aiyarafun"
+    },
+    {
+      "TARGET_BOARD": "nodemcu-32s",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "NodeMCU-32S",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "NodeMCU"
+    },
+    {
+      "TARGET_BOARD": "nscreen-32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "YeaCreate NSCREEN-32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "YeaCreate"
+    },
+    {
+      "TARGET_BOARD": "odroid_esp32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "ODROID-GO",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "Hardkernel"
+    },
+    {
+      "TARGET_BOARD": "onehorse32dev",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Onehorse ESP32 Dev Module",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Onehorse"
+    },
+    {
+      "TARGET_BOARD": "oroca_edubot",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "OROCA EduBot",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "OROCA"
+    },
+    {
+      "TARGET_BOARD": "pico32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "ESP32 Pico Kit",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Espressif"
+    },
+    {
+      "TARGET_BOARD": "piranha_esp32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Fishino Piranha ESP-32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Fishino"
+    },
+    {
+      "TARGET_BOARD": "pocket_32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Dongsen Tech Pocket 32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Dongsen Technology"
+    },
+    {
+      "TARGET_BOARD": "pycom_gpy",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Pycom GPy",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Pycom Ltd."
+    },
+    {
+      "TARGET_BOARD": "qchip",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Qchip",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Qmobot LLP"
+    },
+    {
+      "TARGET_BOARD": "quantum",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Noduino Quantum",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "Noduino"
+    },
+    {
+      "TARGET_BOARD": "roboheart_hercules",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "RoboHeart Hercules",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "RoboHeart"
+    },
+    {
+      "TARGET_BOARD": "rymcu-esp32-devkitc",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "RYMCU ESP32-DevKitC",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "RYMCU"
+    },
+    {
+      "TARGET_BOARD": "s_odi_ultra",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "S.ODI Ultra v1",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "S.ODI"
+    },
+    {
+      "TARGET_BOARD": "sensesiot_weizen",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "LOGISENSES Senses Weizen",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "LOGISENSES"
+    },
+    {
+      "TARGET_BOARD": "sg-o_airMon",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "SG-O AirMon",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "SG-O"
+    },
+    {
+      "TARGET_BOARD": "sparkfun_esp32_iot_redboard",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "SparkFun ESP32 IoT RedBoard",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "SparkFun"
+    },
+    {
+      "TARGET_BOARD": "sparkfun_esp32micromod",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "SparkFun ESP32 MicroMod",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "SparkFun"
+    },
+    {
+      "TARGET_BOARD": "sparkfun_esp32s2_thing_plus_c",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "SparkFun ESP32 Thing Plus C",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "SparkFun"
+    },
+    {
+      "TARGET_BOARD": "sparkfun_lora_gateway_1-channel",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "SparkFun LoRa Gateway 1-Channel",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "SparkFun"
+    },
+    {
+      "TARGET_BOARD": "tinypico",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Unexpected Maker TinyPICO",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Unexpected Maker"
+    },
+    {
+      "TARGET_BOARD": "trueverit-iot-driver",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Trueverit ESP32 Universal IoT Driver",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Trueverit"
+    },
+    {
+      "TARGET_BOARD": "trueverit-iot-driver-mk2",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Trueverit ESP32 Universal IoT Driver MK II",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Trueverit"
+    },
+    {
+      "TARGET_BOARD": "trueverit-iot-driver-mk3",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Trueverit ESP32 Universal IoT Driver MK III",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Trueverit"
+    },
+    {
+      "TARGET_BOARD": "ttgo-lora32-v1",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "TTGO LoRa32-OLED V1",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "TTGO"
+    },
+    {
+      "TARGET_BOARD": "ttgo-lora32-v2",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "TTGO LoRa32-OLED V2",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "TTGO"
+    },
+    {
+      "TARGET_BOARD": "ttgo-lora32-v21",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "TTGO LoRa32-OLED v2.1.6",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "TTGO"
+    },
+    {
+      "TARGET_BOARD": "ttgo-t-beam",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "TTGO T-Beam",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "1280KB",
+      "VENDOR": "TTGO"
+    },
+    {
+      "TARGET_BOARD": "ttgo-t-watch",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "TTGO T-Watch",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "TTGO"
+    },
+    {
+      "TARGET_BOARD": "ttgo-t1",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "TTGO T1",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "TTGO"
+    },
+    {
+      "TARGET_BOARD": "ttgo-t7-v13-mini32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "TTGO T7 V1.3 Mini32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "1280KB",
+      "VENDOR": "TTGO"
+    },
+    {
+      "TARGET_BOARD": "ttgo-t7-v14-mini32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "TTGO T7 V1.4 Mini32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "1280KB",
+      "VENDOR": "TTGO"
+    },
+    {
+      "TARGET_BOARD": "turta_iot_node",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Turta IoT Node",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Turta"
+    },
+    {
+      "TARGET_BOARD": "unphone7",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "unPhone 7",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "University of Sheffield"
+    },
+    {
+      "TARGET_BOARD": "upesy_wroom",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "uPesy ESP32 Wroom DevKit",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "uPesy"
+    },
+    {
+      "TARGET_BOARD": "upesy_wrover",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "uPesy ESP32 Wrover DevKit",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "uPesy"
+    },
+    {
+      "TARGET_BOARD": "vintlabs-devkit-v1",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "VintLabs ESP32 Devkit",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "VintLabs"
+    },
+    {
+      "TARGET_BOARD": "watchy",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "SQFMI Watchy v2.0",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "SQFMI"
+    },
+    {
+      "TARGET_BOARD": "wemos_d1_mini32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "WEMOS D1 MINI ESP32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "WEMOS"
+    },
+    {
+      "TARGET_BOARD": "wemos_d1_uno32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "WEMOS D1 R32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "WEMOS"
+    },
+    {
+      "TARGET_BOARD": "wemosbat",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "WeMos WiFi and Bluetooth Battery",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "WEMOS"
+    },
+    {
+      "TARGET_BOARD": "wesp32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Silicognition wESP32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Silicognition"
+    },
+    {
+      "TARGET_BOARD": "widora-air",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Widora AIR",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "Widora"
+    },
+    {
+      "TARGET_BOARD": "wifiduino32",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Blinker WiFiduino32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Blinker"
+    },
+    {
+      "TARGET_BOARD": "wipy3",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Pycom WiPy3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "1280KB",
+      "VENDOR": "Pycom Ltd."
+    },
+    {
+      "TARGET_BOARD": "wt32-eth01",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "Wireless-Tag WT32-ETH01 Ethernet Module",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Wireless-Tag"
+    },
+    {
+      "TARGET_BOARD": "xinabox_cw02",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "XinaBox CW02",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "XinaBox"
+    },
+    {
+      "TARGET_BOARD": "4d_systems_esp32s3_gen4_r8n16",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "4D Systems GEN4-ESP32 16MB (ESP32S3-R8N16)",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "4D Systems"
+    },
+    {
+      "TARGET_BOARD": "adafruit_camera_esp32s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Adafruit pyCamera S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_feather_esp32s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Adafruit Feather ESP32-S3 2MB PSRAM",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_feather_esp32s3_nopsram",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Adafruit Feather ESP32-S3 No PSRAM",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_feather_esp32s3_reversetft",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Adafruit Feather ESP32-S3 Reverse TFT",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_feather_esp32s3_tft",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Adafruit Feather ESP32-S3 TFT",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_matrixportal_esp32s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Adafruit MatrixPortal ESP32-S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_metro_esp32s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Adafruit Metro ESP32-S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_qtpy_esp32s3_n4r2",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Adafruit QT Py ESP32-S3 (4M Flash 2M PSRAM)",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_qtpy_esp32s3_nopsram",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Adafruit QT Py ESP32-S3 No PSRAM",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_qualia_s3_rgb666",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Adafruit Qualia ESP32-S3 RGB666",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "arduino_nano_esp32",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Arduino Nano ESP32",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "Arduino"
+    },
+    {
+      "TARGET_BOARD": "atd147_s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "ArtronShop ATD1.47-S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "ArtronShop"
+    },
+    {
+      "TARGET_BOARD": "aventen_s3_sync",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Aventen S3 Sync",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "Aventen"
+    },
+    {
+      "TARGET_BOARD": "bee_data_logger",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Smart Bee Data Logger",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Smart Bee"
+    },
+    {
+      "TARGET_BOARD": "bee_motion_s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Smart Bee Motion S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Smart Bee"
+    },
+    {
+      "TARGET_BOARD": "bee_s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Smart Bee S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Smart Bee"
+    },
+    {
+      "TARGET_BOARD": "bpi_leaf_s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "BPI-Leaf-S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "BPI Tech"
+    },
+    {
+      "TARGET_BOARD": "cytron_maker_feather_aiot_s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Cytron Maker Feather AIoT S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Cytron Technologies"
+    },
+    {
+      "TARGET_BOARD": "deneyapkart1Av2",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Deneyap Kart 1A v2",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "T3 Foundation"
+    },
+    {
+      "TARGET_BOARD": "dfrobot_firebeetle2_esp32s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "DFRobot Firebeetle 2 ESP32-S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "DFRobot"
+    },
+    {
+      "TARGET_BOARD": "dfrobot_romeo_esp32s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "DFRobot Romeo ESP32-S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "DFRobot"
+    },
+    {
+      "TARGET_BOARD": "edgebox-esp-100",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Seeed Studio Edgebox-ESP-100",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "Seeed Studio"
+    },
+    {
+      "TARGET_BOARD": "esp32-s3-devkitc-1",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Espressif ESP32-S3-DevKitC-1-N8 (8 MB QD, No PSRAM)",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "medium",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Espressif"
+    },
+    {
+      "TARGET_BOARD": "esp32-s3-devkitm-1",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Espressif ESP32-S3-DevKitM-1",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "medium",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Espressif"
+    },
+    {
+      "TARGET_BOARD": "esp32s3_powerfeather",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "ESP32-S3 PowerFeather",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "PowerFeather"
+    },
+    {
+      "TARGET_BOARD": "esp32s3box",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Espressif ESP32-S3-Box",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "Espressif"
+    },
+    {
+      "TARGET_BOARD": "esp32s3camlcd",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "ESP32S3 CAM LCD",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Espressif"
+    },
+    {
+      "TARGET_BOARD": "esp32s3usbotg",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Espressif ESP32-S3-USB-OTG",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Espressif"
+    },
+    {
+      "TARGET_BOARD": "freenove_esp32_s3_wroom",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Freenove ESP32-S3 WROOM N8R8 (8MB Flash / 8MB PSRAM)",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "medium",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Freenove"
+    },
+    {
+      "TARGET_BOARD": "heltec_wifi_kit_32_V3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Heltec WiFi Kit 32 (V3)",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Heltec"
+    },
+    {
+      "TARGET_BOARD": "heltec_wifi_lora_32_V3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Heltec WiFi LoRa 32 (V3)",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Heltec"
+    },
+    {
+      "TARGET_BOARD": "lilka_v2",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Lilka v2",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "Anderson & friends"
+    },
+    {
+      "TARGET_BOARD": "lilygo-t-display-s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "LilyGo T-Display-S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "LilyGo"
+    },
+    {
+      "TARGET_BOARD": "lilygo-t3-s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "LilyGo T3-S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "LilyGo"
+    },
+    {
+      "TARGET_BOARD": "lionbits3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Lion:Bit S3 STEM Dev Board",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Lion:Bit"
+    },
+    {
+      "TARGET_BOARD": "lolin_s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "WEMOS LOLIN S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "WEMOS"
+    },
+    {
+      "TARGET_BOARD": "lolin_s3_mini",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "WEMOS LOLIN S3 Mini",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "WEMOS"
+    },
+    {
+      "TARGET_BOARD": "lolin_s3_pro",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "WEMOS LOLIN S3 PRO",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "WEMOS"
+    },
+    {
+      "TARGET_BOARD": "m5stack-atoms3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "M5Stack AtomS3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "M5Stack"
+    },
+    {
+      "TARGET_BOARD": "m5stack-cores3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "M5Stack CoreS3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "M5Stack"
+    },
+    {
+      "TARGET_BOARD": "m5stack-stamps3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "M5Stack StampS3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "M5Stack"
+    },
+    {
+      "TARGET_BOARD": "motorgo_mini_1",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "MotorGo Mini 1 (ESP32-S3)",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "MotorGo"
+    },
+    {
+      "TARGET_BOARD": "namino_arancio",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Namino Arancio",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "MECT SRL"
+    },
+    {
+      "TARGET_BOARD": "namino_rosso",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Namino Rosso",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "MECT SRL"
+    },
+    {
+      "TARGET_BOARD": "nebulas3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Kinetic Dynamics Nebula S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Kinetic Dynamics"
+    },
+    {
+      "TARGET_BOARD": "redpill_esp32s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Munich Labs RedPill ESP32-S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Munich Labs"
+    },
+    {
+      "TARGET_BOARD": "rymcu-esp32-s3-devkitc-1",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "RYMCU ESP32-S3-DevKitC-1-N8R2 (8 MB QD, 2 MB PSRAM)",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_uart.bin",
+      "BINARY_MOST_LIKELY_PORT": "uart",
+      "BINARY_CONFIDENCE": "medium",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "RYMCU"
+    },
+    {
+      "TARGET_BOARD": "seeed_xiao_esp32s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Seeed Studio XIAO ESP32S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Seeed Studio"
+    },
+    {
+      "TARGET_BOARD": "tamc_termod_s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "TAMC Termod S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "TAMC"
+    },
+    {
+      "TARGET_BOARD": "um_feathers3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Unexpected Maker FeatherS3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "Unexpected Maker"
+    },
+    {
+      "TARGET_BOARD": "um_nanos3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Unexpected Maker NanoS3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Unexpected Maker"
+    },
+    {
+      "TARGET_BOARD": "um_pros3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Unexpected Maker PROS3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "Unexpected Maker"
+    },
+    {
+      "TARGET_BOARD": "um_tinys3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Unexpected Maker TinyS3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Unexpected Maker"
+    },
+    {
+      "TARGET_BOARD": "unphone8",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "unPhone 8",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "2368KB",
+      "VENDOR": "University of Sheffield"
+    },
+    {
+      "TARGET_BOARD": "unphone9",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "unPhone 9",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "8512KB",
+      "VENDOR": "University of Sheffield"
+    },
+    {
+      "TARGET_BOARD": "wifiduino32s3",
+      "TARGET_CHIP": "esp32s3",
+      "TARGET_LABEL": "Blinker WiFiduino32S3",
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32s3_uart.bin",
+        "_esp32s3_usb.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32s3_usb.bin",
+      "BINARY_MOST_LIKELY_PORT": "usb",
+      "BINARY_CONFIDENCE": "low",
+      "MCU": "ESP32S3",
+      "FREQUENCY": "240MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Blinker"
+    },
+    {
+      "TARGET_BOARD": "adafruit_feather_esp32s2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Adafruit Feather ESP32-S2",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_feather_esp32s2_reversetft",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Adafruit Feather ESP32-S2 Reverse TFT",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_feather_esp32s2_tft",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Adafruit Feather ESP32-S2 TFT",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_funhouse_esp32s2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Adafruit FunHouse",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_magtag29_esp32s2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Adafruit MagTag 2.9",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_metro_esp32s2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Adafruit Metro ESP32-S2",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "adafruit_qtpy_esp32s2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Adafruit QT Py ESP32-S2",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "atmegazero_esp32s2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "EspinalLab ATMegaZero ESP32-S2",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "EspinalLab"
+    },
+    {
+      "TARGET_BOARD": "bee_motion",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Smart Bee Motion",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Smart Bee"
+    },
+    {
+      "TARGET_BOARD": "cezerio_dev_esp32c6",
+      "TARGET_CHIP": "esp32c6",
+      "TARGET_LABEL": "cezerio dev ESP32C6",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32C6",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "cezerio"
+    },
+    {
+      "TARGET_BOARD": "cezerio_mini_dev_esp32c6",
+      "TARGET_CHIP": "esp32c6",
+      "TARGET_LABEL": "cezerio mini dev ESP32C6",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32C6",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "cezerio"
+    },
+    {
+      "TARGET_BOARD": "deneyapmini",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Deneyap Mini",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "T3 Foundation"
+    },
+    {
+      "TARGET_BOARD": "deneyapminiv2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Deneyap Mini v2",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "T3 Foundation"
+    },
+    {
+      "TARGET_BOARD": "esp32-c6-devkitc-1",
+      "TARGET_CHIP": "esp32c6",
+      "TARGET_LABEL": "Espressif ESP32-C6-DevKitC-1",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32C6",
+      "FREQUENCY": "160MHz",
+      "FLASH": "8MB",
+      "RAM": "320KB",
+      "VENDOR": "Espressif"
+    },
+    {
+      "TARGET_BOARD": "esp32-c6-devkitm-1",
+      "TARGET_CHIP": "esp32c6",
+      "TARGET_LABEL": "Espressif ESP32-C6-DevKitM-1",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32C6",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Espressif"
+    },
+    {
+      "TARGET_BOARD": "esp32-s2-franzininho",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Franzininho WiFi Board",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Franzininho"
+    },
+    {
+      "TARGET_BOARD": "esp32-s2-kaluga-1",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Espressif ESP32-S2-Kaluga-1 Kit",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Espressif"
+    },
+    {
+      "TARGET_BOARD": "esp32-s2-saola-1",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Espressif ESP32-S2-Saola-1",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Espressif"
+    },
+    {
+      "TARGET_BOARD": "featheresp32-s2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Adafruit ESP32-S2 Feather Development Board",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Adafruit"
+    },
+    {
+      "TARGET_BOARD": "franzininho_wifi_esp32s2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Franzininho WiFi",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Franzininho"
+    },
+    {
+      "TARGET_BOARD": "franzininho_wifi_msc_esp32s2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Franzininho WiFi MSC",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Franzininho"
+    },
+    {
+      "TARGET_BOARD": "lolin_s2_mini",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "WEMOS LOLIN S2 Mini",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "WEMOS"
+    },
+    {
+      "TARGET_BOARD": "lolin_s2_pico",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "WEMOS LOLIN S2 PICO",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "WEMOS"
+    },
+    {
+      "TARGET_BOARD": "micros2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "microS2",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "microS2"
+    },
+    {
+      "TARGET_BOARD": "minimain_esp32s2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Department of Alchemy MiniMain ESP32-S2",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Department of Alchemy"
+    },
+    {
+      "TARGET_BOARD": "nina_w10",
+      "TARGET_CHIP": "esp32",
+      "TARGET_LABEL": "u-blox NINA-W10 series",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": true,
+      "BINARY_AVAILABLE_SUFFIXES": [
+        "_esp32.bin"
+      ],
+      "BINARY_MOST_LIKELY": "_esp32.bin",
+      "BINARY_MOST_LIKELY_PORT": "n/a",
+      "BINARY_CONFIDENCE": "high",
+      "MCU": "ESP32",
+      "FREQUENCY": "240MHz",
+      "FLASH": "2MB",
+      "RAM": "320KB",
+      "VENDOR": "u-blox"
+    },
+    {
+      "TARGET_BOARD": "nodemcu-32s2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Ai-Thinker NodeMCU-32S2 (ESP-12K)",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Ai-Thinker"
+    },
+    {
+      "TARGET_BOARD": "seeed_xiao_esp32c6",
+      "TARGET_CHIP": "esp32c6",
+      "TARGET_LABEL": "Seeed Studio XIAO ESP32C6",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32C6",
+      "FREQUENCY": "160MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Seeed Studio"
+    },
+    {
+      "TARGET_BOARD": "sensebox_mcu_esp32s2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "senseBox MCU-S2 ESP32-S2",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "senseBox"
+    },
+    {
+      "TARGET_BOARD": "sparkfun_esp32s2_thing_plus",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "SparkFun ESP32-S2 Thing Plus",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "SparkFun"
+    },
+    {
+      "TARGET_BOARD": "um_feathers2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Unexpected Maker FeatherS2",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "16MB",
+      "RAM": "320KB",
+      "VENDOR": "Unexpected Maker"
+    },
+    {
+      "TARGET_BOARD": "um_feathers2_neo",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Unexpected Maker FeatherS2 Neo",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Unexpected Maker"
+    },
+    {
+      "TARGET_BOARD": "um_rmp",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Unexpected Maker RMP",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Unexpected Maker"
+    },
+    {
+      "TARGET_BOARD": "um_tinys2",
+      "TARGET_CHIP": "esp32s2",
+      "TARGET_LABEL": "Unexpected Maker TinyS2",
+      "TARGET_GNSS": null,
+      "BINARY_AVAILABLE": false,
+      "BINARY_AVAILABLE_SUFFIXES": [],
+      "BINARY_MOST_LIKELY": null,
+      "BINARY_MOST_LIKELY_PORT": null,
+      "BINARY_CONFIDENCE": null,
+      "MCU": "ESP32S2",
+      "FREQUENCY": "240MHz",
+      "FLASH": "4MB",
+      "RAM": "320KB",
+      "VENDOR": "Unexpected Maker"
+    }
+  ]
+}
