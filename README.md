@@ -13,6 +13,8 @@ can also be configured **over USB** with a desktop app, with no Wi-Fi, Web UI or
 > **v4.0: ready-to-flash binaries** for ESP32, ESP32-S3 and ESP32-C3, each in a **BLE only** and a
 > **Wi-Fi** variant. Get them from the [latest release](https://github.com/entr0-pi/gnss/releases/latest)
 > and follow the [QuickStart](INSTALL.md#quickstart-flashing-a-prebuilt-binary).
+>
+> 🔎 Not sure which file to take? Search your board in the **[board compatibility finder](https://esp32.entr0-pi.com/)**.
 
 ## Project Overview
 
@@ -34,7 +36,8 @@ Design intent:
 
 ### Prebuilt binaries
 
-Choose by **chip**, then by **USB port type** (ESP32-S3 and ESP32-C3 only), then by **variant**:
+Choose by **chip**, then by **USB port type** (ESP32-S3 and ESP32-C3 only), then by **variant**,
+or let the [board compatibility finder](https://esp32.entr0-pi.com/) pick the file for you:
 
 | Chip | USB port type | Bootloader offset | 🔵 BLE only | 📶 Wi-Fi |
 |------|---------------|-------------------|-------------|----------|
@@ -206,9 +209,11 @@ To build ESP32, ESP32-S3 and ESP32-C3 in one run, use `utils/mass-build/` (see `
 ```text
 .
 ├─ data/                 # LittleFS assets (web files, mock config/status)
+├─ docs/                 # Technical docs + board compatibility finder (GitHub Pages)
 ├─ include/              # Config headers and module interfaces
 ├─ src/                  # Firmware implementation
 ├─ utils/board/          # Board retargeting script
+├─ utils/boards-update/  # Regenerates docs/boards.json for the board finder
 ├─ utils/mass-build/     # Docker build of every supported chip in one run
 ├─ utils/uploader/       # NVS + LittleFS uploader GUI
 ├─ utils/render-web/     # Web UI local dev server

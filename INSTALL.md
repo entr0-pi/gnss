@@ -5,6 +5,9 @@
 Use this when you want the fastest bring-up without building locally.
 Prebuilt images are attached to each [release](https://github.com/entr0-pi/gnss/releases/latest).
 
+> **Shortcut:** search your board in the [board compatibility finder](https://esp32.entr0-pi.com/).
+> It tells you the exact file to download. Steps 1 to 4 below explain the same choice by hand.
+
 What you need:
 - A GNSS receiver (u-blox, Unicore...) with a UART output
 - An **ESP32, ESP32-S3 or ESP32-C3 board** with at least 4 MB of flash
@@ -284,6 +287,7 @@ Available tooling under `utils/`:
 - `utils/uploader`: NVS editor + writer, LittleFS builder/flasher
 - `utils/render-web/render_web.py`: local dev server for `data/web/` with mock API
 - `utils/build-tester/build_Tester.py`: build matrix tester for feature flags
+- `utils/boards-update/enrich_boards.py`: refreshes the board list behind the [board compatibility finder](https://esp32.entr0-pi.com/)
 
 Utils goals and when to use them:
 
@@ -319,3 +323,10 @@ Utils goals and when to use them:
 - Runs tiered build matrices, including expected-failure guard tests.
 - Best for: CI validation, pre-release sanity checks, refactor safety.
 - Expected outcome: early detection of broken flag combinations and guard regressions.
+
+6. `utils/boards-update/` (board compatibility finder data)
+- Goal: keep the board list used by the [board compatibility finder](https://esp32.entr0-pi.com/) (`docs/index.html`) in sync with PlatformIO.
+- Adds new boards from the PlatformIO espressif32 list, removes boards no longer on it, and refreshes their specs (MCU, frequency, flash, RAM, vendor) from the official manifests. Existing firmware mappings are kept.
+- Usage: `python utils/boards-update/enrich_boards.py <in.json> <out.json>` (set `GITHUB_TOKEN` to avoid API rate limits).
+- Best for: after a PlatformIO platform update, or when a new chip gets prebuilt binaries.
+- Expected outcome: an updated JSON to copy over `docs/boards.json`.
