@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sync boards_all_binaries.json with the PlatformIO espressif32 board list and enrich it.
+"""Sync docs/boards.json with the PlatformIO espressif32 board list and enrich it.
 
 Source of truth = https://github.com/platformio/platformio-docs/tree/develop/boards/espressif32
   * board on the list, not in the JSON  -> ADDED   (fields built from its PlatformIO manifest)
@@ -10,14 +10,20 @@ Specs (MCU / FREQUENCY / FLASH / RAM / VENDOR) come from the official manifests
 platform-espressif32/boards/<id>.json, which the docs pages are generated from.
 
 Usage:
-  python enrich_boards.py boards_all_binaries.json boards_all_full.json
+  python utils/boards-update/enrich_boards.py
+  # Defaults to reading and updating docs/boards.json, regardless of working directory.
+  python utils/boards-update/enrich_boards.py in.json out.json
 Offline / testing:
-  python enrich_boards.py in.json out.json --docs DIR_WITH_<id>.rst --manifests DIR_WITH_<id>.json
+  python utils/boards-update/enrich_boards.py in.json out.json --docs DIR_WITH_<id>.rst --manifests DIR_WITH_<id>.json
 Optional: set GITHUB_TOKEN to avoid API rate limits.
 """
 import json, os, sys, urllib.request, urllib.error
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_BOARDS = ROOT / "docs" / "boards.json"
 
 DOCS_API = "https://api.github.com/repos/platformio/platformio-docs/contents/boards/espressif32?ref=develop"
 MANIFEST = "https://raw.githubusercontent.com/platformio/platform-espressif32/develop/boards/{}.json"
@@ -97,7 +103,8 @@ def main():
     opt = lambda k: sys.argv[sys.argv.index(k) + 1] if k in sys.argv else None
     docs_dir, man_dir = opt("--docs"), opt("--manifests")
     args = [a for a in sys.argv[1:] if not a.startswith("--") and a not in (docs_dir, man_dir)]
-    src, dst = args[0], args[1]
+    src = args[0] if args else DEFAULT_BOARDS
+    dst = args[1] if len(args) > 1 else DEFAULT_BOARDS
 
     data = json.load(open(src, encoding="utf-8"))
     existing = {b["TARGET_BOARD"]: b for b in data["boards"]}
