@@ -199,6 +199,7 @@ load.then(({boards}) => {
       ${fwRow('🔵', 'BLE only', ble)}
       ${fwRow('📶', 'Wi-Fi', wifi)}
       <div class="note verify"><b>🔐 Verify before flashing.</b> <b>Download</b> opens a short guide to check your file's SHA-256 against the one GitHub shows on the <a href="${RELEASES}/latest" target="_blank" rel="noopener noreferrer">release page</a>.</div>
+      <div class="note"><b>⚙️ Next: configure over USB.</b> After flashing, set up your board with the <a href="https://github.com/entr0-pi/arduino-nvs-desktop" target="_blank" rel="noopener noreferrer">ESP32 NVS Key-Pair Manager</a> desktop app. No reflash needed.</div>
       ${low && others.length ? `<div class="note">Port type is a best guess for this board. If it does not boot, try <code>${esc(others[0])}</code> instead. <button type="button" class="linkbtn" data-help>How to check your USB type</button></div>` : ''}`;
   }
 
