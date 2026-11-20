@@ -29,8 +29,8 @@ can also be configured **over USB** with a desktop app, with no Wi-Fi, Web UI or
 This project is GNSS-agnostic firmware for ESP32 boards:
 - GNSS input/output on `Serial1` (UART)
 - Raw byte passthrough (NMEA and other serial payloads)
-- Optional BLE NUS bridge (both ways, an external NTRIP can feeds corrections into GNSS UART, as with SWMaps)
-- Optional single-client TCP bridge (to use QField for example)
+- Optional BLE NUS bridge (both ways, an external NTRIP can feeds corrections into GNSS UART, as with SWMaps or QField)
+- Optional single-client TCP bridge (e.g.: to use QField or connect to the GNSS app as UPrecise)
 - Optional Web UI for config + monitoring
 - Optional NTRIP client feeding corrections into GNSS UART (needs to be connected to a WiFi with internet access)
 - Optional USB serial configuration with the [ESP32 NVS Key-Pair Manager](https://github.com/entr0-pi/arduino-nvs-desktop/releases) desktop app
@@ -62,8 +62,8 @@ or let the [board compatibility finder](https://esp32.entr0-pi.com/) pick the fi
   take `_usb`. With the wrong one the board boots, but the USB port stays silent. See
   [how to check](INSTALL.md#2-find-your-usb-port-type-esp32-s3-and-esp32-c3-only).
 
-Each file is a merged image: flash it at `0x0`, for example
-`python -m esptool --chip esp32c3 --port <PORT> write-flash 0x0 gnss_BLE_esp32c3_usb.bin`.
+Each file is a merged image: flash it at `0x0`, for example with
+`python -m esptool --chip esp32c3 --port <PORT> write-flash 0x0 gnss_BLE_esp32c3_usb.bin` or using [Espressif web tool](https://espressif.github.io/esp-launchpad/).
 
 See `INSTALL.md` for:
 - [choosing and flashing a prebuilt binary](INSTALL.md#quickstart-flashing-a-prebuilt-binary) and the first start,

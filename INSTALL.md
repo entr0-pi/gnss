@@ -12,7 +12,7 @@ What you need:
 - A GNSS receiver (u-blox, Unicore...) with a UART output
 - An **ESP32, ESP32-S3 or ESP32-C3 board** with at least 4 MB of flash
 - A USB cable for flashing and powering the board
-- A flash tool (`esptool`, or the Espressif Flash Download Tool)
+- A flash tool (`esptool`, or the Espressif Flash Download Tool, or [Espressif Web tool](https://espressif.github.io/esp-launchpad/))
 - The [ESP32 NVS Key-Pair Manager](https://github.com/entr0-pi/arduino-nvs-desktop/releases) desktop app (Windows, Linux, macOS) for the first configuration
 
 ### 1. Pick your chip
@@ -83,6 +83,8 @@ Each file is a **merged image**: bootloader, partition table, firmware and Web U
 
 ### 5. Flash
 
+Use the very convenient online tool [Espressif Web tool](https://espressif.github.io/esp-launchpad/) or `esptool` below
+
 ```bash
 pip install esptool
 python -m esptool --chip esp32c3 --port <PORT> write-flash 0x0 gnss_BLE_esp32c3_usb.bin
@@ -90,6 +92,7 @@ python -m esptool --chip esp32c3 --port <PORT> write-flash 0x0 gnss_BLE_esp32c3_
 
 Change the chip, the file name and `<PORT>` (`COM5`, `/dev/ttyUSB0`...) to match your board.
 **Merged images always go at `0x0`**, because the bootloader is already at the right offset inside the file.
+
 The Espressif Flash Download Tool works too.
 
 <p>
@@ -150,11 +153,11 @@ Wi-Fi, the Web UI or a reflash:
 - Download the [ESP32 NVS Key-Pair Manager](https://github.com/entr0-pi/arduino-nvs-desktop/releases) for Windows, Linux or macOS. It is a single file with no install.
 - Close any serial monitor or flash tool that holds the port.
 - Plug in the board, start the app, pick its COM port and click **Connect**. The app reads the board after a short boot delay.
-- Load a schema (`.csv`) or configuration (`.json`), edit the `gnss`, `ntrip` and `wifi` values, review and click **Write to ESP32**.
+- Load a schema (`.csv`) or configuration (`.json`), edit the `gnss`, `ntrip` and `wifi` values, review and click **Write to ESP32**. Use the `.csv` at the root of this repo or examples in the [repo](https://github.com/entr0-pi/arduino-nvs-desktop/)
 - NTRIP changes apply within about 5 s. GNSS UART and Wi-Fi changes apply at the next boot. Neither the firmware nor the app reboots the board, so press reset afterwards.
 - On Linux, add your user to the `dialout` group to open the port.
 
-Protocol details: [docs/SERIAL.md](docs/SERIAL.md).
+Protocol details: [docs/SERIAL.md](docs/SERIAL COMPANION.md).
 
 **Preload NVS settings (recommended for field deployment):**
 - Use `utils/uploader/` to write GNSS/WiFi/NTRIP values to NVS and flash LittleFS web assets.
