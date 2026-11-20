@@ -3,6 +3,14 @@
 Turn a low-cost ESP32 board into a **wireless bridge for your GNSS receiver**: stream positions over
 Bluetooth LE or Wi-Fi, feed RTK corrections from an NTRIP caster, and watch your fix live in the browser.
 
+<p align="center">
+  <a href="assets/schema.png">
+    <img src="assets/schema.png" alt="GNSS ESP32 Bridge diagram showing satellite signals, the GNSS receiver, and position and correction data exchanged over Wi-Fi or Bluetooth." width="1000">
+  </a>
+  <br>
+  <em>From satellite signals to your device — the GNSS ESP32 Bridge at a glance.</em>
+</p>
+
 It can expose raw GNSS serial data over:
 - BLE (Nordic UART Service) 🛰️
 - TCP socket 🌐
@@ -224,7 +232,7 @@ To build ESP32, ESP32-S3 and ESP32-C3 in one run, use `utils/mass-build/` (see `
 └─ README.md
 ```
 
-## Some pictures...
+## Some pictures of the WebUI
 
 <p>
   <img src="assets/webUI-1.png" alt="Web UI 1" height="250">&nbsp;
