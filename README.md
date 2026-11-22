@@ -92,6 +92,16 @@ Implemented data paths:
 - NTRIP client (optional): RTCM stream forwarded to UART
 - Desktop app <-> ESP32 over USB (optional): framed NVS config protocol, sharing the port with logs
 
+## RTCM / RTK Corrections
+
+[RTK2go](https://rtk2go.com/) is a free NTRIP caster for accessing RTCM correction streams from
+community base stations for RTK positioning. To find nearby stations, use the
+[RTK2go station finder](https://rtk2go.entr0-pi.com/), built by entr0-pi and based on the
+[ntrip-stations repository](https://github.com/entr0-pi/ntrip-stations).
+
+Use the selected station's mountpoint in the bridge's NTRIP settings (Wi-Fi variant), or in your
+phone/tablet app's NTRIP settings when using the BLE variant.
+
 ## GNSS & NMEA Requirements
 
 Base bridge requirement:

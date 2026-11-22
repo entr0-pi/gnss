@@ -64,6 +64,11 @@ can't connect.
 With the BLE variant, the app (SW Maps, QField...) can supply the RTK corrections. The BLE link forwards
 RTCM bytes to the GNSS over UART.
 
+For a free source of RTCM (RTK correction) streams, use [RTK2go](https://rtk2go.com/).
+Find nearby base stations with the [RTK2go station finder](https://rtk2go.entr0-pi.com/), built by
+entr0-pi and based on the [ntrip-stations repository](https://github.com/entr0-pi/ntrip-stations).
+Use the selected station's mountpoint in the Wi-Fi variant's NTRIP settings or your BLE app's NTRIP settings.
+
 ### 4. Pick your file
 
 The file name is `gnss_<VARIANT>_<chip>[_<port type>].bin`:
