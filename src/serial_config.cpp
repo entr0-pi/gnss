@@ -3,7 +3,7 @@
  * ==========================================================
  *
  * Integrated version of the standalone arduino.cpp sketch, implementing the
- * protocol in docs/graph.md. Tags such as [G4] refer to node ids in its
+ * protocol in docs/SERIAL.md. Tags such as [G4] refer to node ids in its
  * flowchart "Firmware receiver, policy, and effects".
  *
  * Wire format   STX(0x02) + JSON + '#' + CRC16 as 4 uppercase hex + ETX(0x03)
@@ -43,7 +43,7 @@
 namespace {
 
 // ---------------------------------------------------------------------------
-// Protocol constants (graph.md "Wire format and messages"; 500 ms = [T0])
+// Protocol constants (SERIAL.md "Wire format and messages"; 500 ms = [T0])
 // ---------------------------------------------------------------------------
 constexpr uint8_t  kStx            = 0x02;
 constexpr uint8_t  kEtx            = 0x03;
@@ -59,7 +59,7 @@ constexpr uint32_t kFrameTimeoutMs = 500;
 static_assert(SERIAL_CONFIG_RX_BUFFER >= 2 * kMaxFrame,
               "RX buffer must hold at least two full frames");
 
-// Error codes (graph.md "Errors and events across the boundary")
+// Error codes (SERIAL.md "Errors and events across the boundary")
 constexpr char kErrFrame[]       = "frame_error";
 constexpr char kErrCrc[]         = "crc_mismatch";
 constexpr char kErrBadJson[]     = "bad_json";
@@ -456,7 +456,7 @@ void doGet(Preferences& prefs, const char* key, JsonDocument& resp) {
 }
 
 // [P4] Idempotent: removing a missing key still reports ok. config_bootstrap()
-// re-seeds the namespace at the next boot (see docs/graph.md: that re-seed
+// re-seeds the namespace at the next boot (see docs/SERIAL.md: that re-seed
 // rewrites every key of the namespace with its default).
 void doErase(Preferences& prefs, const char* key, JsonDocument& resp) {
   prefs.remove(key);

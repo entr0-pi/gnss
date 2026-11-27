@@ -6,6 +6,7 @@
 .vscode/
 .claude
 .kilocode/
+.kilo/
 
 # Build artifacts
 build/bin/

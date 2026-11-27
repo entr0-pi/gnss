@@ -2,7 +2,7 @@
 
 #include <stddef.h>
 
-// USB-serial NVS config protocol used by the desktop tool (docs/graph.md).
+// USB-serial NVS config protocol used by the desktop tool (docs/SERIAL.md).
 // Compiled only with SERIAL_CONFIG_ENABLE=1 (see app.h).
 
 // RX buffer size the protocol needs; call Serial.setRxBufferSize() with it

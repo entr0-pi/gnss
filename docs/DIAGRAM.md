@@ -119,8 +119,16 @@ When `WEBUI_ENABLE=1`:
 
 - static files are served from LittleFS (`data/web/*`)
 - API endpoints expose status and config
-- mutable mode allows config updates
-- locked mode returns refusal for protected updates
+- mutable mode allows config updates (persisted in NVS)
+- locked mode returns `403` for protected updates (`FORCE_HARDCODED_UART`, `FORCE_WIFI_SECRETS`, NTRIP disabled)
+
+| Endpoint | Methods | Purpose |
+|---|---|---|
+| `/api/status` | GET | Live status and NMEA telemetry |
+| `/api/config` | GET, POST | GNSS UART pins and baud |
+| `/api/wifi_config` | GET, POST | Wi-Fi settings |
+| `/api/ntrip_config` | GET, POST | NTRIP caster settings |
+| `/api/restart` | POST | Reboot the board |
 
 Code pointers:
 
@@ -180,7 +188,30 @@ Use this order to debug quickly:
 5. Verify NVS keys/values (`utils/nvs-tester/check_nvs_keys.py`)
 6. Check runtime logs (`src/logger.cpp`, `include/logger.h`)
 
-## 12. Related Docs
+## 12. Repository Layout
+
+```text
+.
+├─ assets/               # Images used by the docs
+├─ build/                # Docker build (see build/README.md)
+├─ data/                 # LittleFS assets (web files, mock config/status)
+├─ docs/                 # Technical docs
+├─ include/              # Config headers and module interfaces
+├─ lib/                  # Bundled libraries (ntrip-client, minmea)
+├─ src/                  # Firmware implementation
+├─ utils/board/          # Board retargeting script
+├─ utils/build-tester/   # Build matrix tester + Dockerfile
+├─ utils/desktop-app/    # Pointer to the USB config desktop app
+├─ utils/mass-build/     # Docker build of every supported chip in one run
+├─ utils/ntrip/          # Pointer to the RTK2go station finder
+├─ utils/render-web/     # Web UI local dev server
+├─ utils/uploader/       # NVS + LittleFS uploader GUI
+├─ .env.example          # Board retargeting template
+├─ partitions.csv
+└─ platformio.ini
+```
+
+## 13. Related Docs
 
 - `README.md` for project overview
 - `INSTALL.md` for setup/build/flash flow

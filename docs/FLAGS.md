@@ -14,16 +14,18 @@ Defaults are defined in [`include/app.h`](../include/app.h) unless noted otherwi
 | `TCP_ENABLE` | bool | `0` | Enable a raw TCP server for GNSS data streaming. |
 | `NTRIP_CLIENT_ENABLE` | bool | `0` | Enable the NTRIP corrections client. |
 | `BLE_ENABLE` | bool | `0` | Enable Bluetooth Low Energy GNSS streaming. |
-| `SERIAL_CONFIG_ENABLE` | bool | `0` | Enable the framed USB-serial NVS config protocol (`hello`/`set`/`get`/`erase`) used by the desktop tool. Keep `GLOBAL_LOG_LEVEL=0` with it. See [graph.md](graph.md). |
+| `SERIAL_CONFIG_ENABLE` | bool | `0` | Enable the USB configuration protocol used by the desktop app. Keep `GLOBAL_LOG_LEVEL=0` with it (the build warns otherwise). See [SERIAL.md](SERIAL.md). |
+
+For the flags used by the two release variants, see [INSTALL.md](../INSTALL.md#step-3-producing-the-release-binaries).
 
 ### Dependencies
 
 ```
 NMEA_ENABLE ──requires──▶ WEBUI_ENABLE
-    (forced to 0 with warning if WEBUI_ENABLE=0)
+    (forced to 0 with a warning if WEBUI_ENABLE=0)
 
-NTRIP_CLIENT_ENABLE ──requires──▶ WEBUI_ENABLE
-    (hard error if WEBUI_ENABLE=0)
+WEBUI_ENABLE, TCP_ENABLE, NTRIP_CLIENT_ENABLE ──require──▶ WIFI_ENABLE
+    (enabled automatically; build error if WIFI_ENABLE is forced to 0)
 ```
 
 ### Derived flag
@@ -52,7 +54,7 @@ These are consumed by `lib/ntrip-client` (also declared in its own header with t
 |------|------|---------|-------------|
 | `WIFI_DUAL_MODE` | bool | `0` | `0` = STA only. `1` = STA + SoftAP (dual mode). |
 | `STA_CHANNEL` | int | `0` | Fixed STA channel (1-13) for quicker association. `0` = auto. |
-| `FORCE_WIFI_SECRETS` | bool | `0` | `1` = use hardcoded credentials from `include/secrets.h`. `0` = load from NVS (configurable via web UI). |
+| `FORCE_WIFI_SECRETS` | bool | `0` | `1` = use hardcoded credentials from `include/secrets.h`. `0` = load from NVS (configurable via the Web UI or USB). |
 
 ### SoftAP (only used when `WIFI_DUAL_MODE=1`)
 
@@ -85,7 +87,7 @@ All six are required or the build will fail.
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `FORCE_HARDCODED_UART` | bool | `0` | `1` = use compile-time pin/baud values. `0` = configurable via web UI / NVS. |
+| `FORCE_HARDCODED_UART` | bool | `0` | `1` = use compile-time pin/baud values. `0` = load from NVS (configurable via the Web UI or USB). |
 | `HARD_RX_PIN` | int | *(required)* | GNSS UART RX pin. Only used when `FORCE_HARDCODED_UART=1`. |
 | `HARD_TX_PIN` | int | *(required)* | GNSS UART TX pin. Only used when `FORCE_HARDCODED_UART=1`. |
 | `HARD_BAUD` | int | *(required)* | GNSS UART baud rate. Only used when `FORCE_HARDCODED_UART=1`. |
@@ -96,13 +98,15 @@ All three `HARD_*` flags are mandatory when `FORCE_HARDCODED_UART=1` (build erro
 
 ## Immutability (derived, read-only)
 
-These are derived in `app.h` and **cannot be set directly**. They control whether the web UI allows runtime config changes for each subsystem.
+These are derived in `app.h` and **cannot be set directly**. When one is `1`, that subsystem's settings are
+locked: the Web UI refuses changes (`403`), the USB protocol refuses `set` / `erase` (`read_only`), and its
+NVS namespace is never written.
 
-| Flag | Derivation | Effect when `1` |
-|------|------------|-----------------|
-| `IMMUTABLE_UART` | `FORCE_HARDCODED_UART` | GNSS UART config is locked. Web UI POST rejected, NVS defaults not seeded. |
-| `IMMUTABLE_WIFI` | `FORCE_WIFI_SECRETS \|\| !WIFI_ENABLE` | WiFi config is locked. |
-| `IMMUTABLE_NTRIP` | `!NTRIP_CLIENT_ENABLE` | NTRIP config is locked. |
+| Flag | Derivation | Locked namespace |
+|------|------------|------------------|
+| `IMMUTABLE_UART` | `FORCE_HARDCODED_UART` | `gnss` |
+| `IMMUTABLE_WIFI` | `FORCE_WIFI_SECRETS \|\| !WIFI_ENABLE` | `wifi` |
+| `IMMUTABLE_NTRIP` | `!NTRIP_CLIENT_ENABLE` | `ntrip` |
 
 ---
 
@@ -131,7 +135,8 @@ These are derived in `app.h` and **cannot be set directly**. They control whethe
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `TCP_PORT` | int | `5000` | TCP server listen port (when `TCP_ENABLE=1`). |
-| `NMEA_MAX_SATS` | int | `48` | Maximum satellites tracked in GSV arrays. Defined in [`include/web_ui.h`](../include/web_ui.h) and [`include/nmea_gps.h`](../include/nmea_gps.h). |
+| `NMEA_MAX_SATS` | int | `48` | Maximum satellites tracked in GSV arrays. Defined in [`include/web_ui.h`](../include/web_ui.h) and [`include/parsing_nmea.h`](../include/parsing_nmea.h). |
+| `NMEA_VALIDATE_GSV_SEQUENCE` | bool | `1` | `1` = reject GSV message sequences that are out of order or inconsistent. Set to `0` if your receiver sends non-standard GSV sequences. |
 
 ---
 
@@ -146,18 +151,22 @@ These are derived in `app.h` and **cannot be set directly**. They control whethe
 
 ## NVS Schema
 
-Defined in [`include/nvs_keys.h`](../include/nvs_keys.h). Each config module asserts against these at build time.
+Defined in [`include/nvs_keys.h`](../include/nvs_keys.h). These are not build flags: the config modules
+check them with `static_assert`, so the build fails if a key is added or removed without updating them.
+Each key's type, default and meaning are listed in [SERIAL.md](SERIAL.md#7-settings).
 
-| Flag | Value | Description |
+| Constant | Value | Description |
 |------|-------|-------------|
-| `NVS_SCHEMA_VERSION` | `1` | Increment when adding/removing/renaming NVS keys. |
-| `NVS_GNSS_REQUIRED_KEYS` | `3` | `rx_pin`, `tx_pin`, `baud` |
-| `NVS_WIFI_REQUIRED_KEYS` | `8` | `ssid`, `pass`, `dhcp`, `ip`, `gw`, `subnet`, `dns`, `accesspoint` |
-| `NVS_NTRIP_REQUIRED_KEYS` | `16` | 13 config keys + 3 lockout keys |
+| `NVS_SCHEMA_VERSION` | `2` | Increment when adding, removing or renaming NVS keys. |
+| `NVS_GNSS_REQUIRED_KEYS` | `3` | Keys in the `gnss` namespace |
+| `NVS_WIFI_REQUIRED_KEYS` | `8` | Keys in the `wifi` namespace |
+| `NVS_NTRIP_REQUIRED_KEYS` | `17` | Keys in the `ntrip` namespace: 14 settings + 3 internal lockout keys |
 
 ---
 
 ## Quick Reference: Common Profiles
+
+Examples only. The release binaries use the profiles in [INSTALL.md](../INSTALL.md#step-3-producing-the-release-binaries).
 
 **Full feature set (development):**
 ```ini

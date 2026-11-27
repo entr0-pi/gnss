@@ -20,15 +20,15 @@ What you need:
 The chip name is printed on the metal shield of the module (for example `ESP32-C3-MINI-1` or
 `ESP32-S3-WROOM-1`) or in your board's documentation.
 
-| Chip | CPU | Bootloader offset |
-|------|-----|-------------------|
-| ESP32 | Xtensa dual-core, 240 MHz | `0x1000` |
-| ESP32-S3 | Xtensa dual-core, 240 MHz | `0x0` |
-| ESP32-C3 | RISC-V single-core, 160 MHz | `0x0` |
+| Chip | CPU |
+|------|-----|
+| ESP32 | Xtensa dual-core, 240 MHz |
+| ESP32-S3 | Xtensa dual-core, 240 MHz |
+| ESP32-C3 | RISC-V single-core, 160 MHz |
 
 Your board needs at least 4 MB of flash.
 
-> An image only runs on the chip it was built for. Match the **chip**, not just the bootloader offset.
+> An image only runs on the chip it was built for. Always match the **chip**.
 
 ### 2. Find your USB port type (ESP32-S3 and ESP32-C3 only)
 
@@ -88,6 +88,11 @@ Each file is a **merged image**: bootloader, partition table, firmware and Web U
 
 ### 5. Flash
 
+> **Always flash the released `.bin` at address `0x0`, whatever your chip.**
+> This includes the ESP32, even though its bootloader normally sits at `0x1000`. The released file already
+> contains the padding that puts the bootloader at the right address for its chip, so writing it at `0x0`
+> places everything correctly. Writing it at `0x1000` shifts the whole image and the board won't boot.
+
 Use the very convenient online tool [Espressif Web tool](https://espressif.github.io/esp-launchpad/) or `esptool` below
 
 ```bash
@@ -95,10 +100,9 @@ pip install esptool
 python -m esptool --chip esp32c3 --port <PORT> write-flash 0x0 gnss_BLE_esp32c3_usb.bin
 ```
 
-Change the chip, the file name and `<PORT>` (`COM5`, `/dev/ttyUSB0`...) to match your board.
-**Merged images always go at `0x0`**, because the bootloader is already at the right offset inside the file.
+Change the chip, the file name and `<PORT>` (`COM5`, `/dev/ttyUSB0`...) to match your board. Keep `0x0`.
 
-The Espressif Flash Download Tool works too.
+The Espressif Flash Download Tool works too. Set the address to `0x0` there as well.
 
 <p>
   <img src="assets/esp32-flash.png" alt="Flash Download Tool, separate files" height="250">&nbsp;
@@ -107,6 +111,8 @@ The Espressif Flash Download Tool works too.
 
 <details>
 <summary>Flashing separate files instead</summary>
+
+This applies only to the separate files from a local build (`build/bin/<NAME>/`), not to the released merged images.
 
 Only the bootloader offset depends on the chip (other offsets come from `partitions.csv`):
 
@@ -162,7 +168,7 @@ Wi-Fi, the Web UI or a reflash:
 - NTRIP changes apply within about 5 s. GNSS UART and Wi-Fi changes apply at the next boot. Neither the firmware nor the app reboots the board, so press reset afterwards.
 - On Linux, add your user to the `dialout` group to open the port.
 
-Protocol details: [docs/SERIAL.md](docs/SERIAL COMPANION.md).
+Protocol details: [docs/SERIAL.md](docs/SERIAL.md).
 
 **Preload NVS settings (recommended for field deployment):**
 - Use `utils/uploader/` to write GNSS/WiFi/NTRIP values to NVS and flash LittleFS web assets.
@@ -279,62 +285,18 @@ the desktop app connects, and, for Wi-Fi, that the Web UI and TCP port 52148 ans
 
 ### Recommended Workflow
 
-Recommended workflow:
-- Develop and validate UI behavior with `render-web`
-- Validate firmware flag combinations with `build-tester`
-- Produce deployable config + assets with `uploader`
+- Develop and check the Web UI with `utils/render-web/`
+- Check feature flag combinations with `utils/build-tester/`
+- Prepare field config and Web UI assets with `utils/uploader/` (see [Preload NVS settings](#usb-configuration))
 
-**Preload NVS settings (recommended for field deployment):**
-- See description in the previous section
+## Utils
 
-## Utils 
-
-Available tooling under `utils/`:
-- `utils/board/retarget.py`: board retargeting script (see Step 1 above)
-- `utils/mass-build/mass_build.py`: Docker build of every supported chip in one run
-- `utils/uploader`: NVS editor + writer, LittleFS builder/flasher
-- `utils/render-web/render_web.py`: local dev server for `data/web/` with mock API
-- `utils/build-tester/build_Tester.py`: build matrix tester for feature flags
-- `utils/boards-update/enrich_boards.py`: refreshes the board list behind the [board compatibility finder](https://esp32.entr0-pi.com/)
-
-Utils goals and when to use them:
-
-1. `utils/board/` (board retargeting)
-- Goal: switch the entire codebase to a different ESP32 board in one command.
-- Reads `.env` and updates configs, build scripts, web UI, and docs.
-- Best for: porting to a new board, maintaining multi-board variants.
-- Expected outcome: all board-specific references are consistent after running the script.
-
-2. `utils/mass-build/` (release binaries)
-- Goal: build one firmware per supported chip and USB port type (ESP32, ESP32-S3 UART/USB, ESP32-C3 UART/USB) with the Docker workflow.
-- Applies `retarget.py` for each board, builds, exports the binaries, then restores the working tree.
-- Best for: preparing release binaries, checking that every chip still builds.
-- Expected outcome: `build/bin/<name>/` (for example `build/bin/esp32c3_usb/`) holds the separate binaries, the merged image and the flash scripts for each chip.
-- For the full release (both variants and the file names), see [Step 3: Producing The Release Binaries](#step-3-producing-the-release-binaries).
-
-3. `utils/uploader/` (deployment and field configuration)
-- Goal: configure devices without rebuilding firmware.
-- Use it to prepare and flash:
-  - NVS key/values (GNSS UART, WiFi, NTRIP),
-  - LittleFS image (Web UI assets).
-- Best for: production setup, installer workflow, lab technicians.
-- Expected outcome: device is flashed with firmware-compatible config and web assets in one workflow.
-
-4. `utils/render-web/` (Web UI development loop)
-- Goal: iterate quickly on Web UI outside embedded target constraints.
-- Serves `data/web/` with mocked API endpoints that mimic firmware routes.
-- Best for: frontend work, API contract checks, UI regression checks before flashing.
-- Expected outcome: faster UI iteration with no board required for every change.
-
-5. `utils/build-tester/` (compile-time flag validation)
-- Goal: verify feature-flag combinations still compile as the project evolves.
-- Runs tiered build matrices, including expected-failure guard tests.
-- Best for: CI validation, pre-release sanity checks, refactor safety.
-- Expected outcome: early detection of broken flag combinations and guard regressions.
-
-6. `utils/boards-update/` (board compatibility finder data)
-- Goal: keep the board list used by the [board compatibility finder](https://esp32.entr0-pi.com/) (`docs/index.html`) in sync with PlatformIO.
-- Adds new boards from the PlatformIO espressif32 list, removes boards no longer on it, and refreshes their specs (MCU, frequency, flash, RAM, vendor) from the official manifests. Existing firmware mappings are kept.
-- Usage: `python utils/boards-update/enrich_boards.py <in.json> <out.json>` (set `GITHUB_TOKEN` to avoid API rate limits).
-- Best for: after a PlatformIO platform update, or when a new chip gets prebuilt binaries.
-- Expected outcome: an updated JSON to copy over `docs/boards.json`.
+| Folder | Use it to | Details |
+|---|---|---|
+| `utils/board/` | Switch the codebase to another ESP32 board in one command (`retarget.py`, reads `.env`) | [Step 1](#step-1-retargeting-to-another-board), [BOARD_PORTING.md](utils/board/BOARD_PORTING.md) |
+| `utils/mass-build/` | Build every supported chip and USB port type in Docker, in one run (`mass_build.py`) | [Step 3](#step-3-producing-the-release-binaries), [README](utils/mass-build/README.md) |
+| `utils/build-tester/` | Check that feature flag combinations still compile, including expected-failure guard tests (`build_Tester.py`) | [README](utils/build-tester/README.md) |
+| `utils/render-web/` | Serve `data/web/` locally with a mock API, to work on the Web UI without a board (`render_web.py`) | [README](utils/render-web/README.md) |
+| `utils/uploader/` | Write NVS values (GNSS UART, Wi-Fi, NTRIP) and the LittleFS image without rebuilding | [arduino-uploader](https://github.com/entr0-pi/arduino-uploader) |
+| `utils/desktop-app/` | Change settings on a running board over USB | [ESP32 NVS Key-Pair Manager](https://github.com/entr0-pi/arduino-nvs-desktop) |
+| `utils/ntrip/` | Find a nearby RTK2go base station | [RTK2go station finder](https://rtk2go.entr0-pi.com/) |
